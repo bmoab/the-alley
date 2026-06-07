@@ -55,7 +55,7 @@ export default function AboutPage() {
           </Link>
         </div>
         <div className="lg:col-span-5">
-          <Placeholder label="The Alley" seed={3} className="h-80 w-full" />
+          <Placeholder src={c.about_image} alt="The Alley" label="The Alley" seed={3} className="h-80 w-full" />
           <blockquote className="mt-6 border-l-2 border-brass pl-5 font-display text-xl italic text-ink">
             “Art is what we use to decorate space. Music is what we use to
             decorate time.”

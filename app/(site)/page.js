@@ -4,6 +4,7 @@ import { listUpcomingLiveEvents } from "@/lib/catalog.js";
 import { SPACES, formatDate, formatTime, spaceName } from "@/lib/constants.js";
 import Placeholder from "@/components/Placeholder.js";
 import { Bolt, Stripes } from "@/components/Motifs.js";
+import InstagramButton from "@/components/InstagramButton.js";
 
 export default function HomePage() {
   const c = getContent();
@@ -39,6 +40,8 @@ export default function HomePage() {
           <div className="relative lg:col-span-5">
             <Stripes className="absolute -left-4 top-6 bottom-6 z-10 text-paper/70" color="currentColor" />
             <Placeholder
+              src={c.home_hero_image}
+              alt="The Alley On Center"
               label="The Alley On Center"
               seed={1}
               className="h-64 w-full lg:h-full"
@@ -94,7 +97,7 @@ export default function HomePage() {
           <div className="mt-8 grid gap-6 md:grid-cols-2">
             {SPACES.map((s, i) => (
               <div key={s.id} className="card overflow-hidden">
-                <Placeholder label={s.name} seed={i + 2} className="h-44 w-full" rounded="rounded-none" />
+                <Placeholder src={c[`space_${s.id}_image`]} alt={s.name} label={s.name} seed={i + 2} className="h-44 w-full" rounded="rounded-none" />
                 <div className="p-6">
                   <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-brass-dark">
                     <span>{s.location}</span>
@@ -171,6 +174,22 @@ export default function HomePage() {
           </div>
         )}
       </section>
+
+      {/* Instagram */}
+      {c.social_instagram ? (
+        <section className="bg-paper-warm py-14">
+          <div className="container-content flex flex-col items-center text-center">
+            <p className="eyebrow">Follow along</p>
+            <h2 className="mt-2 font-display text-3xl font-semibold text-ink">
+              See what&apos;s happening at The Alley
+            </h2>
+            <p className="mt-2 max-w-md text-ink-muted">
+              Photos from events, classes, and life on Center Street.
+            </p>
+            <InstagramButton url={c.social_instagram} className="mt-6" />
+          </div>
+        </section>
+      ) : null}
     </main>
   );
 }

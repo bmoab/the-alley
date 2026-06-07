@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { SPACES, formatMoney } from "@/lib/constants.js";
-import { getSettings } from "@/lib/db.js";
+import { getSettings, getContent } from "@/lib/db.js";
 import Placeholder from "@/components/Placeholder.js";
 
 export const metadata = { title: "The Spaces" };
 
 export default function SpacesPage() {
   const s = getSettings();
+  const c = getContent();
   const rate = Number(s.standard_rate || 75);
   const minHours = Number(s.minimum_hours || 2);
   const deposit = Number(s.deposit || 150);
@@ -49,6 +50,8 @@ export default function SpacesPage() {
               className={`grid items-center gap-8 lg:grid-cols-2 ${i % 2 ? "lg:[direction:rtl]" : ""}`}
             >
               <Placeholder
+                src={c[`space_${space.id}_image`]}
+                alt={space.name}
                 label={space.name}
                 seed={i + 2}
                 className="h-64 w-full lg:h-80 [direction:ltr]"
