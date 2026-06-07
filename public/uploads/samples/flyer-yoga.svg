@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500" role="img" aria-label="Sunrise Vinyasa Yoga flyer">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#c79a4a"/>
+      <stop offset="1" stop-color="#9c4a2e"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="500" fill="url(#g)"/>
+  <circle cx="400" cy="170" r="70" fill="#f7f1e6" opacity="0.92"/>
+  <g fill="#f7f1e6">
+    <text x="400" y="300" text-anchor="middle" font-family="Georgia, serif" font-size="52" font-weight="700">Sunrise Vinyasa</text>
+    <text x="400" y="350" text-anchor="middle" font-family="Georgia, serif" font-size="40">Yoga</text>
+    <text x="400" y="410" text-anchor="middle" font-family="Archivo, Arial, sans-serif" font-size="22" opacity="0.9">Tuesdays · 8:00 AM · The Alley Loft</text>
+  </g>
+</svg>

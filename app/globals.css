@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-paper text-ink font-sans antialiased;
+}
+
+/* Display headings: geometric grotesque, tight tracking (matches live site). */
+h1, h2, h3, .font-display {
+  font-family: var(--font-display), Archivo, system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* Vertical "ALLEY" wordmark used in the left margin on large screens. */
+.wordmark-vertical {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  letter-spacing: 0.35em;
+}
+
+@layer components {
+  .container-content {
+    @apply mx-auto w-full max-w-content px-5 sm:px-8;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3
+           font-sans text-sm font-semibold tracking-wide transition
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60;
+  }
+  .btn-primary {
+    @apply btn bg-ink text-paper hover:bg-ink-soft;
+  }
+  .btn-accent {
+    @apply btn bg-brass text-white hover:bg-brass-dark;
+  }
+  .btn-ghost {
+    @apply btn border border-ink/20 bg-transparent text-ink hover:border-ink/50;
+  }
+
+  .label {
+    @apply mb-1 block text-sm font-semibold text-ink-soft;
+  }
+  .field {
+    @apply w-full rounded-lg border border-ink/15 bg-paper-card px-3.5 py-2.5 text-ink
+           placeholder:text-ink-muted/60 focus:border-brass focus:outline-none
+           focus:ring-2 focus:ring-brass/30;
+  }
+
+  .card {
+    @apply rounded-2xl border border-ink/10 bg-paper-card shadow-sm;
+  }
+
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.2em] text-brass-dark;
+  }
+}

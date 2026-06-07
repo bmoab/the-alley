@@ -1,0 +1,35 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/.next.bak-*/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+
+# env files
+.env
+.env.local
+
+# database (prototype SQLite file — do not commit)
+/data/*.db
+/data/*.db-journal
+/data/*.db-wal
+/data/*.db-shm
+
+# uploads (user-generated; keep folder, ignore contents except samples)
+/public/uploads/*
+!/public/uploads/.gitkeep
+!/public/uploads/samples/
+
+# claude local settings
+.claude/settings.local.json
