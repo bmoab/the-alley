@@ -43,28 +43,26 @@ SMTP_PASS=<Google App Password>
 EMAIL_FROM=The Alley On Center <thealleyoncenter@gmail.com>
 OWNER_EMAIL=thealleyoncenter@gmail.com
 
+UPLOAD_DIR=/data/uploads
 CRON_SECRET=<random string>
 ```
 
 ---
 
-## Persisting uploads (do at deploy time)
+## Persisting uploads — DONE (set the env var)
 
-`DATABASE_PATH=/data/alley.db` puts the DB on the volume. Uploaded files,
-however, currently write to `public/uploads` (see `lib/uploads.js`), which is
-**not** on the volume. Before going live we need uploads on the same volume.
+Both the DB and uploads live on the single `/data` volume:
+- `DATABASE_PATH=/data/alley.db`
+- `UPLOAD_DIR=/data/uploads`
 
-Recommended approach (single Railway volume at `/data`):
-1. Store uploads under `/data/uploads` via a new `UPLOAD_DIR` env read in
-   `lib/uploads.js`.
-2. Serve them with a small streaming route at `app/uploads/[...path]/route.js`
-   (since files outside `public/` aren't served automatically).
-3. Keep the committed sample `public/uploads/rental-agreement.pdf` working by
-   having the route fall back to `public/uploads` when a file isn't on the volume
-   (or copy it onto the volume on first boot).
+On boot, `scripts/prestart.mjs` (wired into `npm start`) ensures `/data/uploads`
+exists, copies the committed sample files (e.g. `rental-agreement.pdf`) onto the
+volume once, and symlinks `public/uploads → /data/uploads` so Next keeps serving
+`/uploads/*` from the persistent volume. It's idempotent and a **no-op locally**
+(when `UPLOAD_DIR` is unset). Tested in a sandbox: first boot, reboot, and dev
+mode all behave correctly.
 
-This is a ~1 hour change; it's deferred until the Railway volume exists so it can
-be tested against the real mount.
+So nothing more to build here — just set `UPLOAD_DIR=/data/uploads` in Railway.
 
 ---
 
