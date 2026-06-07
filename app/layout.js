@@ -1,16 +1,20 @@
 import "./globals.css";
-import { Space_Grotesk, Archivo } from "next/font/google";
+import { Josefin_Sans } from "next/font/google";
 
-// Display: a geometric grotesque matching the live site's headings/wordmark.
-const display = Space_Grotesk({
+// Brand typeface (TheAlley_BrandGuide.pdf): Josefin Sans.
+// Display = Semibold/Bold; body = Light/Regular. Both exposed as CSS variables
+// so the existing --font-display / --font-archivo references keep working.
+const display = Josefin_Sans({
   subsets: ["latin"],
   display: "swap",
+  weight: ["600", "700"],
   variable: "--font-display",
 });
 
-const archivo = Archivo({
+const archivo = Josefin_Sans({
   subsets: ["latin"],
   display: "swap",
+  weight: ["300", "400"],
   variable: "--font-archivo",
 });
 

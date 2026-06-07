@@ -7,30 +7,37 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Brand palette (matched to alleyoncenter.com): soft sage-green paper,
-        // near-black charcoal ink, muted olive accent. Token names kept stable
-        // so existing class usages (text-brass-dark, bg-paper, etc.) still work.
+        // Official brand palette (TheAlley_BrandGuide.pdf):
+        //   Primary  — Charcoal      #333333  (~47.5%)
+        //   Secondary— White         #FFFFFF  (~47.5%)
+        //   Tertiary — Verde Chiaro  #E6EBDB  (~5%, accent only — light green
+        //              that reads as a FILL, not as text/links)
+        // Token names kept stable (ink/paper/brass/rust) so existing class
+        // usages keep working: ink=charcoal, paper=white, brass=verde chiaro.
         ink: {
-          DEFAULT: "#1a1a16",
-          soft: "#272722",
-          muted: "#585c4d",
+          DEFAULT: "#333333", // charcoal — primary
+          soft: "#454545", // slightly lighter charcoal (hovers)
+          muted: "#6f6f6a", // muted gray for secondary text on white
         },
         paper: {
-          DEFAULT: "#dfe4d3", // sage page background
-          warm: "#d3dac3", // slightly deeper sage for alternating sections
-          card: "#f2f4ea", // near-white sage tint for cards
+          DEFAULT: "#fafaf9", // near-white page background
+          warm: "#f0f2ea", // faint verde-tinted neutral for alternating bands
+          card: "#ffffff", // white cards
         },
-        // "brass" kept as the accent token name, recolored to a muted olive so
-        // accents read as on-theme rather than gold.
+        // "brass" token = Verde Chiaro accent. Light green: use as a fill
+        // (badges, accent buttons, highlights). `dark` maps to charcoal so any
+        // accent TEXT/links stay readable and on-brand (the brand has one green).
         brass: {
-          DEFAULT: "#6f7553",
-          light: "#8a8f6d",
-          dark: "#4d5238",
+          DEFAULT: "#e6ebdb", // verde chiaro fill
+          light: "#e6ebdb", // verde chiaro (legible on charcoal backgrounds)
+          dark: "#333333", // charcoal (for accent text/links/eyebrows on white)
         },
+        // Functional-only alert color (errors / destructive). Not a brand color.
         rust: "#9c4a2e",
       },
       fontFamily: {
-        display: ["var(--font-display)", "Archivo", "system-ui", "sans-serif"],
+        // Brand typeface: Josefin Sans (Semibold display, Light/Regular body).
+        display: ["var(--font-display)", "system-ui", "sans-serif"],
         sans: ["var(--font-archivo)", "system-ui", "sans-serif"],
       },
       maxWidth: {

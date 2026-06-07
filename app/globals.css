@@ -14,9 +14,9 @@ body {
   @apply bg-paper text-ink font-sans antialiased;
 }
 
-/* Display headings: geometric grotesque, tight tracking (matches live site). */
+/* Display headings: Josefin Sans (brand display face). */
 h1, h2, h3, .font-display {
-  font-family: var(--font-display), Archivo, system-ui, sans-serif;
+  font-family: var(--font-display), system-ui, sans-serif;
   letter-spacing: -0.01em;
 }
 
@@ -41,8 +41,10 @@ h1, h2, h3, .font-display {
   .btn-primary {
     @apply btn bg-ink text-paper hover:bg-ink-soft;
   }
+  /* Accent CTA: verde chiaro fill with charcoal text (brand-correct; white
+     text on the light green would be unreadable). */
   .btn-accent {
-    @apply btn bg-brass text-white hover:bg-brass-dark;
+    @apply btn bg-brass text-ink hover:opacity-90;
   }
   .btn-ghost {
     @apply btn border border-ink/20 bg-transparent text-ink hover:border-ink/50;

@@ -24,7 +24,7 @@ export default function InstagramButton({ url, className = "" }) {
       href={url}
       target="_blank"
       rel="noreferrer"
-      className={`inline-flex items-center gap-2.5 rounded-full bg-gradient-to-br from-brass to-rust px-6 py-3 font-semibold text-paper transition hover:opacity-90 ${className}`}
+      className={`inline-flex items-center gap-2.5 rounded-full bg-ink px-6 py-3 font-semibold text-paper transition hover:bg-ink-soft ${className}`}
     >
       <InstagramGlyph />
       Follow us on Instagram
