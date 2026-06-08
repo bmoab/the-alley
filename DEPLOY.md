@@ -35,13 +35,13 @@ SQUARE_ACCESS_TOKEN=<prod token>
 SQUARE_LOCATION_ID=<location id>
 SQUARE_ENVIRONMENT=production
 
-# Email (Gmail SMTP)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=thealleyoncenter@gmail.com
-SMTP_PASS=<Google App Password>
-EMAIL_FROM=The Alley On Center <thealleyoncenter@gmail.com>
+# Email — Resend (HTTPS API). Gmail SMTP does NOT work on Railway: Railway
+# blocks outbound SMTP ports (25/465/587), so SMTP connections time out. Use an
+# HTTPS email API instead. The app prefers Resend whenever RESEND_API_KEY is set.
+RESEND_API_KEY=<re_... from resend.com>
+EMAIL_FROM=The Alley On Center <hello@alleyoncenter.com>   # domain verified in Resend
 OWNER_EMAIL=thealleyoncenter@gmail.com
+# (SMTP_* vars are ignored when RESEND_API_KEY is present.)
 
 UPLOAD_DIR=/data/uploads
 CRON_SECRET=<random string>
