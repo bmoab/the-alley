@@ -19,6 +19,9 @@ npm-debug.log*
 # env files
 .env
 .env.local
+.env.*.local
+# holding file for production/Railway secrets (never commit)
+.deploy.env
 
 # database (prototype SQLite file — do not commit)
 /data/*.db
