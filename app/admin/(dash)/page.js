@@ -1,9 +1,34 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { listBookings } from "@/lib/bookings.js";
 import { listLiveEvents } from "@/lib/catalog.js";
+import { sendEmail } from "@/lib/email.js";
 import { BOOKING_STATUS } from "@/lib/constants.js";
 
 export const metadata = { title: "Dashboard" };
+
+// TEMP (pre-launch email check): sends a test email to the owner address to
+// confirm Gmail SMTP works from the live server. Remove this action + the
+// "Email check" card below once email is verified in production.
+async function sendTestEmail() {
+  "use server";
+  const to = process.env.OWNER_EMAIL || "thealleyoncenter@gmail.com";
+  let mode = "console";
+  let ok = false;
+  try {
+    const res = await sendEmail({
+      to,
+      subject: "Test email — The Alley On Center",
+      html: `<p>This is a test email from your website's admin dashboard.</p>
+             <p>If you're reading this in your inbox, email sending works. 🎉</p>`,
+    });
+    mode = res.mode;
+    ok = res.ok;
+  } catch (err) {
+    console.error("[admin] test email error:", err.message);
+  }
+  redirect(`/admin?test=${ok ? "ok" : "fail"}&mode=${mode}`);
+}
 
 function StatCard({ label, value, href, hint }) {
   return (
@@ -15,11 +40,13 @@ function StatCard({ label, value, href, hint }) {
   );
 }
 
-export default function AdminDashboard() {
+export default function AdminDashboard({ searchParams }) {
   const pending = listBookings({ status: BOOKING_STATUS.PENDING });
   const held = listBookings({ status: BOOKING_STATUS.HELD });
   const confirmed = listBookings({ status: BOOKING_STATUS.CONFIRMED });
   const liveEvents = listLiveEvents();
+  const test = searchParams?.test;
+  const mode = searchParams?.mode;
 
   return (
     <div>
@@ -56,40 +83,37 @@ export default function AdminDashboard() {
         />
       </div>
 
+      {/* TEMP: pre-launch email check. Remove this card + sendTestEmail action
+          once email delivery is confirmed in production. */}
       <div className="mt-8 card p-6">
         <h2 className="font-display text-xl font-semibold text-ink">
-          Build status
+          Email check
         </h2>
         <p className="mt-1 text-sm text-ink-muted">
-          This prototype is being built in priority order. Sections below come
-          online as we go.
+          Send a test email to{" "}
+          <strong>{process.env.OWNER_EMAIL || "thealleyoncenter@gmail.com"}</strong>{" "}
+          to confirm email sending works. (Temporary — we&apos;ll remove this
+          after launch.)
         </p>
-        <ul className="mt-4 grid gap-2 sm:grid-cols-2">
-          {[
-            ["Admin login", true],
-            ["Public website + content editing", false],
-            ["Booking request flow", false],
-            ["Requests: price-adjust & approve", false],
-            ["Square invoices (sandbox)", false],
-            ["Email templates", false],
-            ["Public events system", false],
-            ["Deposit refund tracking", false],
-          ].map(([label, done]) => (
-            <li
-              key={label}
-              className="flex items-center gap-2 text-sm text-ink-soft"
-            >
-              <span
-                className={
-                  done
-                    ? "inline-block h-2 w-2 rounded-full bg-brass"
-                    : "inline-block h-2 w-2 rounded-full bg-ink/20"
-                }
-              />
-              {label}
-            </li>
-          ))}
-        </ul>
+
+        {test === "ok" ? (
+          <div className="mt-4 rounded-lg border border-brass/40 bg-brass/20 px-4 py-2 text-sm text-ink">
+            {mode === "smtp" || mode === "resend"
+              ? `Sent via ${mode}. Check the inbox — it should arrive shortly.`
+              : `The app reported success but used "${mode}" mode (no live email provider). Check the server config.`}
+          </div>
+        ) : null}
+        {test === "fail" ? (
+          <div className="mt-4 rounded-lg border border-rust/30 bg-rust/10 px-4 py-2 text-sm text-rust">
+            Sending failed (mode: {mode}). Check the SMTP settings / server logs.
+          </div>
+        ) : null}
+
+        <form action={sendTestEmail} className="mt-4">
+          <button type="submit" className="btn-primary">
+            Send test email
+          </button>
+        </form>
       </div>
     </div>
   );
