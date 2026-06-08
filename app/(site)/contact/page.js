@@ -1,32 +1,16 @@
-import { redirect } from "next/navigation";
-import { db, getContent } from "@/lib/db.js";
+import { getContent } from "@/lib/db.js";
 
 export const metadata = { title: "Contact" };
 
-async function submitContact(formData) {
-  "use server";
-  const name = (formData.get("name") || "").toString().trim();
-  const email = (formData.get("email") || "").toString().trim();
-  const message = (formData.get("message") || "").toString().trim();
-  if (!name || !email || !message) {
-    redirect("/contact?error=1");
-  }
-  db.prepare(
-    "INSERT INTO contact_messages (name, email, message) VALUES (?, ?, ?)"
-  ).run(name, email, message);
-
-  // Email the owner. (Wired to a real provider in build priority #6; for now
-  // this is a console-logged stub so the flow is complete.)
-  console.log(
-    `[contact] New message from ${name} <${email}>:\n${message}`
-  );
-  redirect("/contact?sent=1");
-}
-
-export default function ContactPage({ searchParams }) {
+export default function ContactPage() {
   const c = getContent();
-  const sent = searchParams?.sent;
-  const error = searchParams?.error;
+  const address = c.contact_address || "19 W Center St., Logan, UT 84321";
+  const mapSrc = `https://maps.google.com/maps?q=${encodeURIComponent(
+    address
+  )}&z=16&output=embed`;
+  const directionsHref = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+    address
+  )}`;
 
   return (
     <main className="container-content py-14">
@@ -35,56 +19,65 @@ export default function ContactPage({ searchParams }) {
           <p className="eyebrow">Say hello</p>
           <h1 className="mt-2 font-display text-4xl font-semibold text-ink">Contact</h1>
           <p className="mt-3 text-lg text-ink-muted">
-            Questions about a booking, the building, or becoming a tenant?
-            We&apos;d love to hear from you.
+            Questions about a booking, the building, or becoming a tenant? Send us
+            an email or stop by — we&apos;d love to hear from you.
           </p>
 
-          <dl className="mt-8 space-y-4 text-ink-soft">
+          <dl className="mt-8 space-y-5 text-ink-soft">
             <div>
               <dt className="text-xs font-semibold uppercase tracking-wider text-brass-dark">Email</dt>
-              <dd><a className="hover:underline" href={`mailto:${c.contact_email}`}>{c.contact_email}</a></dd>
+              <dd className="mt-1 text-lg">
+                <a className="font-medium hover:underline" href={`mailto:${c.contact_email}`}>
+                  {c.contact_email}
+                </a>
+              </dd>
             </div>
             <div>
               <dt className="text-xs font-semibold uppercase tracking-wider text-brass-dark">Phone</dt>
-              <dd><a className="hover:underline" href={`tel:${c.contact_phone}`}>{c.contact_phone}</a></dd>
+              <dd className="mt-1">
+                <a className="hover:underline" href={`tel:${c.contact_phone}`}>{c.contact_phone}</a>
+              </dd>
             </div>
             <div>
               <dt className="text-xs font-semibold uppercase tracking-wider text-brass-dark">Find us</dt>
-              <dd>{c.contact_address}</dd>
+              <dd className="mt-1">{address}</dd>
+              <dd className="mt-2">
+                <a
+                  href={directionsHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm font-semibold text-brass-dark hover:underline"
+                >
+                  Get directions →
+                </a>
+              </dd>
             </div>
+            {c.social_instagram || c.social_facebook ? (
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wider text-brass-dark">Follow</dt>
+                <dd className="mt-1 flex gap-4">
+                  {c.social_instagram ? (
+                    <a className="hover:underline" href={c.social_instagram} target="_blank" rel="noreferrer">Instagram</a>
+                  ) : null}
+                  {c.social_facebook ? (
+                    <a className="hover:underline" href={c.social_facebook} target="_blank" rel="noreferrer">Facebook</a>
+                  ) : null}
+                </dd>
+              </div>
+            ) : null}
           </dl>
         </div>
 
         <div className="lg:col-span-7">
-          <div className="card p-7">
-            {sent ? (
-              <div className="rounded-lg border border-brass/30 bg-brass/10 px-4 py-3 text-sm text-brass-dark">
-                Thank you — your message is on its way. We&apos;ll be in touch soon.
-              </div>
-            ) : null}
-            {error ? (
-              <div className="mb-4 rounded-lg border border-rust/30 bg-rust/10 px-4 py-3 text-sm text-rust">
-                Please fill in your name, email, and a message.
-              </div>
-            ) : null}
-
-            <form action={submitContact} className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="label" htmlFor="name">Your name</label>
-                  <input id="name" name="name" required className="field" />
-                </div>
-                <div>
-                  <label className="label" htmlFor="email">Email</label>
-                  <input id="email" name="email" type="email" required className="field" />
-                </div>
-              </div>
-              <div>
-                <label className="label" htmlFor="message">Message</label>
-                <textarea id="message" name="message" rows={6} required className="field" />
-              </div>
-              <button type="submit" className="btn-primary">Send message</button>
-            </form>
+          <div className="card overflow-hidden">
+            <iframe
+              title={`Map to ${address}`}
+              src={mapSrc}
+              className="h-[420px] w-full border-0 lg:h-full"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              allowFullScreen
+            />
           </div>
         </div>
       </div>
