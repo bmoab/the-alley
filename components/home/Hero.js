@@ -9,7 +9,10 @@ import { Stripes, Bolt, Arrow } from "@/components/site/Primitives.js";
  */
 export default function Hero({ eyebrow, rotate = ["MUSIC", "ART", "EVENTS", "COMMUNITY"], lede }) {
   const [word, i] = useRotator(rotate, 2400);
-  const [wordRef, wordSize] = useFitWord(word, { max: 172, min: 52 });
+  // Size every word to the LONGEST one so the line keeps a constant height and
+  // width — the page never jumps as the word cycles.
+  const longest = rotate.reduce((a, b) => (b.length > a.length ? b : a), rotate[0] || "");
+  const [wordRef, wordSize] = useFitWord(longest, { max: 172, min: 52 });
 
   return (
     <header className="hero-b" id="top">
@@ -20,7 +23,12 @@ export default function Hero({ eyebrow, rotate = ["MUSIC", "ART", "EVENTS", "COM
         <p className="eyebrow hero-b-eyebrow">{eyebrow}</p>
         <p className="hero-b-kicker">The Alley is a home for</p>
         <div className="hero-b-rot">
-          <span ref={wordRef} key={i} className="hero-b-word" style={{ fontSize: wordSize }}>
+          {/* Hidden sizer reserves constant space (the longest word). */}
+          <span ref={wordRef} className="hero-b-word hero-b-sizer" style={{ fontSize: wordSize }} aria-hidden="true">
+            {longest}
+          </span>
+          {/* Visible word, overlaid — same size, so no layout shift. */}
+          <span key={i} className="hero-b-word hero-b-current" style={{ fontSize: wordSize }}>
             {word}
           </span>
         </div>

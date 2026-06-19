@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { NAV } from "@/components/site/nav.js";
 import { useScrolled, useBodyScrollLock } from "@/components/hooks.js";
 
@@ -9,7 +10,9 @@ export default function SiteHeader() {
   const pathname = usePathname();
   const scrolled = useScrolled(40);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   useBodyScrollLock(menuOpen);
+  useEffect(() => setMounted(true), []);
 
   const isActive = (href) => pathname === href || pathname.startsWith(href + "/");
 
@@ -50,7 +53,8 @@ export default function SiteHeader() {
         </div>
       </div>
 
-      {menuOpen ? (
+      {menuOpen && mounted
+        ? createPortal(
         <div className="sh-sheet" onClick={() => setMenuOpen(false)}>
           <nav className="sh-sheet-nav" onClick={(e) => e.stopPropagation()} aria-label="Mobile">
             <button className="sh-sheet-x" aria-label="Close menu" onClick={() => setMenuOpen(false)}>
@@ -76,8 +80,10 @@ export default function SiteHeader() {
               Request to Book
             </Link>
           </nav>
-        </div>
-      ) : null}
+        </div>,
+            document.body
+          )
+        : null}
     </header>
   );
 }
