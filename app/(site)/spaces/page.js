@@ -1,101 +1,75 @@
-import Link from "next/link";
-import { SPACES, formatMoney } from "@/lib/constants.js";
+import { SPACES } from "@/lib/constants.js";
 import { getSettings, getContent } from "@/lib/db.js";
-import Placeholder from "@/components/Placeholder.js";
+import PageHero from "@/components/site/PageHero.js";
+import SpaceGallery from "@/components/site/SpaceGallery.js";
+import RequestButton from "@/components/site/RequestButton.js";
+import { Arrow } from "@/components/site/Primitives.js";
 
-export const metadata = { title: "The Spaces" };
+export const metadata = { title: "Spaces — Request to Book" };
 
 export default function SpacesPage() {
   const s = getSettings();
   const c = getContent();
-  const rate = Number(s.standard_rate || 75);
-  const minHours = Number(s.minimum_hours || 2);
-  const deposit = Number(s.deposit || 150);
+  const rate = Number(s.standard_rate) || 75;
+  const minHours = Number(s.minimum_hours) || 2;
+  const deposit = Number(s.deposit) || 150;
 
   return (
-    <main>
-      <section className="container-content py-14">
-        <p className="eyebrow">Rent a space</p>
-        <h1 className="mt-2 font-display text-4xl font-semibold text-ink">The Loft &amp; more</h1>
-        <p className="mt-3 max-w-2xl text-lg text-ink-muted">
-          You bring the idea — we&apos;ll help with the space. From workshops and
-          meetings to markets and celebrations, The Alley gives you a warm,
-          characterful room where ideas turn into experiences.
-        </p>
+    <main className="ipage">
+      <PageHero
+        eyebrow="Rent a space"
+        title="The Loft & more"
+        lede="You bring the idea — we'll help with the space. From workshops and meetings to markets and celebrations, The Alley gives you a warm, characterful room where ideas turn into experiences."
+      />
 
-        {/* Rate banner */}
-        <div className="mt-8 card flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap gap-x-10 gap-y-3">
-            <div>
-              <div className="text-2xl font-semibold text-ink">{formatMoney(rate)}<span className="text-base font-normal text-ink-muted">/hour</span></div>
-              <div className="text-xs uppercase tracking-wider text-ink-muted">Both spaces</div>
-            </div>
-            <div>
-              <div className="text-2xl font-semibold text-ink">{minHours} hours</div>
-              <div className="text-xs uppercase tracking-wider text-ink-muted">Minimum booking</div>
-            </div>
-            <div>
-              <div className="text-2xl font-semibold text-ink">{formatMoney(deposit)}</div>
-              <div className="text-xs uppercase tracking-wider text-ink-muted">Refundable deposit</div>
-            </div>
+      <section className="wrap">
+        <div className="rate-banner reveal">
+          <div className="rate-stats">
+            <div className="rate-stat"><div className="n">${rate}<small>/hour</small></div><div className="k">Per space</div></div>
+            <div className="rate-stat"><div className="n">{minHours} hours</div><div className="k">Minimum booking</div></div>
+            <div className="rate-stat"><div className="n">${deposit}</div><div className="k">Refundable deposit</div></div>
           </div>
-          <Link href="/book" className="btn-accent shrink-0">Request to Book</Link>
+          <a className="rulelink" href="/uploads/rental-agreement.pdf" target="_blank" rel="noreferrer">
+            Rental agreement <Arrow />
+          </a>
         </div>
 
-        {/* The two spaces */}
-        <div className="mt-12 space-y-12">
-          {SPACES.map((space, i) => (
-            <div
-              key={space.id}
-              className={`grid items-center gap-8 lg:grid-cols-2 ${i % 2 ? "lg:[direction:rtl]" : ""}`}
-            >
-              <Placeholder
-                src={c[`space_${space.id}_image`]}
-                alt={space.name}
-                label={space.name}
-                seed={i + 2}
-                className="h-64 w-full lg:h-80 [direction:ltr]"
-              />
-              <div className="[direction:ltr]">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-brass-dark">
-                  <span>{space.location}</span>
-                  <span className="text-ink/30">·</span>
-                  <span>{space.capacity}</span>
+        <div style={{ marginTop: "clamp(44px,5vw,76px)" }}>
+          {SPACES.map((r, i) => (
+            <div key={r.id} id={r.id} className={"space-row reveal" + (i % 2 ? " is-rev" : "")}>
+              <SpaceGallery image={c[`space_${r.id}_image`] || null} gallery={r.gallery} lead={i === 0 ? "verde" : "soft"} />
+              <div>
+                <div className="space-meta">
+                  <span>{r.location}</span>
+                  <span className="sep">·</span>
+                  <span>{r.capacity}</span>
                 </div>
-                <h2 className="mt-2 font-display text-3xl font-semibold text-ink">
-                  {space.name}
-                </h2>
-                <p className="mt-3 text-ink-muted">{space.blurb}</p>
-                <Link href="/book" className="btn-primary mt-5">
-                  Request {space.name}
-                </Link>
+                <h2 className="space-name">{r.name}</h2>
+                <p className="space-blurb">{r.blurb}</p>
+                <ul className="space-features">
+                  {r.features.map((f) => <li key={f}>{f}</li>)}
+                </ul>
+                <RequestButton room={r.id}>
+                  Request {r.name} <span className="arrow" style={{ marginLeft: 4 }}>→</span>
+                </RequestButton>
               </div>
             </div>
           ))}
         </div>
-      </section>
 
-      {/* Rental agreement */}
-      <section className="bg-paper-warm py-14">
-        <div className="container-content flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
-          <div>
-            <h2 className="font-display text-2xl font-semibold text-ink">
-              Rental agreement
-            </h2>
-            <p className="mt-2 max-w-lg text-ink-muted">
-              Please review our rental terms before booking. You&apos;ll be asked
-              to agree to them when you submit a request, and we&apos;ll attach a
-              copy to your approval email.
-            </p>
+        <div className="iband iband--verde" style={{ marginTop: "clamp(48px,6vw,84px)", padding: "clamp(26px,3vw,40px)", border: "1px solid var(--line-strong)" }}>
+          <div className="agreement">
+            <div>
+              <h2>Before you book</h2>
+              <p style={{ color: "var(--ink-soft)" }}>
+                Every booking includes a refundable ${deposit} cleaning deposit and a quick rental agreement.
+                We&apos;ll review your request and email you within a day to confirm — no charge happens until then.
+              </p>
+            </div>
+            <a className="btn btn--ghost" href="/uploads/rental-agreement.pdf" target="_blank" rel="noreferrer">
+              Read the agreement
+            </a>
           </div>
-          <a
-            href="/uploads/rental-agreement.pdf"
-            target="_blank"
-            rel="noreferrer"
-            className="btn-ghost shrink-0"
-          >
-            ↓ View the agreement (PDF)
-          </a>
         </div>
       </section>
     </main>

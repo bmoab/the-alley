@@ -9,6 +9,7 @@ import {
   ensureDirectoryToken,
 } from "@/lib/catalog.js";
 import { emailTenantInvite } from "@/lib/email.js";
+import { SUITE_CODES } from "@/lib/building-map.js";
 
 export const metadata = { title: "Directory" };
 
@@ -28,6 +29,8 @@ async function addEntry(formData) {
     photo_path: (formData.get("photo_path") || "").toString().trim(),
     contact_link: (formData.get("contact_link") || "").toString().trim(),
     contact_email: (formData.get("contact_email") || "").toString().trim(),
+    suite: (formData.get("suite") || "").toString().trim() || null,
+    floor: (formData.get("floor") || "").toString().trim() || null,
     sort_order: formData.get("sort_order"),
   });
   refresh();
@@ -44,6 +47,8 @@ async function saveEntry(formData) {
     photo_path: (formData.get("photo_path") || "").toString().trim(),
     contact_link: (formData.get("contact_link") || "").toString().trim(),
     contact_email: (formData.get("contact_email") || "").toString().trim(),
+    suite: (formData.get("suite") || "").toString().trim() || null,
+    floor: (formData.get("floor") || "").toString().trim() || null,
     sort_order: formData.get("sort_order"),
   });
   refresh();
@@ -101,12 +106,31 @@ function EntryFields({ entry = {} }) {
         <label className="label">Description</label>
         <textarea name="description" rows={2} defaultValue={entry.description || ""} className="field" />
       </div>
-      <div className="mt-3 grid gap-3 sm:grid-cols-3">
-        <div className="sm:col-span-1">
+      <div className="mt-3 grid gap-3 sm:grid-cols-4">
+        <div>
+          <label className="label">Floor</label>
+          <select name="floor" defaultValue={entry.floor || ""} className="field">
+            <option value="">—</option>
+            <option value="lower">Lower</option>
+            <option value="upper">Upper</option>
+          </select>
+        </div>
+        <div>
+          <label className="label">Suite (floor-map)</label>
+          <select name="suite" defaultValue={entry.suite || ""} className="field">
+            <option value="">— none —</option>
+            {SUITE_CODES.map((s) => (
+              <option key={s.code} value={s.code}>
+                {s.code === "gallery" ? "Gallery (open)" : `Suite ${s.code}`} · {s.floor}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
           <label className="label">Sort order</label>
           <input name="sort_order" type="number" defaultValue={entry.sort_order ?? 0} className="field" />
         </div>
-        <div className="sm:col-span-2">
+        <div>
           <label className="label">Contact / social link</label>
           <input name="contact_link" defaultValue={entry.contact_link || ""} placeholder="https://instagram.com/…" className="field" />
         </div>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getEvent } from "@/lib/catalog.js";
 import { formatDate, formatTime, spaceName } from "@/lib/constants.js";
-import Placeholder from "@/components/Placeholder.js";
+import PhotoSlot from "@/components/site/PhotoSlot.js";
 
 export function generateMetadata({ params }) {
   const e = getEvent(params.id);
@@ -21,74 +21,59 @@ export default function EventDetailPage({ params }) {
   }
 
   return (
-    <main className="container-content py-14">
-      <Link href="/events" className="text-sm font-semibold text-brass-dark hover:underline">
+    <main className="ipage wrap" style={{ paddingTop: "clamp(110px,14vw,150px)" }}>
+      <Link href="/calendar" className="rulelink" style={{ flexDirection: "row", alignItems: "center" }}>
         ← All events
       </Link>
 
-      <div className="mt-6 grid gap-10 lg:grid-cols-12">
-        <div className="lg:col-span-7">
-          <Placeholder src={e.photo_path} label={e.title} seed={e.id} className="h-72 w-full sm:h-96" />
-        </div>
-
-        <div className="lg:col-span-5">
-          <div className="text-xs font-semibold uppercase tracking-wider text-brass-dark">
-            {formatDate(e.date)} {e.time ? `· ${formatTime(e.time)}` : ""}
-          </div>
-          <h1 className="mt-2 font-display text-3xl font-semibold text-ink">{e.title}</h1>
-          <p className="mt-2 text-ink-muted">
+      <div style={{ marginTop: 28, display: "grid", gap: "clamp(24px,4vw,48px)", gridTemplateColumns: "minmax(0,1.1fr) minmax(0,.9fr)" }} className="ev-detail-grid">
+        <PhotoSlot src={e.photo_path || null} tag={e.kind || e.title} variant="verde" style={{ minHeight: 320 }} />
+        <div>
+          <p className="eyebrow" style={{ color: "var(--verde-deep)" }}>
+            {formatDate(e.date)} {e.time ? `· ${formatTime(e.time)}` : ""}{e.end_label ? ` · ${e.end_label}` : ""}
+          </p>
+          <h1 className="space-name" style={{ marginTop: 8 }}>{e.title}</h1>
+          <p className="mono" style={{ color: "var(--ink-muted)", fontSize: 12, letterSpacing: ".06em" }}>
             {e.host_name ? `Hosted by ${e.host_name}` : "Hosted by The Alley"}
             {e.space ? ` · ${spaceName(e.space)}` : ""}
           </p>
 
-          <div className="mt-5 flex flex-wrap gap-x-8 gap-y-2 text-sm">
-            {e.tickets ? (
-              <div><span className="font-semibold text-ink">{e.tickets}</span> <span className="text-ink-muted">spots available</span></div>
-            ) : null}
-            {e.price ? (
-              <div><span className="font-semibold text-ink">{e.price}</span> <span className="text-ink-muted">per spot</span></div>
-            ) : null}
+          <div style={{ marginTop: 16, display: "flex", flexWrap: "wrap", gap: "8px 28px" }}>
+            {e.tickets ? <div><b>{e.tickets}</b> <span style={{ color: "var(--ink-muted)" }}>spots</span></div> : null}
+            {e.price ? <div><b>{e.price}</b> <span style={{ color: "var(--ink-muted)" }}>per spot</span></div> : null}
           </div>
 
-          {/* Host payment instructions */}
-          {(e.payment_instructions || e.payment_link) ? (
-            <div className="mt-6 card p-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-brass-dark">
-                How to reserve your spot
-              </h2>
-              {e.payment_instructions ? (
-                <p className="mt-2 text-sm text-ink-soft">{e.payment_instructions}</p>
-              ) : null}
+          {e.payment_instructions || e.payment_link ? (
+            <div className="card" style={{ marginTop: 22, padding: 20 }}>
+              <p className="eyebrow" style={{ color: "var(--verde-deep)" }}>How to reserve your spot</p>
+              {e.payment_instructions ? <p style={{ marginTop: 8, color: "var(--ink-soft)", fontWeight: 300 }}>{e.payment_instructions}</p> : null}
               {e.payment_link ? (
-                <a href={e.payment_link} target="_blank" rel="noreferrer" className="btn-accent mt-3">
+                <a href={e.payment_link} target="_blank" rel="noreferrer" className="btn btn--solid" style={{ marginTop: 14 }}>
                   Pay the host →
                 </a>
               ) : null}
-              <p className="mt-3 text-xs text-ink-muted">
-                The Alley provides this listing as a courtesy — payment goes
-                directly to the host.
+              <p className="mono" style={{ marginTop: 12, fontSize: 11, color: "var(--ink-muted)" }}>
+                The Alley provides this listing as a courtesy — payment goes directly to the host.
               </p>
             </div>
           ) : null}
         </div>
       </div>
 
-      {/* Description */}
       {e.description ? (
-        <div className="mt-10 max-w-3xl">
-          <h2 className="font-display text-xl font-semibold text-ink">About this event</h2>
-          <div className="mt-3 space-y-4 whitespace-pre-line text-ink-soft">{e.description}</div>
+        <div style={{ marginTop: 40, maxWidth: "60ch" }}>
+          <h2 className="space-name" style={{ fontSize: "clamp(22px,2.4vw,30px)" }}>About this event</h2>
+          <div style={{ marginTop: 12, whiteSpace: "pre-line", color: "var(--ink-soft)", fontWeight: 300, lineHeight: 1.7 }}>{e.description}</div>
         </div>
       ) : null}
 
-      {/* PDFs */}
-      {pdfs.length > 0 ? (
-        <div className="mt-8 max-w-3xl">
-          <h2 className="font-display text-xl font-semibold text-ink">Downloads</h2>
-          <ul className="mt-3 space-y-2">
+      {pdfs.length ? (
+        <div style={{ marginTop: 32, maxWidth: "60ch" }}>
+          <h2 className="space-name" style={{ fontSize: "clamp(22px,2.4vw,30px)" }}>Downloads</h2>
+          <ul style={{ marginTop: 12, listStyle: "none", padding: 0, display: "grid", gap: 8 }}>
             {pdfs.map((p, i) => (
               <li key={i}>
-                <a href={p} target="_blank" rel="noreferrer" className="text-sm font-semibold text-brass-dark hover:underline">
+                <a href={p} target="_blank" rel="noreferrer" className="rulelink" style={{ flexDirection: "row" }}>
                   ↓ {p.split("/").pop()}
                 </a>
               </li>

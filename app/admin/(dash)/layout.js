@@ -16,6 +16,7 @@ const NAV = [
   { href: "/admin/events", label: "Public Events" },
   { href: "/admin/deposits", label: "Deposits" },
   { href: "/admin/directory", label: "Directory" },
+  { href: "/admin/exhibitors", label: "Exhibitors" },
   { href: "/admin/gallery", label: "Gallery" },
   { href: "/admin/content", label: "Site Content" },
   { href: "/admin/settings", label: "Settings" },
@@ -26,7 +27,7 @@ export default async function AdminLayout({ children }) {
   if (!session) redirect("/admin/login");
 
   return (
-    <div className="min-h-screen bg-paper-warm lg:flex">
+    <div className="admin-ui min-h-screen bg-paper-warm lg:flex">
       {/* Sidebar */}
       <aside className="border-b border-ink/10 bg-ink text-paper lg:min-h-screen lg:w-64 lg:shrink-0 lg:border-b-0 lg:border-r lg:border-ink/40">
         <div className="flex items-center justify-between p-5 lg:block">

@@ -61,7 +61,8 @@ export default function HostListingPage({ params }) {
         <p className="mt-2 text-ink-muted">
           Share your class with The Alley community. Fill in the details, add a
           flyer, and tell attendees how to pay you. We&apos;ll do a quick review
-          before it goes live.
+          before it goes live. Bookmark this link — you can come back and edit
+          anytime.
         </p>
 
         <div className="mt-8">

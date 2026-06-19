@@ -4,6 +4,27 @@
 
 :root {
   color-scheme: light;
+
+  /* Brand tokens (mirrors design handoff styles/brand.css). Available as raw
+     CSS variables for the public-site design system in (site)/site.css. */
+  --ink: #2f2f2d;
+  --ink-soft: #4a4a47;
+  --ink-muted: #74746e;
+  --black: #161614;
+  --paper: #ffffff;
+  --paper-dim: #fafaf8;
+  --paper-warm: #f4f6ee;
+  --verde: #e6ebdb;
+  --verde-mid: #cdd6bb;
+  --verde-deep: #8a9472;
+  --line: rgba(47, 47, 45, 0.14);
+  --line-strong: rgba(47, 47, 45, 0.28);
+
+  --font-body: var(--font-archivo), system-ui, sans-serif;
+  --font-mono: var(--font-archivo), system-ui, sans-serif;
+
+  --maxw: 1240px;
+  --gutter: clamp(20px, 5vw, 72px);
 }
 
 html {
@@ -18,6 +39,17 @@ body {
 h1, h2, h3, .font-display {
   font-family: var(--font-display), system-ui, sans-serif;
   letter-spacing: -0.01em;
+}
+
+/* Admin backend uses a clean UI typeface (Inter) for everything, including
+   headings — overrides the global Josefin display rule within the admin only. */
+.admin-ui,
+.admin-ui h1,
+.admin-ui h2,
+.admin-ui h3,
+.admin-ui .font-display {
+  font-family: var(--font-ui), system-ui, sans-serif;
+  letter-spacing: normal;
 }
 
 /* Vertical "ALLEY" wordmark used in the left margin on large screens. */

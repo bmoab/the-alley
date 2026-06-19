@@ -1,49 +1,42 @@
-import { listGallery } from "@/lib/catalog.js";
-import Placeholder from "@/components/Placeholder.js";
+import { listGallery, listGalleryTags } from "@/lib/catalog.js";
+import PageHero from "@/components/site/PageHero.js";
+import GalleryHall from "@/components/GalleryHall.js";
 
-export const metadata = { title: "The Alley Gallery" };
+export const metadata = { title: "The Gallery" };
+
+// Stable rotation of frame shapes + duotone tints so the salon wall reads as
+// varied even before the owner uploads real photos.
+const ARS = ["3 / 4", "4 / 5", "1 / 1", "4 / 3", "5 / 4"];
+const VARIANTS = ["", "verde", "soft"];
 
 export default function GalleryPage() {
-  const images = listGallery();
+  const rows = listGallery();
+  const tags = listGalleryTags();
+
+  const photos = rows.map((r, i) => ({
+    id: r.id,
+    cap: r.caption || "The Alley",
+    tags: r.tagList,
+    src: r.image_path || null,
+    ar: ARS[i % ARS.length],
+    variant: VARIANTS[i % VARIANTS.length],
+  }));
 
   return (
-    <main className="container-content py-14">
-      <p className="eyebrow">The heart of The Alley</p>
-      <h1 className="mt-2 font-display text-4xl font-semibold text-ink">The Alley Gallery</h1>
-      <p className="mt-3 max-w-2xl text-lg text-ink-muted">
-        A shared space for art, connection, and community. Part welcoming lobby,
-        part rotating gallery, it showcases local artists and makers while
-        staying open to markets, classes, and creative gatherings.
-      </p>
-      <p className="mt-4 max-w-2xl border-l-2 border-brass pl-4 font-display text-lg italic text-ink">
-        Art can look like anything: visual work, objects, movement, sound, words,
-        craft, or ideas that don&apos;t fit neatly into a box. Here, art belongs
-        to everyone.
-      </p>
-
-      {images.length === 0 ? (
-        <div className="mt-10 card p-10 text-center text-ink-muted">
-          Photos are on the way.
-        </div>
-      ) : (
-        <div className="mt-10 columns-1 gap-4 sm:columns-2 lg:columns-3 [&>*]:mb-4">
-          {images.map((img, i) => (
-            <figure key={img.id} className="break-inside-avoid">
-              <Placeholder
-                src={img.image_path}
-                label={img.caption || "The Alley"}
-                seed={i}
-                className={`w-full ${i % 3 === 0 ? "h-72" : "h-52"}`}
-              />
-              {img.caption ? (
-                <figcaption className="mt-1.5 text-xs text-ink-muted">
-                  {img.caption}
-                </figcaption>
-              ) : null}
-            </figure>
-          ))}
-        </div>
-      )}
+    <main>
+      <PageHero
+        eyebrow="The heart of The Alley"
+        title="The Gallery"
+        lede="Photos of the space, the building, and our events — openings, markets, live music, and the everyday life of the building."
+        kicker="Wander the room. The light follows you, and every picture opens to fill the wall. New photos go up as they happen."
+      />
+      <GalleryHall
+        title="The Alley, in pictures"
+        subtitle="Photo gallery · The space, the building & our events"
+        note="Moments from around the building — openings, markets, live music, and quiet golden-hour afternoons. Filter by what you're looking for, and select any photo to step closer."
+        photos={photos}
+        tags={tags}
+      />
     </main>
   );
 }

@@ -1,62 +1,39 @@
 import { listDirectory } from "@/lib/catalog.js";
-import Placeholder from "@/components/Placeholder.js";
+import { getContentValue } from "@/lib/db.js";
+import PageHero from "@/components/site/PageHero.js";
+import BuildingDirectory from "@/components/BuildingDirectory.js";
+import DirectoryGrid from "@/components/home/DirectoryGrid.js";
 
 export const metadata = { title: "Directory" };
 
 export default function DirectoryPage() {
-  const entries = listDirectory();
+  const tenants = listDirectory();
+  const phone = (getContentValue("contact_phone", "(435) 512-4608") || "").replace(/[^\d]/g, "") || "4355124608";
 
   return (
-    <main className="container-content py-14">
-      <p className="eyebrow">The makers</p>
-      <h1 className="mt-2 font-display text-4xl font-semibold text-ink">Directory</h1>
-      <p className="mt-3 max-w-2xl text-lg text-ink-muted">
-        Independent shops and practitioners who call The Alley home — clothing,
-        cuts, ink, healing, and more, all under one roof.
-      </p>
+    <main className="ipage">
+      <PageHero
+        eyebrow="The makers"
+        title="Directory"
+        lede="Independent shops and practitioners who call The Alley home — clothing, cuts, ink, healing, and more, all under one roof."
+      />
+      <section className="wrap">
+        <BuildingDirectory tenants={tenants} phone={phone} />
 
-      {entries.length === 0 ? (
-        <div className="mt-10 card p-10 text-center text-ink-muted">
-          Our directory is being assembled. Check back soon.
+        <div className="dir-listhead">
+          <h2 className="sec-title">Full directory</h2>
+          <p className="dir-listsub">Every business in the building, by category.</p>
         </div>
-      ) : (
-        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {entries.map((e, i) => (
-            <div key={e.id} className="card overflow-hidden">
-              <Placeholder
-                src={e.photo_path}
-                label={e.business_name}
-                seed={i}
-                className="h-40 w-full"
-                rounded="rounded-none"
-              />
-              <div className="p-5">
-                {e.category ? (
-                  <div className="text-xs font-semibold uppercase tracking-wider text-brass-dark">
-                    {e.category}
-                  </div>
-                ) : null}
-                <h2 className="mt-1 font-display text-xl font-semibold text-ink">
-                  {e.business_name}
-                </h2>
-                {e.description ? (
-                  <p className="mt-2 text-sm text-ink-muted">{e.description}</p>
-                ) : null}
-                {e.contact_link ? (
-                  <a
-                    href={e.contact_link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-3 inline-block text-sm font-semibold text-brass-dark hover:underline"
-                  >
-                    Visit →
-                  </a>
-                ) : null}
-              </div>
-            </div>
-          ))}
+        <DirectoryGrid tenants={tenants} showSuite showLink />
+
+        <div className="lease-cta">
+          <div>
+            <h3>Want a suite at The Alley?</h3>
+            <p>We&apos;re currently leasing studio + office space. Reach out and we&apos;ll show you what&apos;s open.</p>
+          </div>
+          <a className="btn btn--solid" href={`tel:${phone}`}>Call (435) 512-4608</a>
         </div>
-      )}
+      </section>
     </main>
   );
 }

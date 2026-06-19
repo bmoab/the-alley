@@ -7,41 +7,48 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Official brand palette (TheAlley_BrandGuide.pdf):
-        //   Primary  — Charcoal      #333333  (~47.5%)
-        //   Secondary— White         #FFFFFF  (~47.5%)
-        //   Tertiary — Verde Chiaro  #E6EBDB  (~5%, accent only — light green
-        //              that reads as a FILL, not as text/links)
+        // Official brand palette, aligned to the design handoff (styles/brand.css):
+        //   Charcoal #2f2f2d · White #ffffff · Verde Chiaro #e6ebdb
         // Token names kept stable (ink/paper/brass/rust) so existing class
         // usages keep working: ink=charcoal, paper=white, brass=verde chiaro.
         ink: {
-          DEFAULT: "#333333", // charcoal — primary
-          soft: "#454545", // slightly lighter charcoal (hovers)
-          muted: "#6f6f6a", // muted gray for secondary text on white
+          DEFAULT: "#2f2f2d", // charcoal — primary (text, dark bands, buttons)
+          soft: "#4a4a47", // body text
+          muted: "#74746e", // secondary / label text
         },
+        black: "#161614", // max contrast / gallery hall
         paper: {
-          DEFAULT: "#fafaf9", // near-white page background
-          warm: "#f0f2ea", // faint verde-tinted neutral for alternating bands
-          card: "#ffffff", // white cards
+          DEFAULT: "#ffffff", // white cards/surfaces & page
+          dim: "#fafaf8", // faint surface
+          warm: "#f4f6ee", // verde-tinted neutral band
+          card: "#ffffff", // white cards (legacy alias)
         },
-        // "brass" token = Verde Chiaro accent. Light green: use as a fill
-        // (badges, accent buttons, highlights). `dark` maps to charcoal so any
-        // accent TEXT/links stay readable and on-brand (the brand has one green).
+        // "brass" token = Verde Chiaro accent (signature light green + page bg).
+        // `dark` maps to charcoal so accent TEXT/links stay readable.
         brass: {
           DEFAULT: "#e6ebdb", // verde chiaro fill
-          light: "#e6ebdb", // verde chiaro (legible on charcoal backgrounds)
-          dark: "#333333", // charcoal (for accent text/links/eyebrows on white)
+          light: "#e6ebdb",
+          dark: "#2f2f2d", // charcoal (for accent text/links/eyebrows on white)
+        },
+        verde: {
+          DEFAULT: "#e6ebdb", // verde chiaro — signature accent + page background
+          mid: "#cdd6bb", // duotone mid
+          deep: "#8a9472", // sage — eyebrows, accents, active dots
+        },
+        line: {
+          DEFAULT: "rgba(47,47,45,0.14)", // hairline border
+          strong: "rgba(47,47,45,0.28)", // stronger border
         },
         // Functional-only alert color (errors / destructive). Not a brand color.
         rust: "#9c4a2e",
       },
       fontFamily: {
-        // Brand typeface: Josefin Sans (Semibold display, Light/Regular body).
+        // Brand typeface: Josefin Sans for both display and body.
         display: ["var(--font-display)", "system-ui", "sans-serif"],
         sans: ["var(--font-archivo)", "system-ui", "sans-serif"],
       },
       maxWidth: {
-        content: "1180px",
+        content: "1240px",
       },
     },
   },
