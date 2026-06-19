@@ -76,6 +76,21 @@ const reset = db.transaction(() => {
     ["The Alley Loft", "Event Space", "Our upstairs event space — available to rent by the hour.", "", "/spaces", "200", "upper", 10],
   ].forEach((r) => dir.run(...r));
 
+  // --- Assign tenants to suites (suites table seeded from the floor map) ---
+  db.prepare("UPDATE suites SET tenant_id = NULL, available = 0, vacant_blurb = NULL").run();
+  // Match each suite to the tenant whose directory.suite equals the zone.
+  db.prepare(
+    "UPDATE suites SET tenant_id = (SELECT id FROM directory WHERE directory.suite = suites.zone ORDER BY id LIMIT 1)"
+  ).run();
+  // Multi-suite demo: Roadrunner Goods occupies both 100 and 101.
+  db.prepare(
+    "UPDATE suites SET tenant_id = (SELECT id FROM directory WHERE business_name = 'Roadrunner Goods') WHERE zone = '101'"
+  ).run();
+  // A couple of vacant suites shown as available-to-lease on the map.
+  db.prepare(
+    "UPDATE suites SET available = 1, vacant_blurb = ? WHERE zone IN ('203','204') AND tenant_id IS NULL"
+  ).run("A bright upstairs studio with great natural light — a perfect fit for a small office, studio, or practice.");
+
   // --- Gallery (duotone placeholders with captions + filter tags) ---
   const gal = db.prepare(
     "INSERT INTO gallery (image_path, caption, tags, sort_order) VALUES (?,?,?,?)"

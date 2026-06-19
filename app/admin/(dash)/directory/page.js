@@ -9,7 +9,6 @@ import {
   ensureDirectoryToken,
 } from "@/lib/catalog.js";
 import { emailTenantInvite } from "@/lib/email.js";
-import { SUITE_CODES } from "@/lib/building-map.js";
 
 export const metadata = { title: "Directory" };
 
@@ -25,8 +24,6 @@ async function addEntry(formData) {
   createDirectoryEntry({
     business_name: (formData.get("business_name") || "").toString().trim(),
     contact_email: (formData.get("contact_email") || "").toString().trim(),
-    suite: (formData.get("suite") || "").toString().trim() || null,
-    floor: (formData.get("floor") || "").toString().trim() || null,
     active: formData.get("active") != null,
     active_from: (formData.get("active_from") || "").toString().trim(),
     active_until: (formData.get("active_until") || "").toString().trim(),
@@ -42,8 +39,6 @@ async function saveEntry(formData) {
   updateDirectoryEntry(id, {
     business_name: (formData.get("business_name") || "").toString().trim(),
     contact_email: (formData.get("contact_email") || "").toString().trim(),
-    suite: (formData.get("suite") || "").toString().trim() || null,
-    floor: (formData.get("floor") || "").toString().trim() || null,
     active: formData.get("active") != null,
     active_from: (formData.get("active_from") || "").toString().trim(),
     active_until: (formData.get("active_until") || "").toString().trim(),
@@ -117,39 +112,13 @@ function EntryFields({ entry = {} }) {
         </div>
       </div>
 
+      <input type="hidden" name="sort_order" value={entry.sort_order ?? 0} />
+
       <p className="mt-4 text-xs text-ink-muted">
         Everything else — their description, category, photo, and links — the tenant fills in themselves from
-        their private link below.
+        their private link below. Assign which suite(s) they occupy over in{" "}
+        <a href="/admin/suites" className="font-semibold text-brass-dark hover:underline">Suites</a>.
       </p>
-
-      <details className="mt-3 rounded-lg border border-ink/10 bg-paper-warm p-3">
-        <summary className="cursor-pointer text-sm font-semibold text-ink">Building location (for the floor map)</summary>
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
-          <div>
-            <label className="label">Floor</label>
-            <select name="floor" defaultValue={entry.floor || ""} className="field">
-              <option value="">—</option>
-              <option value="lower">Lower</option>
-              <option value="upper">Upper</option>
-            </select>
-          </div>
-          <div>
-            <label className="label">Suite</label>
-            <select name="suite" defaultValue={entry.suite || ""} className="field">
-              <option value="">— none —</option>
-              {SUITE_CODES.map((s) => (
-                <option key={s.code} value={s.code}>
-                  {s.code === "gallery" ? "Gallery (open)" : `Suite ${s.code}`} · {s.floor}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="label">Sort order</label>
-            <input name="sort_order" type="number" defaultValue={entry.sort_order ?? 0} className="field" />
-          </div>
-        </div>
-      </details>
     </>
   );
 }

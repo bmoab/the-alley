@@ -38,6 +38,7 @@ export default function HostListingPage({ params }) {
       autoPublish: autoPublish || wasLive,
     });
     revalidatePath("/events");
+    revalidatePath("/calendar");
     revalidatePath("/admin/events");
     return { ok: true };
   }

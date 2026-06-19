@@ -39,7 +39,12 @@ export default function DirectoryGrid({ tenants = [], showSuite = false, showLin
               <div className="dir-info">
                 <div className="dir-cardtop">
                   <span className="dir-cat mono">{t.category}</span>
-                  {showSuite && t.suite ? <span className="dir-suite mono">Suite {t.suite}</span> : null}
+                  {showSuite && t.suites?.length ? (
+                    <span className="dir-suite mono">
+                      {t.suites.length > 1 ? "Suites " : "Suite "}
+                      {t.suites.map((s) => s.name).join(", ")}
+                    </span>
+                  ) : null}
                 </div>
                 <h4 className="dir-name">{t.business_name}</h4>
                 <p className="dir-blurb">{t.description}</p>

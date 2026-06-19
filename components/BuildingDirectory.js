@@ -1,25 +1,20 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { BUILDING_MAP, getFloor } from "@/lib/building-map.js";
 
 /**
  * Interactive building directory. Entry = front elevation with two floor
  * hotspots → choosing a floor reveals that floor's SVG plan with hoverable /
- * tappable suite zones and a floating info card. Tenant↔suite mapping comes
- * from the directory rows (each tenant's `suite` + `floor`); unmatched suites
- * render as available-to-lease.
+ * tappable suite zones and a floating info card.
  *
- * `tenants` = directory rows. `phone` = lease contact (tel digits).
+ * `zones` is a map keyed by suite zone code (from getDirectoryMapData):
+ *   { name, floor, tenant (directory row|null), available, vacant_photo, vacant_blurb }
+ * Occupied suites show the tenant's own content; vacant suites show the owner's
+ * available-space photo + blurb.
  */
-export default function BuildingDirectory({ tenants = [], phone = "4355124608" }) {
+export default function BuildingDirectory({ zones = {}, phone = "4355124608" }) {
   const [view, setView] = useState("entry"); // entry | lower | upper
   const [active, setActive] = useState(null);
-
-  const bySuite = useMemo(() => {
-    const m = {};
-    for (const t of tenants) if (t.suite) m[t.suite] = t;
-    return m;
-  }, [tenants]);
 
   const go = (v) => {
     setActive(null);
@@ -40,7 +35,7 @@ export default function BuildingDirectory({ tenants = [], phone = "4355124608" }
       {view === "entry" ? (
         <BuildingFront onPick={go} />
       ) : (
-        <FloorPlan floor={view} bySuite={bySuite} active={active} setActive={setActive} phone={phone} />
+        <FloorPlan floor={view} zones={zones} active={active} setActive={setActive} phone={phone} />
       )}
     </div>
   );
@@ -87,19 +82,19 @@ function linkLabel(href) {
   return "Visit";
 }
 
-function FloorPlan({ floor, bySuite, active, setActive, phone }) {
+function FloorPlan({ floor, zones, active, setActive, phone }) {
   const F = getFloor(floor);
   if (!F) return null;
-  const sel = active && F.suites.find((s) => s.code === active);
+  const selGeo = active && F.suites.find((s) => s.code === active);
 
   let card = null;
-  if (sel) {
-    const t = bySuite[sel.code];
-    const cx = ((sel.x + sel.w / 2) / F.w) * 100;
-    const above = sel.y / F.h > 0.32;
-    const top = above ? (sel.y / F.h) * 100 : ((sel.y + sel.h) / F.h) * 100;
+  if (selGeo) {
+    const data = zones[selGeo.code] || { name: selGeo.code };
+    const cx = ((selGeo.x + selGeo.w / 2) / F.w) * 100;
+    const above = selGeo.y / F.h > 0.32;
+    const top = above ? (selGeo.y / F.h) * 100 : ((selGeo.y + selGeo.h) / F.h) * 100;
     const left = Math.max(21, Math.min(79, cx));
-    card = { t, sel, left, top, above };
+    card = { data, geo: selGeo, left, top, above };
   }
 
   return (
@@ -107,9 +102,11 @@ function FloorPlan({ floor, bySuite, active, setActive, phone }) {
       <svg className="bm-svg bm-plan" viewBox={`0 0 ${F.w} ${F.h}`} role="group" aria-label={F.name + " plan"}>
         <image href={F.img} x="0" y="0" width={F.w} height={F.h} preserveAspectRatio="xMidYMid meet" />
         {F.suites.map((s) => {
-          const t = bySuite[s.code];
+          const data = zones[s.code];
+          const tenant = data?.tenant;
           const isActive = active === s.code;
-          const state = s.kind === "open" || s.kind === "loft" ? "special" : t ? "filled" : "open";
+          const state = s.kind === "open" || s.kind === "loft" ? "special" : tenant ? "filled" : "open";
+          const label = data?.name || s.code;
           return (
             <rect
               key={s.code}
@@ -121,7 +118,7 @@ function FloorPlan({ floor, bySuite, active, setActive, phone }) {
               className={"bm-zone bm-zone--" + state + (isActive ? " is-active" : "")}
               tabIndex={0}
               role="button"
-              aria-label={t ? `${s.code} — ${t.business_name}` : `Suite ${s.code} — available`}
+              aria-label={tenant ? `${label} — ${tenant.business_name}` : `Suite ${label} — available`}
               onMouseEnter={() => setActive(s.code)}
               onFocus={() => setActive(s.code)}
               onClick={() => setActive(s.code)}
@@ -138,30 +135,47 @@ function FloorPlan({ floor, bySuite, active, setActive, phone }) {
           onMouseLeave={() => setActive(null)}
         >
           <button className="bm-card-x" aria-label="Close" onClick={() => setActive(null)}>×</button>
-          {card.t ? (
+          {card.data.tenant ? (
             <>
-              <span className="bm-card-suite mono">{card.sel.kind === "open" ? "Open to all" : "Suite " + card.t.suite}</span>
-              <h4 className="bm-card-name">{card.t.business_name}</h4>
-              <span className="bm-card-cat mono">{card.t.category}</span>
-              <p className="bm-card-blurb">{card.t.description}</p>
-              {card.t.contact_link ? (
+              <span className="bm-card-suite mono">
+                {card.geo.kind === "open" ? "Open to all" : `Suite ${card.data.name}`}
+              </span>
+              <h4 className="bm-card-name">{card.data.tenant.business_name}</h4>
+              {card.data.tenant.category ? <span className="bm-card-cat mono">{card.data.tenant.category}</span> : null}
+              {card.data.tenant.description ? <p className="bm-card-blurb">{card.data.tenant.description}</p> : null}
+              {card.data.tenant.contact_link ? (
                 <a
                   className="bm-card-link"
-                  href={card.t.contact_link}
-                  target={card.t.contact_link.startsWith("http") ? "_blank" : undefined}
-                  rel={card.t.contact_link.startsWith("http") ? "noreferrer" : undefined}
+                  href={card.data.tenant.contact_link}
+                  target={card.data.tenant.contact_link.startsWith("http") ? "_blank" : undefined}
+                  rel={card.data.tenant.contact_link.startsWith("http") ? "noreferrer" : undefined}
                 >
-                  {linkLabel(card.t.contact_link)} <span className="arrow">→</span>
+                  {linkLabel(card.data.tenant.contact_link)} <span className="arrow">→</span>
                 </a>
               ) : null}
             </>
           ) : (
             <>
-              <span className="bm-card-suite mono">Suite {card.sel.code}</span>
-              <h4 className="bm-card-name">Available</h4>
-              <span className="bm-card-cat mono">Now leasing</span>
-              <p className="bm-card-blurb">This studio/office suite is open. We&apos;d love to show it to you.</p>
-              <a className="bm-card-link" href={`tel:${phone}`}>Call to tour <span className="arrow">→</span></a>
+              {card.data.vacant_photo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={card.data.vacant_photo}
+                  alt={`Suite ${card.data.name}`}
+                  style={{ width: "100%", height: 110, objectFit: "cover", marginBottom: 10 }}
+                />
+              ) : null}
+              <span className="bm-card-suite mono">Suite {card.data.name}</span>
+              <h4 className="bm-card-name">{card.data.available ? "Available" : "This suite"}</h4>
+              {card.data.available ? <span className="bm-card-cat mono">Now leasing</span> : null}
+              <p className="bm-card-blurb">
+                {card.data.vacant_blurb ||
+                  (card.data.available
+                    ? "This suite is open. We'd love to show it to you."
+                    : "")}
+              </p>
+              {card.data.available ? (
+                <a className="bm-card-link" href={`tel:${phone}`}>Call to tour <span className="arrow">→</span></a>
+              ) : null}
             </>
           )}
         </div>

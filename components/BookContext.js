@@ -219,6 +219,7 @@ function BookModal({ initialRoom, config, onClose }) {
     type: "",
     notes: "",
     agreed: false,
+    is_public_event: false,
   });
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -299,6 +300,7 @@ function BookModal({ initialRoom, config, onClose }) {
       guests: form.guests || null,
       notes: form.notes.trim() || null,
       agreed: form.agreed,
+      is_public_event: form.is_public_event,
     });
     setSubmitting(false);
     if (res.ok) setStep(3);
@@ -463,6 +465,13 @@ function BookModal({ initialRoom, config, onClose }) {
                 </label>
                 <label><span style={labStyle}>Anything we should know?</span>
                   <textarea value={form.notes} onChange={set("notes")} rows={3} placeholder="Tell us what you're planning…" style={{ ...fieldStyle, resize: "vertical" }} />
+                </label>
+                <label style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13, color: "var(--ink-soft)", fontWeight: 300 }}>
+                  <input type="checkbox" checked={form.is_public_event} onChange={(e) => setForm((f) => ({ ...f, is_public_event: e.target.checked }))} style={{ marginTop: 3 }} />
+                  <span>
+                    This is a public class or event — list it on The Alley&apos;s calendar. (After payment we&apos;ll
+                    email you a link to add your details.)
+                  </span>
                 </label>
                 <label style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13, color: "var(--ink-soft)", fontWeight: 300 }}>
                   <input type="checkbox" checked={form.agreed} onChange={(e) => setForm((f) => ({ ...f, agreed: e.target.checked }))} style={{ marginTop: 3 }} />

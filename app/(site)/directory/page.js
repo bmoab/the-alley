@@ -1,4 +1,4 @@
-import { listPublicDirectory } from "@/lib/catalog.js";
+import { listPublicDirectoryWithSuites, getDirectoryMapData } from "@/lib/catalog.js";
 import { getContentValue } from "@/lib/db.js";
 import PageHero from "@/components/site/PageHero.js";
 import BuildingDirectory from "@/components/BuildingDirectory.js";
@@ -7,7 +7,8 @@ import DirectoryGrid from "@/components/home/DirectoryGrid.js";
 export const metadata = { title: "Directory" };
 
 export default function DirectoryPage() {
-  const tenants = listPublicDirectory();
+  const tenants = listPublicDirectoryWithSuites();
+  const zones = getDirectoryMapData();
   const phone = (getContentValue("contact_phone", "(435) 512-4608") || "").replace(/[^\d]/g, "") || "4355124608";
 
   return (
@@ -18,7 +19,7 @@ export default function DirectoryPage() {
         lede="Independent shops and practitioners who call The Alley home — clothing, cuts, ink, healing, and more, all under one roof."
       />
       <section className="wrap">
-        <BuildingDirectory tenants={tenants} phone={phone} />
+        <BuildingDirectory zones={zones} phone={phone} />
 
         <div className="dir-listhead">
           <h2 className="sec-title">Full directory</h2>

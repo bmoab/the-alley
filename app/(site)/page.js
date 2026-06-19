@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getContent } from "@/lib/db.js";
-import { listPublicDirectory, listExhibitorsByPhase, listGallery, listUpcomingLiveEvents } from "@/lib/catalog.js";
+import { listPublicDirectoryWithSuites, listExhibitorsByPhase, listGallery, listUpcomingLiveEvents } from "@/lib/catalog.js";
 import { SPACES } from "@/lib/constants.js";
 import Hero from "@/components/home/Hero.js";
 import SectionHead from "@/components/site/SectionHead.js";
@@ -36,7 +36,7 @@ export default function HomePage() {
     image: c[`space_${s.id}_image`] || null,
   }));
 
-  const tenants = listPublicDirectory();
+  const tenants = listPublicDirectoryWithSuites();
   const exhibitors = listExhibitorsByPhase().current;
   const events = listUpcomingLiveEvents(3);
   const gallery = listGallery().slice(0, 6);
