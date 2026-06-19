@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { listExhibitors } from "@/lib/catalog.js";
+import { listExhibitorsByPhase } from "@/lib/catalog.js";
+import { formatMonthRange } from "@/lib/constants.js";
 import PageHero from "@/components/site/PageHero.js";
 import PhotoSlot from "@/components/site/PhotoSlot.js";
 import ExhibitorCard from "@/components/ExhibitorCard.js";
@@ -7,6 +8,13 @@ import ExhibitorCard from "@/components/ExhibitorCard.js";
 export const metadata = { title: "Exhibitors" };
 
 const WORK_VARIANTS = ["verde", "", "soft", "verde"];
+
+/** Display label for an exhibitor's dates, falling back to any legacy when_text. */
+function whenLabel(ex, { onView = false } = {}) {
+  const range = formatMonthRange(ex.active_from, ex.active_until) || ex.when_text || "";
+  if (!range) return onView ? "On view" : "";
+  return onView ? `On view · ${range}` : range;
+}
 
 function CurrentExhibitor({ ex, i }) {
   const portraitVariant = i % 2 ? "soft" : "verde";
@@ -17,7 +25,7 @@ function CurrentExhibitor({ ex, i }) {
         <span className="ex-onview mono">On view</span>
       </div>
       <div className="ex-feature-body">
-        <p className="ex-when mono">{ex.when_text}</p>
+        <p className="ex-when mono">{whenLabel(ex, { onView: true })}</p>
         <h2 className="ex-name">{ex.name}</h2>
         <p className="ex-discipline mono">{ex.discipline}</p>
         <p className="ex-blurb">{ex.blurb}</p>
@@ -37,8 +45,7 @@ function CurrentExhibitor({ ex, i }) {
 }
 
 export default function ExhibitorsPage() {
-  const current = listExhibitors("current");
-  const past = listExhibitors("past");
+  const { current, past } = listExhibitorsByPhase();
 
   return (
     <main>
@@ -72,7 +79,7 @@ export default function ExhibitorsPage() {
             </header>
             <div className="ex-past-grid">
               {past.map((ex, i) => (
-                <ExhibitorCard key={ex.id} ex={ex} variant={["", "verde", "soft"][i % 3]} />
+                <ExhibitorCard key={ex.id} ex={ex} when={whenLabel(ex)} variant={["", "verde", "soft"][i % 3]} />
               ))}
             </div>
           </div>

@@ -98,14 +98,19 @@ const reset = db.transaction(() => {
 
   // --- Exhibitors (current featured + past flip cards) ---
   const exh = db.prepare(
-    "INSERT INTO exhibitors (name, discipline, when_text, blurb, profile_photo, site_handle, status, sort_order) VALUES (?,?,?,?,?,?,?,?)"
+    "INSERT INTO exhibitors (name, discipline, when_text, blurb, profile_photo, site_handle, status, sort_order, active, active_from, active_until) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
   );
   const exhWork = db.prepare(
     "INSERT INTO exhibitor_photos (exhibitor_id, image_path, caption, sort_order) VALUES (?,?,?,?)"
   );
   const seedExhibitor = (e) => {
+    // current = on view now (end date in the future); past = ended already.
+    const isPast = e.status === "past";
+    const active_from = isPast ? dayOffset(-220 - e.sort * 30) : dayOffset(-20);
+    const active_until = isPast ? dayOffset(-150 - e.sort * 25) : dayOffset(70);
     const id = exh.run(
-      e.name, e.discipline, e.when_text, e.blurb, "", e.site_handle, e.status, e.sort
+      e.name, e.discipline, e.when_text, e.blurb, "", e.site_handle, e.status, e.sort,
+      1, active_from, active_until
     ).lastInsertRowid;
     (e.works || []).forEach((cap, i) => exhWork.run(id, "", cap, i));
   };

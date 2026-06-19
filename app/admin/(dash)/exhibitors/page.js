@@ -7,12 +7,9 @@ import {
   updateExhibitor,
   deleteExhibitor,
   ensureExhibitorToken,
-  addExhibitorPhoto,
-  deleteExhibitorPhoto,
+  exhibitorPhase,
 } from "@/lib/catalog.js";
 import { emailExhibitorInvite } from "@/lib/email.js";
-import Placeholder from "@/components/Placeholder.js";
-import ContentImageField from "@/components/ContentImageField.js";
 
 export const metadata = { title: "Exhibitors" };
 
@@ -30,13 +27,11 @@ async function addExhibitorAction(formData) {
   if (!name) redirect("/admin/exhibitors");
   createExhibitor({
     name,
-    discipline: (formData.get("discipline") || "").toString().trim(),
-    when_text: (formData.get("when_text") || "").toString().trim(),
-    blurb: (formData.get("blurb") || "").toString().trim(),
-    site_handle: (formData.get("site_handle") || "").toString().trim(),
-    status: (formData.get("status") || "current").toString(),
-    sort_order: formData.get("sort_order"),
     contact_email: (formData.get("contact_email") || "").toString().trim(),
+    active: formData.get("active") != null,
+    active_from: (formData.get("active_from") || "").toString().trim(),
+    active_until: (formData.get("active_until") || "").toString().trim(),
+    sort_order: formData.get("sort_order"),
   });
   refresh();
   redirect("/admin/exhibitors");
@@ -47,14 +42,11 @@ async function saveExhibitorAction(formData) {
   const id = Number(formData.get("id"));
   updateExhibitor(id, {
     name: (formData.get("name") || "").toString().trim(),
-    discipline: (formData.get("discipline") || "").toString().trim(),
-    when_text: (formData.get("when_text") || "").toString().trim(),
-    blurb: (formData.get("blurb") || "").toString().trim(),
-    site_handle: (formData.get("site_handle") || "").toString().trim(),
-    status: (formData.get("status") || "current").toString(),
-    sort_order: formData.get("sort_order"),
     contact_email: (formData.get("contact_email") || "").toString().trim(),
-    profile_photo: (formData.get("profile_photo") || "").toString().trim() || null,
+    active: formData.get("active") != null,
+    active_from: (formData.get("active_from") || "").toString().trim(),
+    active_until: (formData.get("active_until") || "").toString().trim(),
+    sort_order: formData.get("sort_order"),
   });
   refresh();
   redirect("/admin/exhibitors#ex-" + id);
@@ -67,24 +59,6 @@ async function removeExhibitorAction(formData) {
   redirect("/admin/exhibitors");
 }
 
-async function addWorkAction(formData) {
-  "use server";
-  const id = Number(formData.get("exhibitor_id"));
-  const path = (formData.get("image_path") || "").toString().trim();
-  if (id && path) addExhibitorPhoto(id, path, (formData.get("caption") || "").toString().trim() || null, formData.get("sort_order"));
-  refresh();
-  redirect("/admin/exhibitors#ex-" + id);
-}
-
-async function removeWorkAction(formData) {
-  "use server";
-  const id = Number(formData.get("exhibitor_id"));
-  deleteExhibitorPhoto(Number(formData.get("photo_id")));
-  refresh();
-  redirect("/admin/exhibitors#ex-" + id);
-}
-
-// Generate (or reveal) the exhibitor's private self-edit link.
 async function generateLink(formData) {
   "use server";
   ensureExhibitorToken(Number(formData.get("id")));
@@ -92,7 +66,6 @@ async function generateLink(formData) {
   redirect("/admin/exhibitors#ex-" + formData.get("id"));
 }
 
-// Email the exhibitor their private self-edit link (needs a contact email).
 async function emailLink(formData) {
   "use server";
   const id = Number(formData.get("id"));
@@ -107,6 +80,46 @@ async function emailLink(formData) {
   }
   refresh();
   redirect("/admin/exhibitors?invited=" + (ex?.contact_email ? id : "noemail") + "#ex-" + id);
+}
+
+function ExhibitorFields({ ex = {} }) {
+  const isNew = !ex.id;
+  return (
+    <>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label className="label">Name</label>
+          <input name="name" required defaultValue={ex.name || ""} placeholder="Artist or studio name" className="field" />
+        </div>
+        <div>
+          <label className="label">Email (for their self-edit invite)</label>
+          <input name="contact_email" type="email" defaultValue={ex.contact_email || ""} placeholder="artist@email.com" className="field" />
+        </div>
+      </div>
+      <div className="mt-3 grid gap-3 sm:grid-cols-4">
+        <label className="flex items-center gap-2 self-end pb-2">
+          <input type="checkbox" name="active" defaultChecked={isNew ? true : Number(ex.active) === 1} />
+          <span className="text-sm font-semibold text-ink-soft">Active</span>
+        </label>
+        <div>
+          <label className="label">On view from</label>
+          <input name="active_from" type="date" defaultValue={ex.active_from || ""} className="field" />
+        </div>
+        <div>
+          <label className="label">On view until</label>
+          <input name="active_until" type="date" defaultValue={ex.active_until || ""} className="field" />
+        </div>
+        <div>
+          <label className="label">Sort order</label>
+          <input name="sort_order" type="number" defaultValue={ex.sort_order ?? 0} className="field" />
+        </div>
+      </div>
+      <p className="mt-3 text-xs text-ink-muted">
+        After the &ldquo;on view until&rdquo; date passes, they automatically move to the Past archive. Their bio,
+        discipline, photos, and work images are all added by the artist from their private link below.
+      </p>
+    </>
+  );
 }
 
 function SelfEditLink({ ex }) {
@@ -124,7 +137,7 @@ function SelfEditLink({ ex }) {
           <form action={emailLink} className="mt-2">
             <input type="hidden" name="id" value={ex.id} />
             <button className="btn-ghost text-sm">
-              {ex.contact_email ? `Email link to ${ex.contact_email}` : "Add a contact email above to email this link"}
+              {ex.contact_email ? `Email link to ${ex.contact_email}` : "Add an email above to email this link"}
             </button>
           </form>
         </>
@@ -138,53 +151,7 @@ function SelfEditLink({ ex }) {
   );
 }
 
-function ExhibitorFields({ ex = {} }) {
-  return (
-    <>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <label className="label">Name</label>
-          <input name="name" required defaultValue={ex.name || ""} className="field" />
-        </div>
-        <div>
-          <label className="label">Discipline</label>
-          <input name="discipline" defaultValue={ex.discipline || ""} placeholder="Painter · Oil & cold wax" className="field" />
-        </div>
-      </div>
-      <div className="mt-3 grid gap-3 sm:grid-cols-3">
-        <div>
-          <label className="label">Status</label>
-          <select name="status" defaultValue={ex.status || "current"} className="field">
-            <option value="current">Current (on view)</option>
-            <option value="past">Past (archive)</option>
-          </select>
-        </div>
-        <div>
-          <label className="label">When</label>
-          <input name="when_text" defaultValue={ex.when_text || ""} placeholder="On view · Jul–Sep 2026" className="field" />
-        </div>
-        <div>
-          <label className="label">Sort order</label>
-          <input name="sort_order" type="number" defaultValue={ex.sort_order ?? 0} className="field" />
-        </div>
-      </div>
-      <div className="mt-3">
-        <label className="label">Blurb</label>
-        <textarea name="blurb" rows={3} defaultValue={ex.blurb || ""} className="field" />
-      </div>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <div>
-          <label className="label">Handle / site</label>
-          <input name="site_handle" defaultValue={ex.site_handle || ""} placeholder="@artist or https://…" className="field" />
-        </div>
-        <div>
-          <label className="label">Contact email (for future invite)</label>
-          <input name="contact_email" type="email" defaultValue={ex.contact_email || ""} className="field" />
-        </div>
-      </div>
-    </>
-  );
-}
+const PHASE_LABEL = { current: "On view", past: "Past", hidden: "Hidden" };
 
 export default function ExhibitorsAdminPage({ searchParams }) {
   const exhibitors = listExhibitors();
@@ -195,8 +162,8 @@ export default function ExhibitorsAdminPage({ searchParams }) {
       <p className="eyebrow">Admin</p>
       <h1 className="font-display text-3xl font-semibold text-ink">Exhibitors</h1>
       <p className="mt-1 text-ink-muted">
-        Artists featured in the gallery. &ldquo;Current&rdquo; show as large feature blocks; &ldquo;past&rdquo;
-        become flip cards on the public Exhibitors page. Invite an artist to manage their own page via a private link.
+        Set up an artist with just their name, email, and dates — then send their private link so they fill in
+        everything else. They show as &ldquo;on view&rdquo; during their dates and move to the Past archive after.
       </p>
 
       {invited && invited !== "noemail" ? (
@@ -206,7 +173,7 @@ export default function ExhibitorsAdminPage({ searchParams }) {
       ) : null}
       {invited === "noemail" ? (
         <div className="mt-4 rounded-lg border border-rust/30 bg-rust/10 px-4 py-2 text-sm text-rust">
-          No contact email on file — add one and save, then try again. The link is ready to copy below.
+          No email on file — add one and save, then try again. The link is ready to copy below.
         </div>
       ) : null}
 
@@ -219,62 +186,27 @@ export default function ExhibitorsAdminPage({ searchParams }) {
       </details>
 
       <div className="mt-6 space-y-4">
-        {exhibitors.map((ex) => (
-          <details key={ex.id} id={`ex-${ex.id}`} className="card p-5">
-            <summary className="flex cursor-pointer items-center justify-between">
-              <span className="font-semibold text-ink">
-                {ex.name}
-                <span className="ml-2 text-xs font-normal text-ink-muted">{ex.discipline}</span>
-              </span>
-              <span className="text-xs uppercase tracking-wider text-ink-muted">{ex.status}</span>
-            </summary>
-
-            <form action={saveExhibitorAction} className="mt-4">
-              <input type="hidden" name="id" value={ex.id} />
-              <ExhibitorFields ex={ex} />
-              <div className="mt-3">
-                <ContentImageField name="profile_photo" label="Profile photo" value={ex.profile_photo || ""} />
-              </div>
-              <button className="btn-primary mt-4">Save</button>
-            </form>
-
-            {/* Work photos */}
-            <div className="mt-5 rounded-lg border border-ink/10 bg-paper-warm p-4">
-              <p className="text-sm font-semibold text-ink">Work photos</p>
-              {ex.works?.length ? (
-                <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-4">
-                  {ex.works.map((w, i) => (
-                    <div key={w.id} className="overflow-hidden rounded-lg border border-ink/10 bg-paper-card">
-                      <Placeholder src={w.image_path} label={w.caption || "Work"} seed={i} className="h-20 w-full" rounded="rounded-none" />
-                      <form action={removeWorkAction} className="p-1 text-center">
-                        <input type="hidden" name="exhibitor_id" value={ex.id} />
-                        <input type="hidden" name="photo_id" value={w.id} />
-                        <button className="text-[11px] font-semibold text-rust hover:underline">Remove</button>
-                      </form>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-1 text-xs text-ink-muted">No work photos yet.</p>
-              )}
-              <form action={addWorkAction} className="mt-3 grid gap-2">
-                <input type="hidden" name="exhibitor_id" value={ex.id} />
-                <ContentImageField name="image_path" label="Add a work photo" />
-                <div className="flex items-center gap-2">
-                  <input name="caption" placeholder="Caption (optional)" className="field text-sm" />
-                  <button className="btn-ghost text-sm">Add work</button>
-                </div>
+        {exhibitors.map((ex) => {
+          const phase = exhibitorPhase(ex);
+          return (
+            <details key={ex.id} id={`ex-${ex.id}`} className="card p-5">
+              <summary className="flex cursor-pointer items-center justify-between">
+                <span className="font-semibold text-ink">{ex.name}</span>
+                <span className="text-xs uppercase tracking-wider text-ink-muted">{PHASE_LABEL[phase]}</span>
+              </summary>
+              <form action={saveExhibitorAction} className="mt-4">
+                <input type="hidden" name="id" value={ex.id} />
+                <ExhibitorFields ex={ex} />
+                <button className="btn-primary mt-4">Save</button>
               </form>
-            </div>
-
-            <SelfEditLink ex={ex} />
-
-            <form action={removeExhibitorAction} className="mt-3">
-              <input type="hidden" name="id" value={ex.id} />
-              <button className="text-sm font-semibold text-rust hover:underline">Remove this exhibitor</button>
-            </form>
-          </details>
-        ))}
+              <SelfEditLink ex={ex} />
+              <form action={removeExhibitorAction} className="mt-3">
+                <input type="hidden" name="id" value={ex.id} />
+                <button className="text-sm font-semibold text-rust hover:underline">Remove this exhibitor</button>
+              </form>
+            </details>
+          );
+        })}
       </div>
     </div>
   );

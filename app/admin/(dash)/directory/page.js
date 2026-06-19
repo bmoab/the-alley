@@ -24,13 +24,12 @@ async function addEntry(formData) {
   "use server";
   createDirectoryEntry({
     business_name: (formData.get("business_name") || "").toString().trim(),
-    category: (formData.get("category") || "").toString().trim(),
-    description: (formData.get("description") || "").toString().trim(),
-    photo_path: (formData.get("photo_path") || "").toString().trim(),
-    contact_link: (formData.get("contact_link") || "").toString().trim(),
     contact_email: (formData.get("contact_email") || "").toString().trim(),
     suite: (formData.get("suite") || "").toString().trim() || null,
     floor: (formData.get("floor") || "").toString().trim() || null,
+    active: formData.get("active") != null,
+    active_from: (formData.get("active_from") || "").toString().trim(),
+    active_until: (formData.get("active_until") || "").toString().trim(),
     sort_order: formData.get("sort_order"),
   });
   refresh();
@@ -42,13 +41,12 @@ async function saveEntry(formData) {
   const id = Number(formData.get("id"));
   updateDirectoryEntry(id, {
     business_name: (formData.get("business_name") || "").toString().trim(),
-    category: (formData.get("category") || "").toString().trim(),
-    description: (formData.get("description") || "").toString().trim(),
-    photo_path: (formData.get("photo_path") || "").toString().trim(),
-    contact_link: (formData.get("contact_link") || "").toString().trim(),
     contact_email: (formData.get("contact_email") || "").toString().trim(),
     suite: (formData.get("suite") || "").toString().trim() || null,
     floor: (formData.get("floor") || "").toString().trim() || null,
+    active: formData.get("active") != null,
+    active_from: (formData.get("active_from") || "").toString().trim(),
+    active_until: (formData.get("active_until") || "").toString().trim(),
     sort_order: formData.get("sort_order"),
   });
   refresh();
@@ -90,6 +88,7 @@ async function emailLink(formData) {
 }
 
 function EntryFields({ entry = {} }) {
+  const isNew = !entry.id;
   return (
     <>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -98,53 +97,59 @@ function EntryFields({ entry = {} }) {
           <input name="business_name" required defaultValue={entry.business_name || ""} className="field" />
         </div>
         <div>
-          <label className="label">Category</label>
-          <input name="category" defaultValue={entry.category || ""} placeholder="Salon, Tattoo, Retail…" className="field" />
-        </div>
-      </div>
-      <div className="mt-3">
-        <label className="label">Description</label>
-        <textarea name="description" rows={2} defaultValue={entry.description || ""} className="field" />
-      </div>
-      <div className="mt-3 grid gap-3 sm:grid-cols-4">
-        <div>
-          <label className="label">Floor</label>
-          <select name="floor" defaultValue={entry.floor || ""} className="field">
-            <option value="">—</option>
-            <option value="lower">Lower</option>
-            <option value="upper">Upper</option>
-          </select>
-        </div>
-        <div>
-          <label className="label">Suite (floor-map)</label>
-          <select name="suite" defaultValue={entry.suite || ""} className="field">
-            <option value="">— none —</option>
-            {SUITE_CODES.map((s) => (
-              <option key={s.code} value={s.code}>
-                {s.code === "gallery" ? "Gallery (open)" : `Suite ${s.code}`} · {s.floor}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="label">Sort order</label>
-          <input name="sort_order" type="number" defaultValue={entry.sort_order ?? 0} className="field" />
-        </div>
-        <div>
-          <label className="label">Contact / social link</label>
-          <input name="contact_link" defaultValue={entry.contact_link || ""} placeholder="https://instagram.com/…" className="field" />
-        </div>
-      </div>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <div>
-          <label className="label">Tenant email (for self-edit invite)</label>
+          <label className="label">Tenant email (for their self-edit invite)</label>
           <input name="contact_email" type="email" defaultValue={entry.contact_email || ""} placeholder="owner@shop.com" className="field" />
         </div>
+      </div>
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <label className="flex items-center gap-2 self-end pb-2">
+          <input type="checkbox" name="active" defaultChecked={isNew ? true : Number(entry.active) === 1} />
+          <span className="text-sm font-semibold text-ink-soft">Active (show on the website)</span>
+        </label>
         <div>
-          <label className="label">Photo URL or path (optional)</label>
-          <input name="photo_path" defaultValue={entry.photo_path || ""} placeholder="/uploads/shop.jpg" className="field" />
+          <label className="label">Active from (optional)</label>
+          <input name="active_from" type="date" defaultValue={entry.active_from || ""} className="field" />
+        </div>
+        <div>
+          <label className="label">Active until (optional)</label>
+          <input name="active_until" type="date" defaultValue={entry.active_until || ""} className="field" />
         </div>
       </div>
+
+      <p className="mt-4 text-xs text-ink-muted">
+        Everything else — their description, category, photo, and links — the tenant fills in themselves from
+        their private link below.
+      </p>
+
+      <details className="mt-3 rounded-lg border border-ink/10 bg-paper-warm p-3">
+        <summary className="cursor-pointer text-sm font-semibold text-ink">Building location (for the floor map)</summary>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <div>
+            <label className="label">Floor</label>
+            <select name="floor" defaultValue={entry.floor || ""} className="field">
+              <option value="">—</option>
+              <option value="lower">Lower</option>
+              <option value="upper">Upper</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Suite</label>
+            <select name="suite" defaultValue={entry.suite || ""} className="field">
+              <option value="">— none —</option>
+              {SUITE_CODES.map((s) => (
+                <option key={s.code} value={s.code}>
+                  {s.code === "gallery" ? "Gallery (open)" : `Suite ${s.code}`} · {s.floor}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Sort order</label>
+            <input name="sort_order" type="number" defaultValue={entry.sort_order ?? 0} className="field" />
+          </div>
+        </div>
+      </details>
     </>
   );
 }

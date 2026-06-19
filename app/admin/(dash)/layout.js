@@ -8,13 +8,19 @@ async function logout() {
   redirect("/admin/login");
 }
 
+// Nav with an optional grouped section (Reservations).
 const NAV = [
   { href: "/admin", label: "Dashboard" },
-  { href: "/admin/requests", label: "Requests" },
-  { href: "/admin/bookings", label: "Bookings" },
+  {
+    group: "Reservations",
+    items: [
+      { href: "/admin/requests", label: "Requests" },
+      { href: "/admin/bookings", label: "Bookings" },
+      { href: "/admin/deposits", label: "Deposits" },
+    ],
+  },
   { href: "/admin/calendar", label: "Calendar" },
   { href: "/admin/events", label: "Public Events" },
-  { href: "/admin/deposits", label: "Deposits" },
   { href: "/admin/directory", label: "Directory" },
   { href: "/admin/exhibitors", label: "Exhibitors" },
   { href: "/admin/gallery", label: "Gallery" },
@@ -39,15 +45,32 @@ export default async function AdminLayout({ children }) {
           </p>
         </div>
         <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:flex-col lg:gap-0.5 lg:px-3">
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="whitespace-nowrap rounded-lg px-3 py-2 text-sm text-paper/75 transition hover:bg-ink-soft hover:text-paper"
-            >
-              {item.label}
-            </Link>
-          ))}
+          {NAV.map((item) =>
+            item.group ? (
+              <div key={item.group} className="contents lg:mt-2 lg:block">
+                <p className="hidden px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-paper/40 lg:block">
+                  {item.group}
+                </p>
+                {item.items.map((sub) => (
+                  <Link
+                    key={sub.href}
+                    href={sub.href}
+                    className="whitespace-nowrap rounded-lg px-3 py-2 text-sm text-paper/75 transition hover:bg-ink-soft hover:text-paper lg:ml-2"
+                  >
+                    {sub.label}
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="whitespace-nowrap rounded-lg px-3 py-2 text-sm text-paper/75 transition hover:bg-ink-soft hover:text-paper"
+              >
+                {item.label}
+              </Link>
+            )
+          )}
         </nav>
         <div className="hidden border-t border-ink/40 p-3 lg:block">
           <Link

@@ -6,15 +6,60 @@ import {
   updateEvent,
   deleteEvent,
   createOwnEvent,
+  createHostInvite,
+  getEvent,
 } from "@/lib/catalog.js";
+import { emailHostInvite } from "@/lib/email.js";
 import { SPACES, spaceName, formatDate, formatTime } from "@/lib/constants.js";
 
 export const metadata = { title: "Public Events" };
 
+const APP_URL = process.env.APP_URL || "";
+
 function refresh() {
   revalidatePath("/admin/events");
   revalidatePath("/events");
+  revalidatePath("/calendar");
   revalidatePath("/");
+}
+
+// Owner invites a host directly: minimal details now, host fills the rest.
+async function inviteHost(formData) {
+  "use server";
+  const host_name = (formData.get("host_name") || "").toString().trim();
+  const host_email = (formData.get("host_email") || "").toString().trim();
+  if (!host_name) redirect("/admin/events");
+  const { id, token } = createHostInvite({
+    host_name,
+    host_email,
+    date: (formData.get("date") || "").toString().trim(),
+    active_until: (formData.get("active_until") || "").toString().trim(),
+  });
+  if (host_email) {
+    try {
+      await emailHostInvite({ client_name: host_name, client_email: host_email }, token);
+    } catch (err) {
+      console.error("[events] host invite email error:", err.message);
+    }
+  }
+  refresh();
+  redirect("/admin/events?invited=" + (host_email ? id : "noemail") + "#ev-" + id);
+}
+
+// Re-send / reveal a draft host's invite link.
+async function emailHostLink(formData) {
+  "use server";
+  const id = Number(formData.get("id"));
+  const ev = getEvent(id);
+  if (ev?.host_email && ev?.host_token) {
+    try {
+      await emailHostInvite({ client_name: ev.host_name, client_email: ev.host_email }, ev.host_token);
+    } catch (err) {
+      console.error("[events] host invite email error:", err.message);
+    }
+  }
+  refresh();
+  redirect("/admin/events?invited=" + (ev?.host_email ? id : "noemail") + "#ev-" + id);
 }
 
 async function approveEvent(formData) {
@@ -120,20 +165,52 @@ function EventCard({ ev, children }) {
   );
 }
 
-export default function EventsAdminPage() {
+export default function EventsAdminPage({ searchParams }) {
   const all = listAllEvents();
   const pending = all.filter((e) => e.status === "pending");
   const live = all.filter((e) => e.status === "live");
   const drafts = all.filter((e) => e.status === "draft");
+  const invited = searchParams?.invited;
 
   return (
     <div>
       <p className="eyebrow">Admin</p>
       <h1 className="font-display text-3xl font-semibold text-ink">Public Events</h1>
       <p className="mt-1 text-ink-muted">
-        Review host submissions, manage live listings, and post The Alley&apos;s
-        own events.
+        Invite a host with just their name and email — they fill in their own event details. Then review and
+        publish submissions here. You can also post The Alley&apos;s own events.
       </p>
+
+      {invited && invited !== "noemail" ? (
+        <div className="mt-4 rounded-lg border border-brass/30 bg-brass/10 px-4 py-2 text-sm text-brass-dark">
+          Invite link emailed to the host.
+        </div>
+      ) : null}
+      {invited === "noemail" ? (
+        <div className="mt-4 rounded-lg border border-rust/30 bg-rust/10 px-4 py-2 text-sm text-rust">
+          No host email entered — copy the link from &ldquo;Awaiting host details&rdquo; below and send it manually.
+        </div>
+      ) : null}
+
+      {/* Invite a host */}
+      <details className="mt-6 card p-5" open={drafts.length === 0 && pending.length === 0 && live.length === 0}>
+        <summary className="cursor-pointer font-semibold text-ink">+ Invite a host to post an event</summary>
+        <form action={inviteHost} className="mt-4 grid gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div><label className="label">Host name</label><input name="host_name" required placeholder="Jane Maker" className="field" /></div>
+            <div><label className="label">Host email (sends them the link)</label><input name="host_email" type="email" placeholder="host@email.com" className="field" /></div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div><label className="label">Event date (optional)</label><input name="date" type="date" className="field" /></div>
+            <div><label className="label">Through (optional, multi-day)</label><input name="active_until" type="date" className="field" /></div>
+          </div>
+          <p className="text-xs text-ink-muted">
+            The host gets a private link to add the title, description, photo/flyer, and how attendees pay them.
+            Their submission comes back here for your review.
+          </p>
+          <button className="btn-primary w-fit">Send host invite</button>
+        </form>
+      </details>
 
       {/* Awaiting review */}
       <h2 className="mt-8 font-display text-xl font-semibold text-ink">
@@ -177,12 +254,32 @@ export default function EventsAdminPage() {
           </h2>
           <div className="mt-3 space-y-2">
             {drafts.map((ev) => (
-              <div key={ev.id} className="card flex items-center justify-between p-4 text-sm">
-                <span className="text-ink-soft">
-                  <strong>{ev.host_name}</strong> — {ev.date ? formatDate(ev.date) : ""} ·{" "}
-                  {spaceName(ev.space)}
-                </span>
-                <span className="text-xs text-ink-muted">Invite sent · host hasn&apos;t posted yet</span>
+              <div key={ev.id} id={`ev-${ev.id}`} className="card p-4 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-ink-soft">
+                    <strong>{ev.host_name || "(host)"}</strong>
+                    {ev.date ? ` — ${formatDate(ev.date)}` : ""}
+                    {ev.space ? ` · ${spaceName(ev.space)}` : ""}
+                  </span>
+                  <span className="shrink-0 text-xs text-ink-muted">Invite sent · not posted yet</span>
+                </div>
+                {ev.host_token ? (
+                  <div className="mt-2">
+                    <input readOnly value={`${APP_URL}/host-listing/${ev.host_token}`} className="field text-xs" />
+                    <div className="mt-2 flex flex-wrap gap-3">
+                      <form action={emailHostLink}>
+                        <input type="hidden" name="id" value={ev.id} />
+                        <button className="btn-ghost text-sm">
+                          {ev.host_email ? `Email link to ${ev.host_email}` : "No email on file"}
+                        </button>
+                      </form>
+                      <form action={removeEvent}>
+                        <input type="hidden" name="id" value={ev.id} />
+                        <button className="text-sm font-semibold text-rust hover:underline">Cancel invite</button>
+                      </form>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
