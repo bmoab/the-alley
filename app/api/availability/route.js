@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getAvailableStartTimes, getDayAvailability } from "@/lib/bookings.js";
 import { SPACE_BY_ID } from "@/lib/constants.js";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/availability
  *

@@ -5,6 +5,11 @@ import RevealMount from "@/components/site/RevealMount.js";
 import { BookProvider } from "@/components/BookContext.js";
 import { getSettings } from "@/lib/db.js";
 
+// Render public pages on demand (they read owner-editable data from the DB).
+// This also keeps `next build` from prerendering — and thus from opening the
+// database — at build time. Applies to every route under (site).
+export const dynamic = "force-dynamic";
+
 export default function SiteLayout({ children }) {
   const s = getSettings();
   const bookingConfig = {

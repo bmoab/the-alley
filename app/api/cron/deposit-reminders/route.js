@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { runDepositReminders } from "@/lib/deposits.js";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/cron/deposit-reminders
  * Sends due deposit-refund reminder emails (days 1–3 after an event).
