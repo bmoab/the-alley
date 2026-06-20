@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getSession, clearSessionCookie } from "@/lib/auth.js";
+import NavGroup from "@/components/admin/NavGroup.js";
 
 async function logout() {
   "use server";
@@ -48,20 +49,7 @@ export default async function AdminLayout({ children }) {
         <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:flex-col lg:gap-0.5 lg:px-3">
           {NAV.map((item) =>
             item.group ? (
-              <div key={item.group} className="contents lg:mt-2 lg:block">
-                <p className="hidden px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-paper/40 lg:block">
-                  {item.group}
-                </p>
-                {item.items.map((sub) => (
-                  <Link
-                    key={sub.href}
-                    href={sub.href}
-                    className="whitespace-nowrap rounded-lg px-3 py-2 text-sm text-paper/75 transition hover:bg-ink-soft hover:text-paper lg:ml-2"
-                  >
-                    {sub.label}
-                  </Link>
-                ))}
-              </div>
+              <NavGroup key={item.group} label={item.group} items={item.items} />
             ) : (
               <Link
                 key={item.href}
