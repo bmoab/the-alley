@@ -107,7 +107,8 @@
 .hero-b { position: relative; padding-block: clamp(40px,7vw,96px) clamp(48px,7vw,90px); overflow: hidden; }
 .hero-b-vert { position: absolute; left: clamp(12px,3vw,46px); top: 50%; transform: translateY(-50%); height: min(74%,520px); width: auto; opacity: .92; }
 .hero-b-stripes { position: absolute; top: clamp(20px,4vw,54px); right: clamp(20px,5vw,72px); color: var(--ink); opacity: .5; height: 64px; }
-.hero-b-inner { position: relative; padding-left: clamp(60px,11vw,150px); }
+/* Scoped under .dir-b to beat `.dir-b .wrap`'s padding-inline (same element). */
+.dir-b .hero-b-inner { position: relative; padding-left: clamp(60px,11vw,150px); }
 .hero-b-eyebrow { margin-bottom: clamp(28px,6vw,70px); }
 .hero-b-kicker { font-family: var(--font-display); font-weight: 300; font-size: clamp(20px,2.6vw,30px); color: var(--ink-soft); margin: 0; letter-spacing: .01em; }
 /* Rotating word: a hidden sizer (the longest word) reserves a constant width
@@ -134,9 +135,9 @@
   /* Keep the vertical logo, but slim it to the left edge and push the hero
      content right so the rotating word never sits on top of it. */
   .hero-b-vert { display: block; height: auto; width: 40px; left: 6px; opacity: .9; }
-  .hero-b-inner { padding-left: 58px; }
+  .dir-b .hero-b-inner { padding-left: 64px; }
   .pagehero-vert { display: none; }
-  .hero-b-foot { grid-template-columns: 1fr; }
+  .hero-b-foot { grid-template-columns: 1fr; max-width: none; margin-left: 0; }
 }
 
 /* ============================================================
