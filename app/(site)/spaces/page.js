@@ -1,5 +1,6 @@
 import { SPACES } from "@/lib/constants.js";
 import { getSettings, getContent } from "@/lib/db.js";
+import { listSpacePhotos } from "@/lib/catalog.js";
 import PageHero from "@/components/site/PageHero.js";
 import SpaceGallery from "@/components/site/SpaceGallery.js";
 import RequestButton from "@/components/site/RequestButton.js";
@@ -37,7 +38,7 @@ export default function SpacesPage() {
         <div style={{ marginTop: "clamp(44px,5vw,76px)" }}>
           {SPACES.map((r, i) => (
             <div key={r.id} id={r.id} className={"space-row reveal" + (i % 2 ? " is-rev" : "")}>
-              <SpaceGallery image={c[`space_${r.id}_image`] || null} gallery={r.gallery} lead={i === 0 ? "verde" : "soft"} />
+              <SpaceGallery photos={listSpacePhotos(r.id)} image={c[`space_${r.id}_image`] || null} gallery={r.gallery} lead={i === 0 ? "verde" : "soft"} />
               <div>
                 <div className="space-meta">
                   <span>{r.location}</span>
