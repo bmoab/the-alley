@@ -41,6 +41,21 @@ export default function CalendarPage() {
         Held and confirmed bookings plus live public events, color-coded by space.
       </p>
 
+      <div className="mt-4 rounded-lg border border-ink/10 bg-paper-warm p-4 text-sm">
+        <p className="font-semibold text-ink">Sync to Google Calendar &amp; Skylight</p>
+        <p className="mt-1 text-ink-muted">
+          Subscribe any calendar to this live feed of your public events (Google Calendar → Other calendars →
+          From URL; Skylight → Add calendar → iCal/URL):
+        </p>
+        <code className="mt-2 block break-all rounded bg-paper-card p-2 text-xs text-ink-soft">
+          {(process.env.APP_URL || "") + "/calendar.ics"}
+        </code>
+        <p className="mt-2 text-xs text-ink-muted">
+          Once it&apos;s in Google Calendar, share that calendar with your tenants. Set the &ldquo;Shared calendar
+          link&rdquo; under Site Content → Descriptors to include it in invite emails.
+        </p>
+      </div>
+
       <div className="mt-6">
         <AdminCalendar items={items} />
       </div>

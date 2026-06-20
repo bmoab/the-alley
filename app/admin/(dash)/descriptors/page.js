@@ -17,6 +17,7 @@ const FIELDS = [
   { key: "contact_phone", label: "Contact — phone" },
   { key: "social_instagram", label: "Instagram URL" },
   { key: "social_facebook", label: "Facebook URL" },
+  { key: "calendar_share_url", label: "Shared calendar link (Google Calendar) — included in tenant/host/exhibitor invites" },
 ];
 
 const JSON_FIELDS = [
