@@ -20,14 +20,19 @@ const NAV = [
       { href: "/admin/deposits", label: "Deposits" },
     ],
   },
-  { href: "/admin/spaces", label: "Spaces" },
   { href: "/admin/calendar", label: "Calendar" },
   { href: "/admin/events", label: "Public Events" },
   { href: "/admin/directory", label: "Directory" },
-  { href: "/admin/suites", label: "Suites" },
   { href: "/admin/exhibitors", label: "Exhibitors" },
-  { href: "/admin/gallery", label: "Gallery" },
-  { href: "/admin/content", label: "Site Content" },
+  {
+    group: "Site Content",
+    items: [
+      { href: "/admin/descriptors", label: "Descriptors" },
+      { href: "/admin/site-photos", label: "Site Photos" },
+      { href: "/admin/spaces", label: "Spaces Photos" },
+      { href: "/admin/gallery", label: "Gallery" },
+    ],
+  },
   { href: "/admin/settings", label: "Settings" },
 ];
 
