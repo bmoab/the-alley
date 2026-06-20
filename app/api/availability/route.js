@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAvailableStartTimes, getDayAvailability } from "@/lib/bookings.js";
+import { getAvailableStartTimes, getDayAvailability, getDayFreeSlots } from "@/lib/bookings.js";
 import { SPACE_BY_ID } from "@/lib/constants.js";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +43,11 @@ export function GET(request) {
 
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return NextResponse.json({ error: "Invalid date" }, { status: 400 });
+  }
+
+  // Range picker: per-30-min freeness for the whole day.
+  if (searchParams.get("free")) {
+    return NextResponse.json({ space, date, slots: getDayFreeSlots(space, date) });
   }
 
   const slots = getAvailableStartTimes(space, date, hours);

@@ -679,6 +679,8 @@
 .bk-slot { font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .02em; padding: 9px 4px; border: 1px solid var(--line-strong); background: var(--paper); color: var(--ink); cursor: pointer; transition: .15s; }
 .bk-slot:hover:not(:disabled) { border-color: var(--ink); background: var(--verde); }
 .bk-slot.is-on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.bk-slot.is-ext { background: var(--verde); border-color: var(--verde-deep); color: var(--ink); }
+.bk-slot.is-ext:hover { background: var(--verde-mid); }
 .bk-slot.is-off { opacity: .4; cursor: not-allowed; text-decoration: line-through; background: var(--paper-dim); }
 .bk-times-conf { margin-top: 14px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink); border-top: 1px solid var(--line); padding-top: 12px; }
 .bk-est { margin-top: 20px; border: 1px solid var(--line); background: var(--paper-warm); padding: 16px 18px; }

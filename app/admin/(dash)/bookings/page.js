@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { listBookings } from "@/lib/bookings.js";
+import { listBookings, getBooking } from "@/lib/bookings.js";
 import { confirmBookingPaid, releaseExpiredHolds } from "@/lib/payments.js";
+import { getInvoiceStatus } from "@/lib/square.js";
 import {
   SPACES,
   spaceName,
@@ -21,6 +22,30 @@ async function markPaid(formData) {
   revalidatePath("/admin");
   revalidatePath("/admin/events");
   redirect("/admin/bookings?paid=" + id);
+}
+
+// Ask Square whether the invoice has been paid; if so, confirm the booking.
+async function checkPayment(formData) {
+  "use server";
+  const id = Number(formData.get("id"));
+  const b = getBooking(id);
+  let result = "nopay";
+  if (b?.square_invoice_id) {
+    try {
+      const status = await getInvoiceStatus(b.square_invoice_id);
+      if (status === "paid") {
+        await confirmBookingPaid(id);
+        result = "paid";
+      }
+    } catch (err) {
+      console.error("[bookings] check payment error:", err.message);
+      result = "error";
+    }
+  }
+  revalidatePath("/admin/bookings");
+  revalidatePath("/admin");
+  revalidatePath("/admin/events");
+  redirect("/admin/bookings?" + (result === "paid" ? "paid=" + id : "checked=" + id + "&r=" + result) + "#b-" + id);
 }
 
 const STATUS_STYLES = {
@@ -51,6 +76,9 @@ export default async function BookingsPage({ searchParams }) {
 
   const spaceFilter = searchParams?.space || "";
   const paid = searchParams?.paid;
+  const checked = searchParams?.checked;
+  const checkResult = searchParams?.r;
+  const focus = Number(searchParams?.focus) || 0;
   // Everything that lives on the calendar / has moved past the request stage.
   const all = listBookings(spaceFilter ? { space: spaceFilter } : {}).filter(
     (b) => b.status !== "pending" && b.status !== "denied"
@@ -68,6 +96,13 @@ export default async function BookingsPage({ searchParams }) {
         <div className="mt-4 rounded-lg border border-brass/30 bg-brass/10 px-4 py-2 text-sm text-brass-dark">
           Payment recorded for booking #{paid} — it&rsquo;s confirmed, the client
           has been emailed, and any public-event host invite has been sent.
+        </div>
+      ) : null}
+      {checked ? (
+        <div className="mt-4 rounded-lg border border-ink/15 bg-paper-warm px-4 py-2 text-sm text-ink-soft">
+          {checkResult === "error"
+            ? `Couldn't reach Square to check booking #${checked}. Try again, or use "Mark as paid".`
+            : `No payment recorded for booking #${checked} yet — the customer may not have paid, or it's still processing. Check again in a moment.`}
         </div>
       ) : null}
 
@@ -114,7 +149,7 @@ export default async function BookingsPage({ searchParams }) {
             </thead>
             <tbody>
               {all.map((b) => (
-                <tr key={b.id} className="border-b border-ink/5">
+                <tr key={b.id} id={`b-${b.id}`} className={`border-b border-ink/5 ${focus === b.id ? "bg-brass/10" : ""}`}>
                   <td className="py-3 pr-4">
                     <div className="font-medium text-ink">{formatDate(b.date)}</div>
                     <div className="text-xs text-ink-muted">
@@ -140,14 +175,23 @@ export default async function BookingsPage({ searchParams }) {
                   </td>
                   <td className="py-3 pl-4 text-right">
                     {b.status === "held" ? (
-                      <form action={markPaid}>
-                        <input type="hidden" name="id" value={b.id} />
-                        <button className="btn-accent !px-3 !py-1.5 text-xs">
-                          Mark as paid
-                        </button>
-                      </form>
-                    ) : b.payment_link && b.status === "confirmed" ? (
-                      <span className="text-xs text-ink-muted">—</span>
+                      <div className="flex flex-col items-end gap-1.5">
+                        {b.square_invoice_id ? (
+                          <form action={checkPayment}>
+                            <input type="hidden" name="id" value={b.id} />
+                            <button className="btn-ghost !px-3 !py-1.5 text-xs">Check for payment</button>
+                          </form>
+                        ) : null}
+                        <form action={markPaid}>
+                          <input type="hidden" name="id" value={b.id} />
+                          <button className="btn-accent !px-3 !py-1.5 text-xs">Mark as paid</button>
+                        </form>
+                        {b.payment_link ? (
+                          <a href={b.payment_link} target="_blank" rel="noreferrer" className="text-xs text-brass-dark hover:underline">
+                            Open invoice ↗
+                          </a>
+                        ) : null}
+                      </div>
                     ) : (
                       <span className="text-xs text-ink-muted">—</span>
                     )}

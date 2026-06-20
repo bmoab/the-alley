@@ -134,9 +134,10 @@ export default function AdminCalendar({ items = [] }) {
               <div className="text-xs font-semibold text-ink-muted">{d}</div>
               <div className="mt-0.5 space-y-0.5">
                 {dayItems.slice(0, 3).map((it) => (
-                  <div
+                  <a
                     key={`${it.kind}-${it.id}`}
-                    className={`truncate rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                    href={it.href || undefined}
+                    className={`block truncate rounded px-1.5 py-0.5 text-[10px] font-medium transition hover:opacity-80 ${
                       KIND_STYLES[it.kind] || "bg-ink text-paper"
                     }`}
                     title={`${KIND_LABELS[it.kind] || ""}: ${it.title}${
@@ -145,7 +146,7 @@ export default function AdminCalendar({ items = [] }) {
                   >
                     {it.time ? `${fmtTime(it.time)} ` : ""}
                     {it.title}
-                  </div>
+                  </a>
                 ))}
                 {dayItems.length > 3 ? (
                   <div className="px-1 text-[10px] text-ink-muted">

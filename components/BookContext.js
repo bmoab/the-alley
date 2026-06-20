@@ -33,6 +33,14 @@ function addHours(hhmm, hours) {
   const em = total % 60;
   return `${pad2(eh)}:${pad2(em)}`;
 }
+const toMin = (hhmm) => {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+};
+function hoursBetween(a, b) {
+  if (!a || !b) return 0;
+  return Math.max(0, (toMin(b) - toMin(a)) / 60);
+}
 
 export function BookProvider({ children, config }) {
   const [open, setOpen] = useState(false);
@@ -204,14 +212,95 @@ function CalendarPick({ value, onPick, space, hours, dayCounts, monthCursor, onM
   );
 }
 
+/**
+ * Range time picker. Tap a start time → the 2-hour minimum is auto-selected;
+ * tap a later time to extend. Highlights the chosen range; greys unavailable
+ * times. `daySlots` = [{ time, free, isEnd? }] at 30-min granularity.
+ */
+function TimeRange({ daySlots, minHours, value, onChange }) {
+  if (!daySlots) return <p className="bk-times-hint">Choose a day to see times.</p>;
+  if (daySlots.length < 2) return <p className="bk-times-hint">No times available that day.</p>;
+
+  const lastIdx = daySlots.length - 1; // the close time (end-only)
+  const minBlocks = Math.round(minHours * 2);
+  const startIdx = value.start ? daySlots.findIndex((s) => s.time === value.start) : -1;
+  const endIdx = value.end ? daySlots.findIndex((s) => s.time === value.end) : -1;
+
+  const startable = (i) => {
+    if (i + minBlocks > lastIdx) return false;
+    for (let k = i; k < i + minBlocks; k++) if (!daySlots[k].free) return false;
+    return true;
+  };
+  const maxEndIdx = (s) => {
+    let e = s;
+    while (e < lastIdx && daySlots[e].free) e++;
+    return e; // boundary after the last contiguous free block
+  };
+  const maxE = startIdx >= 0 ? maxEndIdx(startIdx) : -1;
+
+  const pick = (i) => {
+    if (startIdx >= 0) {
+      if (i >= startIdx + minBlocks && i <= maxE) {
+        onChange({ start: value.start, end: daySlots[i].time });
+        return;
+      }
+      if (startable(i)) {
+        onChange({ start: daySlots[i].time, end: daySlots[i + minBlocks].time });
+        return;
+      }
+      return;
+    }
+    if (startable(i)) onChange({ start: daySlots[i].time, end: daySlots[i + minBlocks].time });
+  };
+
+  return (
+    <>
+      <div className="bk-slots">
+        {daySlots.map((s, i) => {
+          let cls = "bk-slot";
+          let disabled = false;
+          if (startIdx < 0) {
+            if (!startable(i)) {
+              disabled = true;
+              cls += " is-off";
+            }
+          } else if (i >= startIdx && i <= endIdx) {
+            cls += " is-on"; // selected range (incl. locked minimum)
+          } else if (i > endIdx && i <= maxE) {
+            cls += " is-ext"; // tap to extend
+          } else if (i < startIdx && startable(i)) {
+            // clickable to move the start earlier
+          } else {
+            disabled = true;
+            cls += " is-off";
+          }
+          return (
+            <button type="button" key={s.time} className={cls} disabled={disabled} onClick={() => pick(i)}>
+              {formatTime(s.time)}
+            </button>
+          );
+        })}
+      </div>
+      {startIdx >= 0 && endIdx >= 0 ? (
+        <p className="bk-times-conf mono">
+          {formatTime(value.start)} – {formatTime(value.end)} · {hoursBetween(value.start, value.end)} hrs ·{" "}
+          <button type="button" className="linkish" onClick={() => onChange({ start: "", end: "" })}>clear</button>
+        </p>
+      ) : (
+        <p className="bk-times-hint">Tap a start time — we hold the {minHours}-hour minimum, then tap a later time to extend.</p>
+      )}
+    </>
+  );
+}
+
 function BookModal({ initialRoom, config, onClose }) {
   const { rate, minHours, deposit, openHour, closeHour } = config;
   const [step, setStep] = useState(initialRoom ? 1 : 0);
   const [room, setRoom] = useState(initialRoom || null);
   const [form, setForm] = useState({
     date: "",
-    time: "",
-    hours: minHours,
+    start: "",
+    end: "",
     guests: "",
     name: "",
     email: "",
@@ -227,17 +316,17 @@ function BookModal({ initialRoom, config, onClose }) {
   const today = new Date();
   const [monthCursor, setMonthCursor] = useState({ y: today.getFullYear(), m: today.getMonth() });
   const [dayCounts, setDayCounts] = useState({});
-  const [slots, setSlots] = useState(null); // null = not loaded; [] = none
+  const [daySlots, setDaySlots] = useState(null); // null = not loaded
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
-  // Month availability for the calendar dots.
+  // Month availability for the calendar dots (based on the 2-hour minimum).
   useEffect(() => {
     if (!room) return;
     let active = true;
     const month = `${monthCursor.y}-${pad2(monthCursor.m + 1)}`;
-    fetch(`/api/availability?space=${room}&month=${month}&hours=${form.hours}`)
+    fetch(`/api/availability?space=${room}&month=${month}&hours=${minHours}`)
       .then((r) => r.json())
       .then((d) => {
         if (active && d.days) setDayCounts((prev) => ({ ...prev, ...d.days }));
@@ -246,44 +335,42 @@ function BookModal({ initialRoom, config, onClose }) {
     return () => {
       active = false;
     };
-  }, [room, monthCursor, form.hours]);
+  }, [room, monthCursor, minHours]);
 
-  // Start-time slots for the chosen day + duration.
+  // Per-30-minute freeness for the chosen day (drives the range picker).
   useEffect(() => {
     if (!room || !form.date) {
-      setSlots(null);
+      setDaySlots(null);
       return;
     }
     let active = true;
     setSlotsLoading(true);
-    fetch(`/api/availability?space=${room}&date=${form.date}&hours=${form.hours}`)
+    fetch(`/api/availability?space=${room}&date=${form.date}&free=1`)
       .then((r) => r.json())
-      .then((d) => {
-        if (!active) return;
-        setSlots(d.slots || []);
-        // Drop a chosen time if it's no longer valid/available.
-        setForm((f) => {
-          if (!f.time) return f;
-          const ok = (d.slots || []).some((s) => s.time === f.time && s.available);
-          return ok ? f : { ...f, time: "" };
-        });
-      })
-      .catch(() => active && setSlots([]))
+      .then((d) => active && setDaySlots(d.slots || []))
+      .catch(() => active && setDaySlots([]))
       .finally(() => active && setSlotsLoading(false));
     return () => {
       active = false;
     };
-  }, [room, form.date, form.hours]);
+  }, [room, form.date]);
+
+  // Reset the chosen times whenever the day changes.
+  useEffect(() => {
+    setForm((f) => ({ ...f, start: "", end: "" }));
+  }, [form.date]);
+
+  const hours = hoursBetween(form.start, form.end);
 
   const canNext =
     (step === 0 && room) ||
-    (step === 1 && form.date && form.time !== "") ||
+    (step === 1 && form.date && form.start && form.end) ||
     (step === 2 && form.name && /.+@.+\..+/.test(form.email) && form.phone.trim() && form.agreed);
 
   const next = () => setStep((s) => Math.min(3, s + 1));
   const back = () => setStep((s) => Math.max(0, s - 1));
   const roomObj = SPACES.find((r) => r.id === room);
-  const rentalCost = rate * Number(form.hours || 0);
+  const rentalCost = rate * hours;
   const estTotal = rentalCost + deposit;
 
   async function handleSend() {
@@ -292,8 +379,8 @@ function BookModal({ initialRoom, config, onClose }) {
     const res = await submitBooking({
       space: room,
       date: form.date,
-      start_time: form.time,
-      hours: Number(form.hours),
+      start_time: form.start,
+      hours,
       client_name: form.name.trim(),
       client_email: form.email.trim(),
       client_phone: form.phone.trim(),
@@ -308,9 +395,6 @@ function BookModal({ initialRoom, config, onClose }) {
     if (res.ok) setStep(3);
     else setSubmitError(res.error || "Something went wrong — please try again.");
   }
-
-  const durations = Array.from({ length: 7 }, (_, i) => minHours + i).filter((h) => h <= 8);
-  const anyOpen = slots ? slots.some((s) => s.available) : false;
 
   return (
     <div
@@ -394,49 +478,26 @@ function BookModal({ initialRoom, config, onClose }) {
                     value={form.date}
                     onPick={(d) => setForm((f) => ({ ...f, date: d }))}
                     space={room}
-                    hours={Number(form.hours)}
+                    hours={minHours}
                     dayCounts={dayCounts}
                     monthCursor={monthCursor}
                     onMonthChange={setMonthCursor}
                   />
                 </div>
                 <div className="bk-times">
-                  <label style={{ display: "block", marginBottom: 16 }}>
-                    <span style={labStyle}>How long?</span>
-                    <select value={form.hours} onChange={set("hours")} style={fieldStyle}>
-                      {durations.map((h) => <option key={h} value={h}>{h} hours</option>)}
-                    </select>
-                  </label>
-                  <span style={labStyle}>Available start times</span>
+                  <span style={labStyle}>Pick your time</span>
                   {!form.date ? (
-                    <p className="bk-times-hint">Choose a day on the calendar to see open start times.</p>
+                    <p className="bk-times-hint">Choose a day on the calendar first.</p>
                   ) : slotsLoading ? (
                     <p className="bk-times-hint">Checking availability…</p>
-                  ) : !anyOpen ? (
-                    <p className="bk-times-hint bk-times-none">
-                      No openings that long on {fmtDateLong(form.date)} — try a shorter booking or another day.
-                    </p>
                   ) : (
-                    <div className="bk-slots">
-                      {slots.map((s) => (
-                        <button
-                          key={s.time}
-                          type="button"
-                          disabled={!s.available}
-                          className={"bk-slot" + (form.time === s.time ? " is-on" : "") + (s.available ? "" : " is-off")}
-                          onClick={() => setForm((f) => ({ ...f, time: s.time }))}
-                          title={s.available ? "" : "Already booked"}
-                        >
-                          {formatTime(s.time)}
-                        </button>
-                      ))}
-                    </div>
+                    <TimeRange
+                      daySlots={daySlots}
+                      minHours={minHours}
+                      value={{ start: form.start, end: form.end }}
+                      onChange={({ start, end }) => setForm((f) => ({ ...f, start, end }))}
+                    />
                   )}
-                  {form.date && form.time !== "" ? (
-                    <p className="bk-times-conf mono">
-                      {formatTime(form.time)} – {formatTime(addHours(form.time, Number(form.hours)))} · {form.hours} hrs
-                    </p>
-                  ) : null}
                 </div>
               </div>
             </div>
@@ -488,7 +549,7 @@ function BookModal({ initialRoom, config, onClose }) {
                 </label>
               </div>
               <div className="bk-est">
-                <div className="bk-est-row"><span>Rental (${rate} × {form.hours}h)</span><span>${rentalCost}</span></div>
+                <div className="bk-est-row"><span>Rental (${rate} × {hours}h)</span><span>${rentalCost}</span></div>
                 <div className="bk-est-row"><span>Refundable cleaning deposit</span><span>${deposit}</span></div>
                 <div className="bk-est-row bk-est-total"><span>Estimated total</span><span>${estTotal}</span></div>
                 <p className="bk-est-note mono">Estimate only — no charge happens now. If approved, you'll get a payment link.</p>
@@ -507,7 +568,7 @@ function BookModal({ initialRoom, config, onClose }) {
               <div className="bk-recap mono">
                 {roomObj ? <div><span>Space</span><b>{roomObj.name}</b></div> : null}
                 {form.date ? <div><span>Date</span><b>{fmtDateLong(form.date)}</b></div> : null}
-                {form.time !== "" ? <div><span>Time</span><b>{formatTime(form.time)} · {form.hours} hrs</b></div> : null}
+                {form.start && form.end ? <div><span>Time</span><b>{formatTime(form.start)} – {formatTime(form.end)} · {hours} hrs</b></div> : null}
                 <div><span>Estimated total</span><b>${estTotal}</b></div>
               </div>
             </div>

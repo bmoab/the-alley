@@ -18,6 +18,7 @@ export default function CalendarPage() {
     kind: b.space === "loft" ? "loft" : "main",
     title: b.client_name || spaceName(b.space),
     meta: `${b.status} · ${b.hours}h${b.event_type ? ` · ${b.event_type}` : ""}`,
+    href: `/admin/bookings?focus=${b.id}#b-${b.id}`,
   }));
 
   const eventItems = events.map((e) => ({
@@ -27,6 +28,7 @@ export default function CalendarPage() {
     kind: "event",
     title: e.title || "Public event",
     meta: e.host_name ? `Hosted by ${e.host_name}` : "",
+    href: `/admin/events#ev-${e.id}`,
   }));
 
   const items = [...bookingItems, ...eventItems];
