@@ -1,11 +1,26 @@
 "use client";
 import { useState } from "react";
+import { useFormStatus } from "react-dom";
 import {
   spaceName,
   formatDate,
   formatTime,
   formatMoney,
 } from "@/lib/constants.js";
+
+/**
+ * A submit button bound to a specific server action via formAction. Uses
+ * useFormStatus for the pending state instead of a manual onClick+disabled,
+ * which would otherwise cancel the form submission for server actions.
+ */
+function SubmitButton({ formAction, className, children, pendingLabel }) {
+  const { pending } = useFormStatus();
+  return (
+    <button formAction={formAction} disabled={pending} className={className}>
+      {pending ? pendingLabel || "Working…" : children}
+    </button>
+  );
+}
 
 /**
  * One pending booking request in the admin Requests view.
@@ -18,7 +33,6 @@ export default function RequestCard({ booking, approveAction, denyAction }) {
   const [hours, setHours] = useState(booking.hours ?? 2);
   const [sessions, setSessions] = useState(booking.sessions ?? 1);
   const [deposit, setDeposit] = useState(booking.deposit ?? 150);
-  const [busy, setBusy] = useState(false);
 
   const rental = (Number(rate) || 0) * (Number(hours) || 0) * Math.max(1, Number(sessions) || 1);
   const total = rental + (Number(deposit) || 0);
@@ -110,22 +124,20 @@ export default function RequestCard({ booking, approveAction, denyAction }) {
             </span>
           </div>
           <div className="flex gap-2">
-            <button
+            <SubmitButton
               formAction={denyAction}
-              onClick={() => setBusy(true)}
-              disabled={busy}
+              pendingLabel="Denying…"
               className="btn-ghost !px-4 !py-2 text-sm text-rust hover:border-rust/50 disabled:opacity-50"
             >
               Deny
-            </button>
-            <button
+            </SubmitButton>
+            <SubmitButton
               formAction={approveAction}
-              onClick={() => setBusy(true)}
-              disabled={busy}
+              pendingLabel="Approving…"
               className="btn-accent !px-5 !py-2 text-sm disabled:opacity-50"
             >
               Approve &amp; send payment link
-            </button>
+            </SubmitButton>
           </div>
         </div>
       </form>
