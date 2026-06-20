@@ -12,6 +12,7 @@ import {
   updateSuiteInfo,
 } from "@/lib/catalog.js";
 import { emailTenantInvite } from "@/lib/email.js";
+import { zoneSpace } from "@/lib/building-map.js";
 import ContentImageField from "@/components/ContentImageField.js";
 
 export const metadata = { title: "Directory" };
@@ -234,7 +235,9 @@ function SuiteRow({ suite, tenant }) {
 
 export default function DirectoryAdminPage({ searchParams }) {
   const tenants = listDirectory();
-  const suites = listSuites();
+  // Exclude the two rentable spaces (gallery = Main Floor, 200 = Loft) — those
+  // are managed under Spaces, not assigned to tenants.
+  const suites = listSuites().filter((s) => !zoneSpace(s.zone));
   const byId = Object.fromEntries(tenants.map((t) => [t.id, t]));
   const invited = searchParams?.invited;
 

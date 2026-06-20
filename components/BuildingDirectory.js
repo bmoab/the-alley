@@ -135,7 +135,23 @@ function FloorPlan({ floor, zones, active, setActive, phone }) {
           onMouseLeave={() => setActive(null)}
         >
           <button className="bm-card-x" aria-label="Close" onClick={() => setActive(null)}>×</button>
-          {card.data.tenant ? (
+          {card.data.space ? (
+            <>
+              {card.data.space.photo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={card.data.space.photo}
+                  alt={card.data.space.name}
+                  style={{ width: "100%", height: 110, objectFit: "cover", marginBottom: 10 }}
+                />
+              ) : null}
+              <span className="bm-card-suite mono">Rental space</span>
+              <h4 className="bm-card-name">{card.data.space.name}</h4>
+              {card.data.space.capacity ? <span className="bm-card-cat mono">{card.data.space.capacity}</span> : null}
+              {card.data.space.blurb ? <p className="bm-card-blurb">{card.data.space.blurb}</p> : null}
+              <a className="bm-card-link" href={card.data.space.href}>Book this space <span className="arrow">→</span></a>
+            </>
+          ) : card.data.tenant ? (
             <>
               <span className="bm-card-suite mono">
                 {card.geo.kind === "open" ? "Open to all" : `Suite ${card.data.name}`}

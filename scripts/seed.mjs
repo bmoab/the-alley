@@ -72,8 +72,6 @@ const reset = db.transaction(() => {
     ["Lash & Link", "Beauty", "Lash services by appointment. (435) 713-5739.", "", "https://www.instagram.com/lashes_byana1", "103", "lower", 6],
     ["Massage Genesis", "Healing", "Therapeutic massage with Michelle Jones — by appointment. (435) 248-2621.", "", "", "202", "upper", 7],
     ["RealtyPath Cache Valley", "Real Estate", "Real estate services in the heart of Cache Valley. (435) 512-4608.", "", "", "205", "upper", 8],
-    ["The Alley Gallery", "Art", "Rotating local exhibitions, open to the public.", "", "/gallery", "gallery", "lower", 9],
-    ["The Alley Loft", "Event Space", "Our upstairs event space — available to rent by the hour.", "", "/spaces", "200", "upper", 10],
   ].forEach((r) => dir.run(...r));
 
   // --- Assign tenants to suites (suites table seeded from the floor map) ---
