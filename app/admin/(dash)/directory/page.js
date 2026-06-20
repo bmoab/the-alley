@@ -35,6 +35,7 @@ async function addTenant(formData) {
     active_from: (formData.get("active_from") || "").toString().trim(),
     active_until: (formData.get("active_until") || "").toString().trim(),
   });
+  setTenantSuites(id, formData.getAll("suite_ids"));
   refresh();
   redirect("/admin/directory#biz-" + id);
 }
@@ -129,31 +130,27 @@ function TenantFields({ entry = {}, suites = [] }) {
         </div>
       </div>
 
-      {/* Suite assignment — only on existing tenants (need an id to attach to) */}
-      {!isNew ? (
-        <div className="mt-3">
-          <label className="label">Suites occupied (assign one or more)</label>
-          <div className="flex flex-wrap gap-x-5 gap-y-2 rounded-lg border border-ink/10 bg-paper-warm p-3">
-            {suites.map((s) => {
-              const mine = s.tenant_id === entry.id;
-              const takenByOther = s.tenant_id && !mine;
-              return (
-                <label key={s.id} className={`flex items-center gap-2 text-sm ${takenByOther ? "text-ink-muted/60" : "text-ink-soft"}`}>
-                  <input type="checkbox" name="suite_ids" value={s.id} defaultChecked={mine} disabled={takenByOther} />
-                  <span>
-                    {s.name || s.zone}
-                    <span className="ml-1 text-xs text-ink-muted">· {s.floor}</span>
-                    {takenByOther ? <span className="ml-1 text-xs">(taken)</span> : null}
-                  </span>
-                </label>
-              );
-            })}
-          </div>
-          <p className="mt-1 text-xs text-ink-muted">A suite already held by another tenant is greyed out — free it from that tenant first.</p>
+      {/* Suite assignment — available when adding and when editing. */}
+      <div className="mt-3">
+        <label className="label">Suites occupied (select one or more)</label>
+        <div className="flex flex-wrap gap-x-5 gap-y-2 rounded-lg border border-ink/10 bg-paper-warm p-3">
+          {suites.map((s) => {
+            const mine = !isNew && s.tenant_id === entry.id;
+            const takenByOther = s.tenant_id && !mine;
+            return (
+              <label key={s.id} className={`flex items-center gap-2 text-sm ${takenByOther ? "text-ink-muted/60" : "text-ink-soft"}`}>
+                <input type="checkbox" name="suite_ids" value={s.id} defaultChecked={mine} disabled={takenByOther} />
+                <span>
+                  {s.name || s.zone}
+                  <span className="ml-1 text-xs text-ink-muted">· {s.floor}</span>
+                  {takenByOther ? <span className="ml-1 text-xs">(taken)</span> : null}
+                </span>
+              </label>
+            );
+          })}
         </div>
-      ) : (
-        <p className="mt-3 text-xs text-ink-muted">Save this tenant first, then you can assign their suite(s).</p>
-      )}
+        <p className="mt-1 text-xs text-ink-muted">A suite already held by another tenant is greyed out — free it from that tenant first.</p>
+      </div>
 
       <p className="mt-4 text-xs text-ink-muted">
         Their description, category, photo, and links are all filled in by the tenant from their private link below.
@@ -269,7 +266,7 @@ export default function DirectoryAdminPage({ searchParams }) {
       <details className="mt-3 card p-5" open={tenants.length === 0}>
         <summary className="cursor-pointer font-semibold text-ink">+ Add a tenant</summary>
         <form action={addTenant} className="mt-4">
-          <TenantFields />
+          <TenantFields suites={suites} />
           <button className="btn-primary mt-4">Add tenant</button>
         </form>
       </details>
