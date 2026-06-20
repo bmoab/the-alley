@@ -131,8 +131,11 @@
 .b-leasing a { font-weight: 600; color: var(--ink); white-space: nowrap; border-bottom: 1px solid var(--verde-deep); }
 .b-leasing a:hover { background: var(--verde); }
 @media (max-width: 720px) {
-  .hero-b-vert, .pagehero-vert { display: none; }
-  .hero-b-inner { padding-left: 0; }
+  /* Keep the vertical logo, but slim it to the left edge and push the hero
+     content right so the rotating word never sits on top of it. */
+  .hero-b-vert { display: block; height: auto; width: 40px; left: 6px; opacity: .9; }
+  .hero-b-inner { padding-left: 58px; }
+  .pagehero-vert { display: none; }
   .hero-b-foot { grid-template-columns: 1fr; }
 }
 

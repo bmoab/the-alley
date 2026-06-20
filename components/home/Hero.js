@@ -12,7 +12,7 @@ export default function Hero({ eyebrow, rotate = ["MUSIC", "ART", "EVENTS", "COM
   // Size every word to the LONGEST one so the line keeps a constant height and
   // width — the page never jumps as the word cycles.
   const longest = rotate.reduce((a, b) => (b.length > a.length ? b : a), rotate[0] || "");
-  const [wordRef, wordSize] = useFitWord(longest, { max: 172, min: 52 });
+  const [wordRef, wordSize] = useFitWord(longest, { max: 172, min: 34 });
 
   return (
     <header className="hero-b" id="top">
