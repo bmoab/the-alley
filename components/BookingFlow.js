@@ -322,7 +322,7 @@ export default function BookingFlow({ settings }) {
                   <input type="checkbox" className="mt-1" checked={form.agreed} onChange={(e) => set({ agreed: e.target.checked })} />
                   <span className="text-sm text-ink-soft">
                     I agree to The Alley&apos;s{" "}
-                    <a href="/uploads/rental-agreement.pdf" target="_blank" rel="noreferrer" className="font-semibold text-brass-dark hover:underline">
+                    <a href="/rental-agreement.pdf" target="_blank" rel="noreferrer" className="font-semibold text-brass-dark hover:underline">
                       rental terms
                     </a>
                     . *

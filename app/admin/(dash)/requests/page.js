@@ -29,6 +29,7 @@ async function approve(formData) {
     deposit: formData.get("deposit"),
   });
 
+  let problem = "";
   try {
     // #5 Square: create the invoice (rental + deposit) and store id + pay link.
     const { invoiceId, paymentLink } = await createBookingInvoice(booking);
@@ -37,12 +38,13 @@ async function approve(formData) {
     await emailClientApproved(booking);
   } catch (err) {
     console.error("[requests] approve post-processing error:", err.message);
+    problem = err.message || "invoice/email error";
   }
   // The host listing invite (for public events) is sent after payment — see
   // lib/payments.js confirmBookingPaid().
 
   refresh();
-  redirect("/admin/requests?approved=" + id);
+  redirect("/admin/requests?approved=" + id + (problem ? "&warn=" + encodeURIComponent(problem) : ""));
 }
 
 async function deny(formData) {
@@ -62,6 +64,7 @@ export default function RequestsPage({ searchParams }) {
   const pending = listBookings({ status: "pending" });
   const approved = searchParams?.approved;
   const denied = searchParams?.denied;
+  const warn = searchParams?.warn;
 
   return (
     <div>
@@ -76,6 +79,12 @@ export default function RequestsPage({ searchParams }) {
         <div className="mt-4 rounded-lg border border-brass/30 bg-brass/10 px-4 py-2 text-sm text-brass-dark">
           Request #{approved} approved — a hold is on the calendar and the client
           will receive a payment link.
+        </div>
+      ) : null}
+      {warn ? (
+        <div className="mt-2 rounded-lg border border-rust/30 bg-rust/10 px-4 py-2 text-sm text-rust">
+          Approved, but the invoice/email step had a problem: {warn}. The hold is placed — you can resend from
+          Bookings once resolved.
         </div>
       ) : null}
       {denied ? (

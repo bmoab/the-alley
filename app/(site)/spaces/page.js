@@ -30,7 +30,7 @@ export default function SpacesPage() {
             <div className="rate-stat"><div className="n">{minHours} hours</div><div className="k">Minimum booking</div></div>
             <div className="rate-stat"><div className="n">${deposit}</div><div className="k">Refundable deposit</div></div>
           </div>
-          <a className="rulelink" href="/uploads/rental-agreement.pdf" target="_blank" rel="noreferrer">
+          <a className="rulelink" href="/rental-agreement.pdf" target="_blank" rel="noreferrer">
             Rental agreement <Arrow />
           </a>
         </div>
@@ -67,7 +67,7 @@ export default function SpacesPage() {
                 We&apos;ll review your request and email you within a day to confirm — no charge happens until then.
               </p>
             </div>
-            <a className="btn btn--ghost" href="/uploads/rental-agreement.pdf" target="_blank" rel="noreferrer">
+            <a className="btn btn--ghost" href="/rental-agreement.pdf" target="_blank" rel="noreferrer">
               Read the agreement
             </a>
           </div>
