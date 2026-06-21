@@ -18,6 +18,7 @@ export default function SiteLayout({ children }) {
     deposit: Number(s.deposit) || 150,
     openHour: Number(s.open_hour) || 8,
     closeHour: Number(s.close_hour) || 23,
+    cleanupBuffer: (Number(s.cleanup_buffer_minutes) || 60) / 60,
   };
   return (
     <div className="dir-b">

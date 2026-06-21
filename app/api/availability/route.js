@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAvailableStartTimes, getDayAvailability, getDayFreeSlots } from "@/lib/bookings.js";
+import { getAvailableStartTimes, getDayAvailability, getDayFreeSlots, getDayBookings } from "@/lib/bookings.js";
 import { SPACE_BY_ID } from "@/lib/constants.js";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +48,11 @@ export function GET(request) {
   // Range picker: per-30-min freeness for the whole day.
   if (searchParams.get("free")) {
     return NextResponse.json({ space, date, slots: getDayFreeSlots(space, date) });
+  }
+
+  // Smart picker: the day's raw bookings (the client applies the buffer + math).
+  if (searchParams.get("bookings")) {
+    return NextResponse.json({ space, date, bookings: getDayBookings(space, date) });
   }
 
   const slots = getAvailableStartTimes(space, date, hours);
