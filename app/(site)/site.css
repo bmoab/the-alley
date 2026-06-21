@@ -277,6 +277,15 @@
 .sh-link.is-active { color: var(--ink); }
 .sh-actions { display: flex; align-items: center; gap: 10px; }
 .sh-cta { padding: 12px 20px; }
+.sh-cta-short { display: none; }
+
+/* "More" dropdown (desktop) */
+.sh-more { position: relative; display: flex; align-items: center; }
+.sh-more-btn { display: inline-flex; align-items: center; background: none; border: none; cursor: pointer; }
+.sh-more-panel { position: absolute; top: 100%; right: 0; margin-top: 10px; min-width: 160px; background: var(--paper); border: 1px solid var(--line-strong); box-shadow: 0 14px 34px rgba(20,22,16,.16); padding: 6px; display: flex; flex-direction: column; opacity: 0; visibility: hidden; transform: translateY(6px); transition: opacity .18s, transform .18s, visibility .18s; z-index: 90; }
+.sh-more:hover .sh-more-panel, .sh-more:focus-within .sh-more-panel { opacity: 1; visibility: visible; transform: none; }
+.sh-more-link { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); padding: 9px 12px; white-space: nowrap; }
+.sh-more-link:hover, .sh-more-link.is-active { color: var(--ink); background: var(--paper-warm); }
 .sh-burger { display: none; width: 42px; height: 42px; border: 1px solid var(--line-strong); background: transparent; border-radius: 50%; place-items: center; cursor: pointer; color: var(--ink); }
 .sh-burger:hover { background: var(--ink); color: #fff; border-color: var(--ink); }
 .sh-sheet { position: fixed; inset: 0; z-index: 80; background: rgba(22,22,20,.5); backdrop-filter: blur(4px); display: flex; justify-content: flex-end; animation: fadein .2s ease; }
@@ -522,8 +531,12 @@
   .founders-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 720px) {
-  .sh-nav, .sh-cta { display: none; }
+  .sh-nav { display: none; }
   .sh-burger { display: grid; }
+  /* Keep a compact "Book" CTA in the mobile header. */
+  .sh-cta { padding: 8px 14px; font-size: 11px; }
+  .sh-cta-full { display: none; }
+  .sh-cta-short { display: inline; }
 }
 @media (max-width: 560px) {
   .ways-grid, .pillars-grid { grid-template-columns: 1fr; }

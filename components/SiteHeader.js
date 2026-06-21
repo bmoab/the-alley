@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { NAV } from "@/components/site/nav.js";
+import { NAV, SECONDARY } from "@/components/site/nav.js";
 import { useScrolled, useBodyScrollLock } from "@/components/hooks.js";
 
 export default function SiteHeader() {
@@ -34,11 +34,27 @@ export default function SiteHeader() {
               {l.label}
             </Link>
           ))}
+          <div className="sh-more">
+            <button type="button" className="sh-link sh-more-btn" aria-haspopup="true">
+              More
+              <svg width="9" height="6" viewBox="0 0 10 6" aria-hidden="true" style={{ marginLeft: 6 }}>
+                <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            <div className="sh-more-panel">
+              {SECONDARY.map((l) => (
+                <Link key={l.href} href={l.href} className={`sh-more-link${isActive(l.href) ? " is-active" : ""}`}>
+                  {l.label}
+                </Link>
+              ))}
+            </div>
+          </div>
         </nav>
 
         <div className="sh-actions">
           <Link href="/spaces" className="btn btn--solid sh-cta">
-            Request to Book
+            <span className="sh-cta-full">Request to Book</span>
+            <span className="sh-cta-short">Book</span>
           </Link>
           <button
             className="sh-burger"
@@ -60,7 +76,7 @@ export default function SiteHeader() {
             <button className="sh-sheet-x" aria-label="Close menu" onClick={() => setMenuOpen(false)}>
               ×
             </button>
-            {NAV.map((l) => (
+            {[...NAV, ...SECONDARY].map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
@@ -70,12 +86,6 @@ export default function SiteHeader() {
                 {l.label}
               </Link>
             ))}
-            <Link href="/about" className={isActive("/about") ? "is-active" : ""} onClick={() => setMenuOpen(false)}>
-              About
-            </Link>
-            <Link href="/contact" className={isActive("/contact") ? "is-active" : ""} onClick={() => setMenuOpen(false)}>
-              Contact
-            </Link>
             <Link href="/spaces" className="btn btn--solid" style={{ marginTop: 18 }} onClick={() => setMenuOpen(false)}>
               Request to Book
             </Link>

@@ -8,6 +8,13 @@ export const NAV = [
   { label: "Calendar", href: "/calendar" },
 ];
 
+// Secondary pages — shown under a "More" dropdown on desktop and inline in the
+// mobile menu, so the primary nav stays uncluttered.
+export const SECONDARY = [
+  { label: "About", href: "/about" },
+  { label: "Contact", href: "/contact" },
+];
+
 export const FOOTER_COLS = [
   {
     head: "Visit",
