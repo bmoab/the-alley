@@ -1,6 +1,7 @@
 "use server";
 
 import { isSlotAvailable, createBookingRequest, getBooking } from "@/lib/bookings.js";
+import { isClosedForBooking } from "@/lib/closures.js";
 import { getSetting } from "@/lib/db.js";
 import { SPACE_BY_ID, EVENT_TYPES, GUEST_RANGES } from "@/lib/constants.js";
 import { emailOwnerNewRequest, emailClientReceived } from "@/lib/email.js";
@@ -39,6 +40,13 @@ export async function submitBooking(payload) {
   }
 
   if (errors.length) return { ok: false, error: errors.join(" ") };
+
+  // Closed by the owner?
+  const [sh, sm] = start_time.split(":").map(Number);
+  const startHour = sh + (sm || 0) / 60;
+  if (isClosedForBooking(space, date, startHour, startHour + hours)) {
+    return { ok: false, error: "The Alley is closed at that time — please pick another time or date." };
+  }
 
   // Authoritative double-booking check at submit time.
   if (!isSlotAvailable(space, date, start_time, hours)) {

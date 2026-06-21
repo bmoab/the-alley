@@ -28,7 +28,7 @@ function fmtTime(hhmm) {
  * Month view of all held/confirmed bookings plus live public events.
  * `items` is a flat list of { id, date: "YYYY-MM-DD", title, kind, time, meta }.
  */
-export default function AdminCalendar({ items = [] }) {
+export default function AdminCalendar({ items = [], closedDates = {} }) {
   const today = new Date();
   const [cursor, setCursor] = useState({
     year: today.getFullYear(),
@@ -120,6 +120,7 @@ export default function AdminCalendar({ items = [] }) {
           if (!d) return <div key={i} className="min-h-[84px] rounded-lg" />;
           const ymd = `${cursor.year}-${pad(cursor.month + 1)}-${pad(d)}`;
           const dayItems = byDate[ymd] || [];
+          const closedLabels = closedDates[ymd];
           const isToday =
             d === today.getDate() &&
             cursor.month === today.getMonth() &&
@@ -132,6 +133,14 @@ export default function AdminCalendar({ items = [] }) {
               }`}
             >
               <div className="text-xs font-semibold text-ink-muted">{d}</div>
+              {closedLabels ? (
+                <div
+                  className="mt-0.5 truncate rounded bg-rust/15 px-1.5 py-0.5 text-[10px] font-semibold text-rust"
+                  title={`Closed: ${closedLabels.join(", ")}`}
+                >
+                  ✕ Closed
+                </div>
+              ) : null}
               <div className="mt-0.5 space-y-0.5">
                 {dayItems.slice(0, 3).map((it) => (
                   <a

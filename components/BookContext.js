@@ -82,42 +82,14 @@ export function BookProvider({ children, config }) {
 function Stepper({ step }) {
   const labels = ["Space", "Date", "Details", "Done"];
   return (
-    <div style={{ display: "flex", gap: 0, alignItems: "center", marginBottom: 28 }}>
+    <div className="bk-stepper">
       {labels.map((l, i) => (
-        <span key={l} style={{ display: "contents" }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 9 }}>
-            <span
-              style={{
-                width: 26,
-                height: 26,
-                display: "grid",
-                placeItems: "center",
-                fontFamily: "var(--font-mono)",
-                fontSize: 12,
-                background: i <= step ? "var(--ink)" : "transparent",
-                color: i <= step ? "#fff" : "var(--ink-muted)",
-                border: "1px solid " + (i <= step ? "var(--ink)" : "var(--line-strong)"),
-                borderRadius: "50%",
-                transition: "all .3s",
-              }}
-            >
-              {i + 1}
-            </span>
-            <span
-              className="mono"
-              style={{
-                fontSize: 11,
-                letterSpacing: ".14em",
-                textTransform: "uppercase",
-                color: i <= step ? "var(--ink)" : "var(--ink-muted)",
-              }}
-            >
-              {l}
-            </span>
+        <span key={l} className="bk-stepper-item" style={{ display: "contents" }}>
+          <span className="bk-stepper-step">
+            <span className={"bk-stepper-num" + (i <= step ? " is-on" : "")}>{i + 1}</span>
+            <span className={"bk-stepper-label mono" + (i <= step ? " is-on" : "")}>{l}</span>
           </span>
-          {i < labels.length - 1 ? (
-            <span style={{ flex: 1, height: 1, background: "var(--line)", margin: "0 12px", minWidth: 16 }} />
-          ) : null}
+          {i < labels.length - 1 ? <span className="bk-stepper-line" /> : null}
         </span>
       ))}
     </div>
@@ -243,23 +215,37 @@ function fmtFrac(v) {
  * `value` = { start: "HH:MM"|"", hours: number|null }. `bookings` = raw
  * [{ start, end }] fractional-hour intervals (buffer applied here).
  */
-function SmartTime({ config, bookings, value, onChange }) {
+function SmartTime({ config, bookings, closures, value, onChange }) {
   const { rate, deposit, minHours, openHour, closeHour, cleanupBuffer } = config;
   const list = bookings || [];
+  const closed = closures || [];
   const startVal = value.start ? hhmmToFrac(value.start) : null;
 
   const [mode, setMode] = useState(startVal != null && startVal % 1 === 0.5 ? 30 : 0);
 
+  // A start is taken if it falls inside a booking (+ buffer on both sides) or a
+  // closure (hard block, no buffer).
   const isStartTaken = (val) =>
-    list.some((b) => val >= b.start - cleanupBuffer && val < b.end + cleanupBuffer);
+    list.some((b) => val >= b.start - cleanupBuffer && val < b.end + cleanupBuffer) ||
+    closed.some((c) => val >= c.start && val < c.end);
 
+  // Max hours before the next booking (− buffer) or closure (no buffer) or close.
   const maxDurationFrom = (start) => {
     let limit = closeHour - start;
     list.forEach((b) => {
       if (b.start > start) limit = Math.min(limit, b.start - cleanupBuffer - start);
     });
+    closed.forEach((c) => {
+      if (c.start > start) limit = Math.min(limit, c.start - start);
+    });
     return Math.floor(limit);
   };
+
+  // Whole operating day closed?
+  const fullyClosed = closed.some((c) => c.start <= openHour && c.end >= closeHour);
+  if (fullyClosed) {
+    return <p className="bk-times-hint bk-times-none">The Alley is closed this day — please pick another date.</p>;
+  }
 
   // Start chips for the current :00 / :30 set.
   const offset = mode === 30 ? 0.5 : 0;
@@ -396,6 +382,7 @@ function BookModal({ initialRoom, config, onClose }) {
   const [monthCursor, setMonthCursor] = useState({ y: today.getFullYear(), m: today.getMonth() });
   const [dayCounts, setDayCounts] = useState({});
   const [dayBookings, setDayBookings] = useState(null); // null = not loaded
+  const [dayClosures, setDayClosures] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -426,8 +413,16 @@ function BookModal({ initialRoom, config, onClose }) {
     setSlotsLoading(true);
     fetch(`/api/availability?space=${room}&date=${form.date}&bookings=1`)
       .then((r) => r.json())
-      .then((d) => active && setDayBookings(d.bookings || []))
-      .catch(() => active && setDayBookings([]))
+      .then((d) => {
+        if (!active) return;
+        setDayBookings(d.bookings || []);
+        setDayClosures(d.closures || []);
+      })
+      .catch(() => {
+        if (!active) return;
+        setDayBookings([]);
+        setDayClosures([]);
+      })
       .finally(() => active && setSlotsLoading(false));
     return () => {
       active = false;
@@ -487,8 +482,9 @@ function BookModal({ initialRoom, config, onClose }) {
         display: "flex",
         alignItems: "flex-start",
         justifyContent: "center",
-        padding: "max(4vh,28px) 18px",
+        padding: "max(4vh,20px) 12px",
         overflowY: "auto",
+        overflowX: "hidden",
         animation: "fadein .25s ease",
       }}
     >
@@ -497,6 +493,7 @@ function BookModal({ initialRoom, config, onClose }) {
         className="bk-modal"
         style={{
           width: "min(720px,100%)",
+          maxWidth: "100%",
           background: "var(--paper)",
           border: "1px solid var(--ink)",
           boxShadow: "0 30px 80px rgba(0,0,0,.3)",
@@ -572,6 +569,7 @@ function BookModal({ initialRoom, config, onClose }) {
                     <SmartTime
                       config={config}
                       bookings={dayBookings}
+                      closures={dayClosures}
                       value={{ start: form.start, hours: form.hours }}
                       onChange={({ start, hours }) => setForm((f) => ({ ...f, start, hours }))}
                     />

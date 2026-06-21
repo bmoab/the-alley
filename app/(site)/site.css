@@ -692,6 +692,19 @@
 .bk-recap > div:last-child { border-bottom: none; }
 .bk-recap span { color: var(--ink-muted); text-transform: uppercase; letter-spacing: .08em; font-size: 11px; }
 .bk-recap b { color: var(--ink); text-align: right; }
+/* Step indicator (responsive — collapses to numbers on narrow screens) */
+.bk-stepper { display: flex; align-items: center; gap: 0; margin-bottom: 26px; }
+.bk-stepper-step { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.bk-stepper-num { width: 26px; height: 26px; flex: none; display: grid; place-items: center; font-family: var(--font-mono); font-size: 12px; background: transparent; color: var(--ink-muted); border: 1px solid var(--line-strong); border-radius: 50%; transition: all .3s; }
+.bk-stepper-num.is-on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.bk-stepper-label { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-muted); white-space: nowrap; }
+.bk-stepper-label.is-on { color: var(--ink); }
+.bk-stepper-line { flex: 1; height: 1px; background: var(--line); margin: 0 10px; min-width: 8px; }
+@media (max-width: 460px) {
+  .bk-stepper-label { display: none; }
+  .bk-stepper-line { margin: 0 6px; }
+}
+
 /* Smart start-time + duration picker */
 .bk-fieldhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
 .bk-seg { display: inline-flex; background: var(--paper-dim); border: 1px solid var(--line-strong); border-radius: 100px; padding: 3px; }

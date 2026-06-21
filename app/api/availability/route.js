@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAvailableStartTimes, getDayAvailability, getDayFreeSlots, getDayBookings } from "@/lib/bookings.js";
+import { getClosureIntervals, isFullyClosed } from "@/lib/closures.js";
 import { SPACE_BY_ID } from "@/lib/constants.js";
 
 export const dynamic = "force-dynamic";
@@ -34,11 +35,13 @@ export function GET(request) {
     const [y, m] = month.split("-").map(Number);
     const lastDay = new Date(y, m, 0).getDate();
     const days = {};
+    const closedDays = [];
     for (let d = 1; d <= lastDay; d++) {
       const ds = `${month}-${String(d).padStart(2, "0")}`;
       days[ds] = getDayAvailability(space, ds, hours).open;
+      if (isFullyClosed(space, ds)) closedDays.push(ds);
     }
-    return NextResponse.json({ space, month, hours, days });
+    return NextResponse.json({ space, month, hours, days, closedDays });
   }
 
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -50,9 +53,14 @@ export function GET(request) {
     return NextResponse.json({ space, date, slots: getDayFreeSlots(space, date) });
   }
 
-  // Smart picker: the day's raw bookings (the client applies the buffer + math).
+  // Smart picker: the day's raw bookings (buffered client-side) + closures (hard blocks).
   if (searchParams.get("bookings")) {
-    return NextResponse.json({ space, date, bookings: getDayBookings(space, date) });
+    return NextResponse.json({
+      space,
+      date,
+      bookings: getDayBookings(space, date),
+      closures: getClosureIntervals(space, date),
+    });
   }
 
   const slots = getAvailableStartTimes(space, date, hours);
