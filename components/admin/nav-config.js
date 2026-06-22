@@ -15,6 +15,7 @@ import {
   LayoutGrid,
   Settings,
   ClipboardList,
+  History,
 } from "lucide-react";
 
 // Full navigation, in sidebar order. Items are either a link
@@ -27,6 +28,7 @@ export const NAV = [
     items: [
       { href: "/admin/requests", label: "Requests", icon: Inbox },
       { href: "/admin/bookings", label: "Bookings", icon: CalendarCheck },
+      { href: "/admin/all-requests", label: "All Requests", icon: History },
       { href: "/admin/deposits", label: "Deposits", icon: Wallet },
     ],
   },
