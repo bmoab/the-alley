@@ -10,8 +10,16 @@ import {
 import { createBookingInvoice } from "@/lib/square.js";
 import { emailClientApproved, emailClientDenied } from "@/lib/email.js";
 import RequestCard from "@/components/RequestCard.js";
+import PageHeader from "@/components/admin/ui/PageHeader.js";
+import Card from "@/components/admin/ui/Card.js";
 
 export const metadata = { title: "Requests" };
+
+function toastRedirect(message, type = "success") {
+  redirect(
+    "/admin/requests?toast=" + encodeURIComponent(message) + "&toastType=" + type
+  );
+}
 
 function refresh() {
   revalidatePath("/admin/requests");
@@ -44,7 +52,15 @@ async function approve(formData) {
   // lib/payments.js confirmBookingPaid().
 
   refresh();
-  redirect("/admin/requests?approved=" + id + (problem ? "&warn=" + encodeURIComponent(problem) : ""));
+  if (problem) {
+    toastRedirect(
+      `Approved (hold placed), but the invoice/email step failed: ${problem}. Resend from Bookings once resolved.`,
+      "error"
+    );
+  }
+  toastRedirect(
+    `Request approved — a hold is on the calendar and the client was sent a payment link.`
+  );
 }
 
 async function deny(formData) {
@@ -57,49 +73,26 @@ async function deny(formData) {
     console.error("[requests] deny email error:", err.message);
   }
   refresh();
-  redirect("/admin/requests?denied=" + id);
+  toastRedirect(`Request declined — the client has been notified.`, "neutral");
 }
 
-export default function RequestsPage({ searchParams }) {
+export default function RequestsPage() {
   const pending = listBookings({ status: "pending" });
-  const approved = searchParams?.approved;
-  const denied = searchParams?.denied;
-  const warn = searchParams?.warn;
 
   return (
     <div>
-      <p className="eyebrow">Admin</p>
-      <h1 className="font-display text-3xl font-semibold text-ink">Requests</h1>
-      <p className="mt-1 text-ink-muted">
-        Pending booking requests. Adjust pricing if needed, then approve (places a
-        hold and sends a payment link) or deny.
-      </p>
-
-      {approved ? (
-        <div className="mt-4 rounded-lg border border-brass/30 bg-brass/10 px-4 py-2 text-sm text-brass-dark">
-          Request #{approved} approved — a hold is on the calendar and the client
-          will receive a payment link.
-        </div>
-      ) : null}
-      {warn ? (
-        <div className="mt-2 rounded-lg border border-rust/30 bg-rust/10 px-4 py-2 text-sm text-rust">
-          Approved, but the invoice/email step had a problem: {warn}. The hold is placed — you can resend from
-          Bookings once resolved.
-        </div>
-      ) : null}
-      {denied ? (
-        <div className="mt-4 rounded-lg border border-ink/15 bg-paper-warm px-4 py-2 text-sm text-ink-soft">
-          Request #{denied} was declined.
-        </div>
-      ) : null}
+      <PageHeader
+        title="Requests"
+        subtitle="Pending booking requests. Adjust pricing if needed, then approve (places a hold and sends a payment link) or deny."
+      />
 
       {pending.length === 0 ? (
-        <div className="mt-6 card p-10 text-center text-ink-muted">
+        <Card pad="lg" className="py-12 text-center text-ink-muted">
           No pending requests right now. New requests from the website will appear
           here.
-        </div>
+        </Card>
       ) : (
-        <div className="mt-6 space-y-5">
+        <div className="space-y-5">
           {pending.map((b) => (
             <RequestCard
               key={b.id}

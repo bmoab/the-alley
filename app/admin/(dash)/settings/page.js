@@ -2,6 +2,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSettings, setSetting } from "@/lib/db.js";
 import { formatTime } from "@/lib/constants.js";
+import PageHeader from "@/components/admin/ui/PageHeader.js";
+import Card from "@/components/admin/ui/Card.js";
+import Button from "@/components/admin/ui/Button.js";
 
 export const metadata = { title: "Settings" };
 
@@ -66,28 +69,19 @@ async function save(formData) {
   redirect("/admin/settings?saved=1");
 }
 
-export default function SettingsPage({ searchParams }) {
+export default function SettingsPage() {
   const s = getSettings();
-  const saved = searchParams?.saved;
 
   return (
     <div>
-      <p className="eyebrow">Admin</p>
-      <h1 className="font-display text-3xl font-semibold text-ink">Settings</h1>
-      <p className="mt-1 text-ink-muted">
-        Pricing, hours, and booking rules. Changes apply to new requests
-        immediately.
-      </p>
+      <PageHeader
+        title="Settings"
+        subtitle="Pricing, hours, and booking rules. Changes apply to new requests immediately."
+      />
 
-      {saved ? (
-        <div className="mt-4 rounded-lg border border-brass/30 bg-brass/10 px-4 py-2 text-sm text-brass-dark">
-          Saved. Your settings are updated.
-        </div>
-      ) : null}
-
-      <form action={save} className="mt-6 space-y-5">
-        <div className="card p-5">
-          <h2 className="font-display text-lg font-semibold text-ink">Pricing</h2>
+      <form action={save} className="space-y-5">
+        <Card pad="md">
+          <h2 className="text-lg font-semibold text-ink">Pricing</h2>
           <div className="mt-4 grid gap-5 sm:grid-cols-2">
             {NUMBER_FIELDS.filter((f) =>
               ["standard_rate", "deposit"].includes(f.key)
@@ -95,12 +89,10 @@ export default function SettingsPage({ searchParams }) {
               <NumberField key={f.key} field={f} value={s[f.key]} />
             ))}
           </div>
-        </div>
+        </Card>
 
-        <div className="card p-5">
-          <h2 className="font-display text-lg font-semibold text-ink">
-            Booking rules
-          </h2>
+        <Card pad="md">
+          <h2 className="text-lg font-semibold text-ink">Booking rules</h2>
           <div className="mt-4 grid gap-5 sm:grid-cols-2">
             {NUMBER_FIELDS.filter((f) =>
               ["minimum_hours", "cleanup_buffer_minutes", "payment_window_days"].includes(
@@ -144,12 +136,10 @@ export default function SettingsPage({ searchParams }) {
               </select>
             </div>
           </div>
-        </div>
+        </Card>
 
-        <div className="card p-5">
-          <h2 className="font-display text-lg font-semibold text-ink">
-            Public events
-          </h2>
+        <Card pad="md">
+          <h2 className="text-lg font-semibold text-ink">Public events</h2>
           <div className="mt-4">
             <label className="label" htmlFor="listing_auto_publish">
               Auto-publish host event listings
@@ -167,11 +157,9 @@ export default function SettingsPage({ searchParams }) {
               When off, host submissions wait for your approval in the Events tab.
             </p>
           </div>
-        </div>
+        </Card>
 
-        <button type="submit" className="btn-primary">
-          Save changes
-        </button>
+        <Button type="submit">Save changes</Button>
       </form>
     </div>
   );

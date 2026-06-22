@@ -10,6 +10,8 @@ import {
   exhibitorPhase,
 } from "@/lib/catalog.js";
 import { emailExhibitorInvite } from "@/lib/email.js";
+import PageHeader from "@/components/admin/ui/PageHeader.js";
+import Button from "@/components/admin/ui/Button.js";
 
 export const metadata = { title: "Exhibitors" };
 
@@ -79,7 +81,20 @@ async function emailLink(formData) {
     }
   }
   refresh();
-  redirect("/admin/exhibitors?invited=" + (ex?.contact_email ? id : "noemail") + "#ex-" + id);
+  if (ex?.contact_email) {
+    redirect(
+      "/admin/exhibitors?toast=" +
+        encodeURIComponent(`Self-edit link emailed to ${ex.contact_email}.`) +
+        "&toastType=success#ex-" + id
+    );
+  }
+  redirect(
+    "/admin/exhibitors?toast=" +
+      encodeURIComponent(
+        "No email on file — add one and save, then try again. The link is ready to copy below."
+      ) +
+      "&toastType=error#ex-" + id
+  );
 }
 
 function ExhibitorFields({ ex = {} }) {
@@ -125,7 +140,7 @@ function ExhibitorFields({ ex = {} }) {
 function SelfEditLink({ ex }) {
   const link = ex.edit_token ? `${APP_URL}/exhibitor/${ex.edit_token}` : null;
   return (
-    <div className="mt-4 rounded-lg border border-ink/10 bg-paper-warm p-4">
+    <div className="mt-4 rounded-xl border border-line bg-paper-warm p-4">
       <p className="text-sm font-semibold text-ink">Exhibitor self-edit link</p>
       {link ? (
         <>
@@ -136,15 +151,15 @@ function SelfEditLink({ ex }) {
           <input readOnly value={link} className="field mt-2 text-xs" />
           <form action={emailLink} className="mt-2">
             <input type="hidden" name="id" value={ex.id} />
-            <button className="btn-ghost text-sm">
+            <Button type="submit" variant="ghost" size="sm">
               {ex.contact_email ? `Email link to ${ex.contact_email}` : "Add an email above to email this link"}
-            </button>
+            </Button>
           </form>
         </>
       ) : (
         <form action={generateLink} className="mt-2">
           <input type="hidden" name="id" value={ex.id} />
-          <button className="btn-ghost text-sm">Generate self-edit link</button>
+          <Button type="submit" variant="ghost" size="sm">Generate self-edit link</Button>
         </form>
       )}
     </div>
@@ -153,35 +168,21 @@ function SelfEditLink({ ex }) {
 
 const PHASE_LABEL = { current: "On view", past: "Past", hidden: "Hidden" };
 
-export default function ExhibitorsAdminPage({ searchParams }) {
+export default function ExhibitorsAdminPage() {
   const exhibitors = listExhibitors();
-  const invited = searchParams?.invited;
 
   return (
     <div>
-      <p className="eyebrow">Admin</p>
-      <h1 className="font-display text-3xl font-semibold text-ink">Exhibitors</h1>
-      <p className="mt-1 text-ink-muted">
-        Set up an artist with just their name, email, and dates — then send their private link so they fill in
-        everything else. They show as &ldquo;on view&rdquo; during their dates and move to the Past archive after.
-      </p>
+      <PageHeader
+        title="Exhibitors"
+        subtitle="Set up an artist with just their name, email, and dates — then send their private link so they fill in everything else. They show as “on view” during their dates and move to the Past archive after."
+      />
 
-      {invited && invited !== "noemail" ? (
-        <div className="mt-4 rounded-lg border border-brass/30 bg-brass/10 px-4 py-2 text-sm text-brass-dark">
-          Self-edit link emailed to the exhibitor.
-        </div>
-      ) : null}
-      {invited === "noemail" ? (
-        <div className="mt-4 rounded-lg border border-rust/30 bg-rust/10 px-4 py-2 text-sm text-rust">
-          No email on file — add one and save, then try again. The link is ready to copy below.
-        </div>
-      ) : null}
-
-      <details className="mt-6 card p-5" open={exhibitors.length === 0}>
+      <details className="card p-5" open={exhibitors.length === 0}>
         <summary className="cursor-pointer font-semibold text-ink">+ Add an exhibitor</summary>
         <form action={addExhibitorAction} className="mt-4">
           <ExhibitorFields />
-          <button className="btn-primary mt-4">Add exhibitor</button>
+          <Button type="submit" className="mt-4">Add exhibitor</Button>
         </form>
       </details>
 
@@ -197,7 +198,7 @@ export default function ExhibitorsAdminPage({ searchParams }) {
               <form action={saveExhibitorAction} className="mt-4">
                 <input type="hidden" name="id" value={ex.id} />
                 <ExhibitorFields ex={ex} />
-                <button className="btn-primary mt-4">Save</button>
+                <Button type="submit" className="mt-4">Save</Button>
               </form>
               <SelfEditLink ex={ex} />
               <form action={removeExhibitorAction} className="mt-3">

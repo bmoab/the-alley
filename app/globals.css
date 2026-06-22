@@ -99,3 +99,34 @@ h1, h2, h3, .font-display {
     @apply text-xs font-semibold uppercase tracking-[0.2em] text-brass-dark;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Admin (light & airy) — scoped to .admin-ui. The public site is unaffected.
+   --------------------------------------------------------------------------- */
+
+/* Admin cards get a softer, airier elevation than the shared .card default. */
+.admin-ui .card {
+  @apply rounded-2xl border-line bg-paper shadow-card;
+}
+
+/* Sage eyebrow in admin (vs charcoal on the public site). */
+.admin-ui .eyebrow {
+  @apply text-verde-deep;
+}
+
+/* Hide the bottom tab bar's safe-area padding on desktop is handled in JS;
+   here we just make sure long content can scroll under a fixed bar. */
+.admin-ui {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Respect users who prefer reduced motion: disable the admin animations. */
+@media (prefers-reduced-motion: reduce) {
+  .admin-ui *,
+  .admin-ui *::before,
+  .admin-ui *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

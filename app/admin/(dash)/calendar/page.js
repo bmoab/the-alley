@@ -5,6 +5,9 @@ import { listBookings } from "@/lib/bookings.js";
 import { listLiveEvents } from "@/lib/catalog.js";
 import { listClosures, createClosure, deleteClosure } from "@/lib/closures.js";
 import { SPACES, spaceName, formatDate, formatTime } from "@/lib/constants.js";
+import PageHeader from "@/components/admin/ui/PageHeader.js";
+import Card from "@/components/admin/ui/Card.js";
+import Button from "@/components/admin/ui/Button.js";
 
 export const metadata = { title: "Calendar" };
 export const dynamic = "force-dynamic";
@@ -82,19 +85,18 @@ export default function CalendarPage() {
 
   return (
     <div>
-      <p className="eyebrow">Admin</p>
-      <h1 className="font-display text-3xl font-semibold text-ink">Calendar</h1>
-      <p className="mt-1 text-ink-muted">
-        Held and confirmed bookings plus live public events, color-coded by space.
-      </p>
+      <PageHeader
+        title="Calendar"
+        subtitle="Held and confirmed bookings plus live public events, color-coded by space."
+      />
 
-      <div className="mt-4 rounded-lg border border-ink/10 bg-paper-warm p-4 text-sm">
+      <div className="mb-6 rounded-xl border border-verde-deep/25 bg-verde/40 p-4 text-sm">
         <p className="font-semibold text-ink">Sync to Google Calendar &amp; Skylight</p>
-        <p className="mt-1 text-ink-muted">
+        <p className="mt-1 text-ink-soft">
           Subscribe any calendar to this live feed of your public events (Google Calendar → Other calendars →
           From URL; Skylight → Add calendar → iCal/URL):
         </p>
-        <code className="mt-2 block break-all rounded bg-paper-card p-2 text-xs text-ink-soft">
+        <code className="mt-2 block break-all rounded bg-paper p-2 text-xs text-ink-soft">
           {(process.env.APP_URL || "") + "/calendar.ics"}
         </code>
         <p className="mt-2 text-xs text-ink-muted">
@@ -104,8 +106,8 @@ export default function CalendarPage() {
       </div>
 
       {/* Close the Alley */}
-      <div id="closures" className="mt-6 card p-5">
-        <h2 className="font-display text-xl font-semibold text-ink">Close the Alley</h2>
+      <Card id="closures" pad="md" className="mb-6">
+        <h2 className="text-xl font-semibold text-ink">Close the Alley</h2>
         <p className="mt-1 text-sm text-ink-muted">
           Block new bookings for a space (or the whole building) on a date — all day or for a time window.
           Existing bookings aren&apos;t affected.
@@ -149,11 +151,11 @@ export default function CalendarPage() {
               <input name="reason" placeholder="Holiday, private event…" className="field" />
             </div>
           </div>
-          <button className="btn-primary w-fit">Add closure</button>
+          <Button type="submit" className="w-fit">Add closure</Button>
         </form>
 
         {closures.length ? (
-          <ul className="mt-5 divide-y divide-ink/5">
+          <ul className="mt-5 divide-y divide-line">
             {closures.map((c) => (
               <li key={c.id} className="flex items-center justify-between gap-3 py-2 text-sm">
                 <span className="text-ink-soft">
@@ -173,9 +175,9 @@ export default function CalendarPage() {
         ) : (
           <p className="mt-4 text-sm text-ink-muted">No closures set.</p>
         )}
-      </div>
+      </Card>
 
-      <div className="mt-6">
+      <div>
         <AdminCalendar items={items} closedDates={closedDates} />
       </div>
 

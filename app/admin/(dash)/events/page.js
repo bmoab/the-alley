@@ -11,10 +11,29 @@ import {
 } from "@/lib/catalog.js";
 import { emailHostInvite } from "@/lib/email.js";
 import { SPACES, spaceName, formatDate, formatTime } from "@/lib/constants.js";
+import PageHeader from "@/components/admin/ui/PageHeader.js";
+import Button from "@/components/admin/ui/Button.js";
 
 export const metadata = { title: "Public Events" };
 
 const APP_URL = process.env.APP_URL || "";
+
+function invitedRedirect(hasEmail, id) {
+  if (hasEmail) {
+    redirect(
+      "/admin/events?toast=" +
+        encodeURIComponent("Invite link emailed to the host.") +
+        "&toastType=success#ev-" + id
+    );
+  }
+  redirect(
+    "/admin/events?toast=" +
+      encodeURIComponent(
+        "No host email entered — copy the link from “Awaiting host details” below and send it manually."
+      ) +
+      "&toastType=error#ev-" + id
+  );
+}
 
 function refresh() {
   revalidatePath("/admin/events");
@@ -43,7 +62,7 @@ async function inviteHost(formData) {
     }
   }
   refresh();
-  redirect("/admin/events?invited=" + (host_email ? id : "noemail") + "#ev-" + id);
+  invitedRedirect(!!host_email, id);
 }
 
 // Re-send / reveal a draft host's invite link.
@@ -59,7 +78,7 @@ async function emailHostLink(formData) {
     }
   }
   refresh();
-  redirect("/admin/events?invited=" + (ev?.host_email ? id : "noemail") + "#ev-" + id);
+  invitedRedirect(!!ev?.host_email, id);
 }
 
 async function approveEvent(formData) {
@@ -122,7 +141,7 @@ async function createEvent(formData) {
 
 function EventEditor({ ev }) {
   return (
-    <form action={saveEvent} className="mt-3 grid gap-3 border-t border-ink/10 pt-3">
+    <form action={saveEvent} className="mt-3 grid gap-3 border-t border-line pt-3">
       <input type="hidden" name="id" value={ev.id} />
       <div className="grid gap-3 sm:grid-cols-2">
         <div><label className="label">Title</label><input name="title" defaultValue={ev.title || ""} className="field" /></div>
@@ -139,7 +158,7 @@ function EventEditor({ ev }) {
         <div><label className="label">Payment instructions</label><input name="payment_instructions" defaultValue={ev.payment_instructions || ""} className="field" /></div>
         <div><label className="label">Payment link</label><input name="payment_link" defaultValue={ev.payment_link || ""} className="field" /></div>
       </div>
-      <button className="btn-primary w-fit">Save changes</button>
+      <Button type="submit" className="w-fit">Save changes</Button>
     </form>
   );
 }
@@ -160,40 +179,26 @@ function EventCard({ ev, children }) {
         <span className="shrink-0 text-xs text-ink-muted">edit ▾</span>
       </summary>
       <EventEditor ev={ev} />
-      <div className="mt-3 flex flex-wrap gap-3 border-t border-ink/10 pt-3">{children}</div>
+      <div className="mt-3 flex flex-wrap gap-3 border-t border-line pt-3">{children}</div>
     </details>
   );
 }
 
-export default function EventsAdminPage({ searchParams }) {
+export default function EventsAdminPage() {
   const all = listAllEvents();
   const pending = all.filter((e) => e.status === "pending");
   const live = all.filter((e) => e.status === "live");
   const drafts = all.filter((e) => e.status === "draft");
-  const invited = searchParams?.invited;
 
   return (
     <div>
-      <p className="eyebrow">Admin</p>
-      <h1 className="font-display text-3xl font-semibold text-ink">Public Events</h1>
-      <p className="mt-1 text-ink-muted">
-        Invite a host with just their name and email — they fill in their own event details. Then review and
-        publish submissions here. You can also post The Alley&apos;s own events.
-      </p>
-
-      {invited && invited !== "noemail" ? (
-        <div className="mt-4 rounded-lg border border-brass/30 bg-brass/10 px-4 py-2 text-sm text-brass-dark">
-          Invite link emailed to the host.
-        </div>
-      ) : null}
-      {invited === "noemail" ? (
-        <div className="mt-4 rounded-lg border border-rust/30 bg-rust/10 px-4 py-2 text-sm text-rust">
-          No host email entered — copy the link from &ldquo;Awaiting host details&rdquo; below and send it manually.
-        </div>
-      ) : null}
+      <PageHeader
+        title="Public Events"
+        subtitle="Invite a host with just their name and email — they fill in their own event details. Then review and publish submissions here. You can also post The Alley's own events."
+      />
 
       {/* Invite a host */}
-      <details className="mt-6 card p-5" open={drafts.length === 0 && pending.length === 0 && live.length === 0}>
+      <details className="card p-5" open={drafts.length === 0 && pending.length === 0 && live.length === 0}>
         <summary className="cursor-pointer font-semibold text-ink">+ Invite a host to post an event</summary>
         <form action={inviteHost} className="mt-4 grid gap-3">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -208,13 +213,13 @@ export default function EventsAdminPage({ searchParams }) {
             The host gets a private link to add the title, description, photo/flyer, and how attendees pay them.
             Their submission comes back here for your review.
           </p>
-          <button className="btn-primary w-fit">Send host invite</button>
+          <Button type="submit" className="w-fit">Send host invite</Button>
         </form>
       </details>
 
       {/* Awaiting review */}
-      <h2 className="mt-8 font-display text-xl font-semibold text-ink">
-        Awaiting review {pending.length ? <span className="text-brass-dark">({pending.length})</span> : null}
+      <h2 className="mt-8 text-xl font-semibold text-ink">
+        Awaiting review {pending.length ? <span className="text-verde-deep">({pending.length})</span> : null}
       </h2>
       {pending.length === 0 ? (
         <p className="mt-2 text-sm text-ink-muted">Nothing waiting for review.</p>
@@ -222,7 +227,7 @@ export default function EventsAdminPage({ searchParams }) {
         <div className="mt-3 space-y-3">
           {pending.map((ev) => (
             <EventCard key={ev.id} ev={ev}>
-              <form action={approveEvent}><input type="hidden" name="id" value={ev.id} /><button className="btn-accent !px-4 !py-1.5 text-sm">Approve &amp; publish</button></form>
+              <form action={approveEvent}><input type="hidden" name="id" value={ev.id} /><Button type="submit" variant="accent" size="sm">Approve &amp; publish</Button></form>
               <form action={removeEvent}><input type="hidden" name="id" value={ev.id} /><button className="text-sm font-semibold text-rust hover:underline">Remove</button></form>
             </EventCard>
           ))}
@@ -230,8 +235,8 @@ export default function EventsAdminPage({ searchParams }) {
       )}
 
       {/* Live */}
-      <h2 className="mt-8 font-display text-xl font-semibold text-ink">
-        Live on the calendar {live.length ? <span className="text-brass-dark">({live.length})</span> : null}
+      <h2 className="mt-8 text-xl font-semibold text-ink">
+        Live on the calendar {live.length ? <span className="text-verde-deep">({live.length})</span> : null}
       </h2>
       {live.length === 0 ? (
         <p className="mt-2 text-sm text-ink-muted">No live events yet.</p>
@@ -239,7 +244,7 @@ export default function EventsAdminPage({ searchParams }) {
         <div className="mt-3 space-y-3">
           {live.map((ev) => (
             <EventCard key={ev.id} ev={ev}>
-              <form action={unpublishEvent}><input type="hidden" name="id" value={ev.id} /><button className="btn-ghost !px-4 !py-1.5 text-sm">Unpublish</button></form>
+              <form action={unpublishEvent}><input type="hidden" name="id" value={ev.id} /><Button type="submit" variant="ghost" size="sm">Unpublish</Button></form>
               <form action={removeEvent}><input type="hidden" name="id" value={ev.id} /><button className="text-sm font-semibold text-rust hover:underline">Remove</button></form>
             </EventCard>
           ))}
@@ -249,7 +254,7 @@ export default function EventsAdminPage({ searchParams }) {
       {/* Drafts (host invited, not yet submitted) */}
       {drafts.length ? (
         <>
-          <h2 className="mt-8 font-display text-xl font-semibold text-ink">
+          <h2 className="mt-8 text-xl font-semibold text-ink">
             Awaiting host details <span className="text-ink-muted">({drafts.length})</span>
           </h2>
           <div className="mt-3 space-y-2">
@@ -269,9 +274,9 @@ export default function EventsAdminPage({ searchParams }) {
                     <div className="mt-2 flex flex-wrap gap-3">
                       <form action={emailHostLink}>
                         <input type="hidden" name="id" value={ev.id} />
-                        <button className="btn-ghost text-sm">
+                        <Button type="submit" variant="ghost" size="sm">
                           {ev.host_email ? `Email link to ${ev.host_email}` : "No email on file"}
-                        </button>
+                        </Button>
                       </form>
                       <form action={removeEvent}>
                         <input type="hidden" name="id" value={ev.id} />
@@ -287,7 +292,7 @@ export default function EventsAdminPage({ searchParams }) {
       ) : null}
 
       {/* Create own event */}
-      <h2 className="mt-10 font-display text-xl font-semibold text-ink">
+      <h2 className="mt-10 text-xl font-semibold text-ink">
         Create an Alley event
       </h2>
       <details className="mt-3 card p-5">
@@ -315,7 +320,7 @@ export default function EventsAdminPage({ searchParams }) {
             <div><label className="label">Payment instructions</label><input name="payment_instructions" className="field" /></div>
             <div><label className="label">Payment link</label><input name="payment_link" className="field" /></div>
           </div>
-          <button className="btn-primary w-fit">Publish event</button>
+          <Button type="submit" className="w-fit">Publish event</Button>
         </form>
       </details>
     </div>

@@ -1,6 +1,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getContent, setContent } from "@/lib/db.js";
+import PageHeader from "@/components/admin/ui/PageHeader.js";
+import Card from "@/components/admin/ui/Card.js";
+import Button from "@/components/admin/ui/Button.js";
 
 export const metadata = { title: "Descriptors" };
 
@@ -48,7 +51,16 @@ async function save(formData) {
   revalidatePath("/art-beat");
   revalidatePath("/spaces");
   revalidatePath("/admin/descriptors");
-  redirect("/admin/descriptors?saved=1" + (badKeys.length ? "&invalid=" + encodeURIComponent(badKeys.join(",")) : ""));
+  if (badKeys.length) {
+    redirect(
+      "/admin/descriptors?toast=" +
+        encodeURIComponent(
+          `Saved, but some JSON fields were invalid and left unchanged: ${badKeys.join(", ")}.`
+        ) +
+        "&toastType=error"
+    );
+  }
+  redirect("/admin/descriptors?saved=1");
 }
 
 function prettyJson(value) {
@@ -59,47 +71,36 @@ function prettyJson(value) {
   }
 }
 
-export default function DescriptorsPage({ searchParams }) {
+export default function DescriptorsPage() {
   const c = getContent();
-  const saved = searchParams?.saved;
-  const invalid = searchParams?.invalid;
 
   return (
     <div>
-      <p className="eyebrow">Site Content</p>
-      <h1 className="font-display text-3xl font-semibold text-ink">Descriptors</h1>
-      <p className="mt-1 text-ink-muted">Edit the words on your website. Changes go live immediately.</p>
+      <PageHeader
+        eyebrow="Site Content"
+        title="Descriptors"
+        subtitle="Edit the words on your website. Changes go live immediately."
+      />
 
-      {saved ? (
-        <div className="mt-4 rounded-lg border border-brass/30 bg-brass/10 px-4 py-2 text-sm text-brass-dark">
-          Saved. Your site is updated.
-        </div>
-      ) : null}
-      {invalid ? (
-        <div className="mt-2 rounded-lg border border-rust/30 bg-rust/10 px-4 py-2 text-sm text-rust">
-          Some JSON fields weren&apos;t valid and were left unchanged: {invalid}. Check the formatting and save again.
-        </div>
-      ) : null}
-
-      <form action={save} className="mt-6 space-y-5">
+      <form action={save} className="space-y-5">
         {FIELDS.map((f) => (
-          <div key={f.key} className="card p-5">
+          <Card key={f.key} pad="md">
             <label className="label" htmlFor={f.key}>{f.label}</label>
             {f.textarea ? (
               <textarea id={f.key} name={f.key} rows={f.rows || 3} defaultValue={c[f.key] || ""} className="field" />
             ) : (
               <input id={f.key} name={f.key} defaultValue={c[f.key] || ""} className="field" />
             )}
-          </div>
+          </Card>
         ))}
 
-        <h2 className="pt-4 font-display text-2xl font-semibold text-ink">Page copy (structured)</h2>
+        <h2 className="pt-4 text-xl font-semibold text-ink">Page copy (structured)</h2>
         <p className="-mt-2 text-sm text-ink-muted">
           These sections are stored as JSON. Keep the shape shown in the placeholder; invalid JSON is ignored on
           save so the site can&apos;t break.
         </p>
         {JSON_FIELDS.map((f) => (
-          <div key={f.key} className="card p-5">
+          <Card key={f.key} pad="md">
             <label className="label" htmlFor={f.key}>{f.label}</label>
             <textarea
               id={f.key}
@@ -110,10 +111,10 @@ export default function DescriptorsPage({ searchParams }) {
               className="field font-mono text-xs"
               spellCheck={false}
             />
-          </div>
+          </Card>
         ))}
 
-        <button type="submit" className="btn-primary">Save changes</button>
+        <Button type="submit">Save changes</Button>
       </form>
     </div>
   );

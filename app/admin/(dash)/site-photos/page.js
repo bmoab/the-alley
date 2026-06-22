@@ -2,6 +2,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getContent, setContent } from "@/lib/db.js";
 import ContentImageField from "@/components/ContentImageField.js";
+import PageHeader from "@/components/admin/ui/PageHeader.js";
+import Button from "@/components/admin/ui/Button.js";
 
 export const metadata = { title: "Site Photos" };
 
@@ -24,30 +26,22 @@ async function save(formData) {
   redirect("/admin/site-photos?saved=1");
 }
 
-export default function SitePhotosPage({ searchParams }) {
+export default function SitePhotosPage() {
   const c = getContent();
-  const saved = searchParams?.saved;
 
   return (
     <div>
-      <p className="eyebrow">Site Content</p>
-      <h1 className="font-display text-3xl font-semibold text-ink">Site Photos</h1>
-      <p className="mt-1 text-ink-muted">
-        Swap the main photos across your site. These are separate from the Gallery and from each space&apos;s
-        photo set (Spaces Photos).
-      </p>
+      <PageHeader
+        eyebrow="Site Content"
+        title="Site Photos"
+        subtitle="Swap the main photos across your site. These are separate from the Gallery and from each space's photo set (Spaces Photos)."
+      />
 
-      {saved ? (
-        <div className="mt-4 rounded-lg border border-brass/30 bg-brass/10 px-4 py-2 text-sm text-brass-dark">
-          Saved. Your site is updated.
-        </div>
-      ) : null}
-
-      <form action={save} className="mt-6 space-y-5">
+      <form action={save} className="space-y-5">
         {IMAGE_FIELDS.map((f) => (
           <ContentImageField key={f.key} name={f.key} label={f.label} hint={f.hint} value={c[f.key] || ""} />
         ))}
-        <button type="submit" className="btn-primary">Save changes</button>
+        <Button type="submit">Save changes</Button>
       </form>
     </div>
   );
