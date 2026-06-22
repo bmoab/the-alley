@@ -46,9 +46,42 @@ module.exports = {
         // Brand typeface: Josefin Sans for both display and body.
         display: ["var(--font-display)", "system-ui", "sans-serif"],
         sans: ["var(--font-archivo)", "system-ui", "sans-serif"],
+        // Admin UI typeface: Inter.
+        ui: ["var(--font-ui)", "system-ui", "sans-serif"],
       },
       maxWidth: {
         content: "1240px",
+      },
+      boxShadow: {
+        // Soft, airy elevation for the admin's light surfaces.
+        card: "0 1px 2px rgba(47,47,45,0.04), 0 6px 20px -8px rgba(47,47,45,0.10)",
+        "card-hover":
+          "0 2px 4px rgba(47,47,45,0.05), 0 12px 28px -10px rgba(47,47,45,0.16)",
+        sheet: "0 -8px 30px -12px rgba(47,47,45,0.25)",
+      },
+      keyframes: {
+        "fade-in-up": {
+          "0%": { opacity: "0", transform: "translateY(6px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "slide-up": {
+          "0%": { transform: "translateY(100%)" },
+          "100%": { transform: "translateY(0)" },
+        },
+        "toast-in": {
+          "0%": { opacity: "0", transform: "translateY(10px) scale(0.98)" },
+          "100%": { opacity: "1", transform: "translateY(0) scale(1)" },
+        },
+        "fade-in": {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+      },
+      animation: {
+        "fade-in-up": "fade-in-up 0.35s cubic-bezier(0.21,0.6,0.35,1) both",
+        "slide-up": "slide-up 0.28s cubic-bezier(0.21,0.6,0.35,1) both",
+        "toast-in": "toast-in 0.3s cubic-bezier(0.21,0.6,0.35,1) both",
+        "fade-in": "fade-in 0.2s ease-out both",
       },
     },
   },

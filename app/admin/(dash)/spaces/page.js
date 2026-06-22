@@ -4,6 +4,8 @@ import { listSpacePhotos, addSpacePhoto, updateSpacePhoto, deleteSpacePhoto } fr
 import { SPACES } from "@/lib/constants.js";
 import Placeholder from "@/components/Placeholder.js";
 import ContentImageField from "@/components/ContentImageField.js";
+import PageHeader from "@/components/admin/ui/PageHeader.js";
+import Button from "@/components/admin/ui/Button.js";
 
 export const metadata = { title: "Spaces" };
 
@@ -44,18 +46,16 @@ async function removePhoto(formData) {
 export default function SpacesAdminPage() {
   return (
     <div>
-      <p className="eyebrow">Admin</p>
-      <h1 className="font-display text-3xl font-semibold text-ink">Spaces</h1>
-      <p className="mt-1 text-ink-muted">
-        Upload photos of each rentable space. The first photo (lowest order) is the lead image; the rest fill
-        the thumbnail gallery on the public Spaces page.
-      </p>
+      <PageHeader
+        title="Spaces"
+        subtitle="Upload photos of each rentable space. The first photo (lowest order) is the lead image; the rest fill the thumbnail gallery on the public Spaces page."
+      />
 
       {SPACES.map((space) => {
         const photos = listSpacePhotos(space.id);
         return (
-          <section key={space.id} id={space.id} className="mt-8">
-            <h2 className="font-display text-xl font-semibold text-ink">
+          <section key={space.id} id={space.id} className="mt-8 first:mt-0">
+            <h2 className="text-xl font-semibold text-ink">
               {space.name} <span className="text-sm font-normal text-ink-muted">{space.location}</span>
             </h2>
 
@@ -67,7 +67,7 @@ export default function SpacesAdminPage() {
                   <div key={p.id} className="card overflow-hidden">
                     <Placeholder src={p.image_path} label={p.caption || "Photo"} seed={i} className="h-28 w-full" rounded="rounded-none" />
                     {i === 0 ? (
-                      <div className="bg-brass/20 px-2 py-0.5 text-center text-[11px] font-semibold text-brass-dark">Lead image</div>
+                      <div className="bg-verde/60 px-2 py-0.5 text-center text-[11px] font-semibold text-verde-deep">Lead image</div>
                     ) : null}
                     <form action={savePhoto} className="space-y-2 p-2">
                       <input type="hidden" name="id" value={p.id} />
@@ -75,7 +75,7 @@ export default function SpacesAdminPage() {
                       <input name="caption" defaultValue={p.caption || ""} placeholder="Caption" className="field text-xs" />
                       <div className="flex items-center gap-2">
                         <input name="sort_order" type="number" defaultValue={p.sort_order ?? 0} className="field w-16 text-xs" title="Order" />
-                        <button className="btn-primary text-xs">Save</button>
+                        <Button type="submit" size="sm">Save</Button>
                       </div>
                     </form>
                     <form action={removePhoto} className="px-2 pb-2">
@@ -96,7 +96,7 @@ export default function SpacesAdminPage() {
                 <div className="flex items-center gap-2">
                   <input name="caption" placeholder="Caption (e.g. set for a workshop)" className="field text-sm" />
                   <input name="sort_order" type="number" defaultValue={photos.length} className="field w-20 text-sm" title="Order" />
-                  <button className="btn-primary text-sm">Add photo</button>
+                  <Button type="submit" size="sm">Add photo</Button>
                 </div>
               </form>
             </details>

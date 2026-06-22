@@ -8,6 +8,9 @@ import {
 } from "@/lib/catalog.js";
 import Placeholder from "@/components/Placeholder.js";
 import ContentImageField from "@/components/ContentImageField.js";
+import PageHeader from "@/components/admin/ui/PageHeader.js";
+import Card from "@/components/admin/ui/Card.js";
+import Button from "@/components/admin/ui/Button.js";
 
 export const metadata = { title: "Gallery" };
 
@@ -61,14 +64,12 @@ export default function GalleryAdminPage() {
 
   return (
     <div>
-      <p className="eyebrow">Admin</p>
-      <h1 className="font-display text-3xl font-semibold text-ink">Gallery</h1>
-      <p className="mt-1 text-ink-muted">
-        Photos shown on the public Gallery page. Tags become the filter chips
-        visitors use to narrow the wall.
-      </p>
+      <PageHeader
+        title="Gallery"
+        subtitle="Photos shown on the public Gallery page. Tags become the filter chips visitors use to narrow the wall."
+      />
 
-      <div className="mt-6 card p-5">
+      <Card pad="md">
         <h2 className="font-semibold text-ink">Add a photo</h2>
         <form action={addImage} className="mt-4 grid gap-3">
           <ContentImageField
@@ -81,12 +82,12 @@ export default function GalleryAdminPage() {
             <input name="tags" placeholder="Tags, comma-separated (The Loft, Live Music)" className="field sm:col-span-5" />
             <input name="sort_order" type="number" defaultValue={0} className="field sm:col-span-1" title="Sort order" />
           </div>
-          <button className="btn-primary w-fit">Add photo</button>
+          <Button type="submit" className="w-fit">Add photo</Button>
         </form>
-      </div>
+      </Card>
 
       {images.length === 0 ? (
-        <div className="mt-6 card p-10 text-center text-ink-muted">No photos yet.</div>
+        <Card pad="lg" className="mt-6 py-12 text-center text-ink-muted">No photos yet.</Card>
       ) : (
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {images.map((img, i) => (
@@ -98,7 +99,7 @@ export default function GalleryAdminPage() {
                 <input name="tags" defaultValue={(img.tagList || []).join(", ")} placeholder="Tags, comma-separated" className="field text-sm" />
                 <div className="flex items-center gap-2">
                   <input name="sort_order" type="number" defaultValue={img.sort_order ?? 0} className="field w-20 text-sm" title="Sort order" />
-                  <button className="btn-primary text-sm">Save</button>
+                  <Button type="submit" size="sm">Save</Button>
                 </div>
               </form>
               <form action={removeImage} className="px-3 pb-3">

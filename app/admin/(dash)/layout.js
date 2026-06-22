@@ -1,7 +1,11 @@
 import { redirect } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 import { getSession, clearSessionCookie } from "@/lib/auth.js";
-import NavGroup from "@/components/admin/NavGroup.js";
+import AdminNav from "@/components/admin/AdminNav.js";
+import BottomNav from "@/components/admin/BottomNav.js";
+import Toaster from "@/components/admin/ui/Toaster.js";
 
 async function logout() {
   "use server";
@@ -9,83 +13,47 @@ async function logout() {
   redirect("/admin/login");
 }
 
-// Nav with an optional grouped section (Reservations).
-const NAV = [
-  { href: "/admin", label: "Dashboard" },
-  {
-    group: "Reservations",
-    items: [
-      { href: "/admin/requests", label: "Requests" },
-      { href: "/admin/bookings", label: "Bookings" },
-      { href: "/admin/deposits", label: "Deposits" },
-    ],
-  },
-  { href: "/admin/calendar", label: "Calendar" },
-  { href: "/admin/events", label: "Public Events" },
-  { href: "/admin/directory", label: "Directory" },
-  { href: "/admin/exhibitors", label: "Exhibitors" },
-  {
-    group: "Site Content",
-    items: [
-      { href: "/admin/descriptors", label: "Descriptors" },
-      { href: "/admin/site-photos", label: "Site Photos" },
-      { href: "/admin/spaces", label: "Spaces Photos" },
-      { href: "/admin/gallery", label: "Gallery" },
-    ],
-  },
-  { href: "/admin/settings", label: "Settings" },
-];
-
 export default async function AdminLayout({ children }) {
   const session = await getSession();
   if (!session) redirect("/admin/login");
 
   return (
     <div className="admin-ui min-h-screen bg-paper-warm lg:flex">
-      {/* Sidebar */}
-      <aside className="border-b border-ink/10 bg-ink text-paper lg:min-h-screen lg:w-64 lg:shrink-0 lg:border-b-0 lg:border-r lg:border-ink/40">
-        <div className="flex items-center justify-between p-5 lg:block">
-          <Link href="/admin" className="font-display text-xl font-semibold">
-            The Alley <span className="text-brass-light">Admin</span>
-          </Link>
-          <p className="hidden text-xs text-paper/50 lg:mt-1 lg:block">
-            {session.email}
-          </p>
-        </div>
-        <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:flex-col lg:gap-0.5 lg:px-3">
-          {NAV.map((item) =>
-            item.group ? (
-              <NavGroup key={item.group} label={item.group} items={item.items} />
-            ) : (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="whitespace-nowrap rounded-lg px-3 py-2 text-sm text-paper/75 transition hover:bg-ink-soft hover:text-paper"
-              >
-                {item.label}
-              </Link>
-            )
-          )}
-        </nav>
-        <div className="hidden border-t border-ink/40 p-3 lg:block">
-          <Link
-            href="/"
-            className="block rounded-lg px-3 py-2 text-sm text-paper/60 hover:text-paper"
-          >
-            ↗ View website
-          </Link>
-          <form action={logout}>
-            <button className="w-full rounded-lg px-3 py-2 text-left text-sm text-paper/60 hover:text-paper">
-              Sign out
-            </button>
-          </form>
-        </div>
+      {/* Desktop sidebar */}
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-r border-line bg-paper lg:block">
+        <AdminNav email={session.email} logout={logout} />
       </aside>
+
+      {/* Mobile top bar */}
+      <header className="sticky top-0 z-30 flex items-center gap-2.5 border-b border-line bg-paper/95 px-4 py-3 backdrop-blur lg:hidden">
+        <Link href="/admin" className="flex items-center gap-2.5">
+          <Image
+            src="/brand/emblem-black.png"
+            alt="The Alley"
+            width={28}
+            height={28}
+            className="h-7 w-7 object-contain"
+          />
+          <span className="text-sm font-semibold text-ink">
+            The Alley <span className="text-verde-deep">Admin</span>
+          </span>
+        </Link>
+      </header>
 
       {/* Main content */}
       <main className="flex-1">
-        <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8">{children}</div>
+        <div className="mx-auto max-w-5xl px-5 py-7 pb-24 sm:px-8 lg:py-9 lg:pb-9">
+          {children}
+        </div>
       </main>
+
+      {/* Mobile bottom tab bar + More sheet */}
+      <BottomNav email={session.email} logout={logout} />
+
+      {/* Toasts (reads server-redirect params + client toast() calls) */}
+      <Suspense fallback={null}>
+        <Toaster />
+      </Suspense>
     </div>
   );
 }

@@ -14,6 +14,8 @@ import {
 import { emailTenantInvite } from "@/lib/email.js";
 import { zoneSpace } from "@/lib/building-map.js";
 import ContentImageField from "@/components/ContentImageField.js";
+import PageHeader from "@/components/admin/ui/PageHeader.js";
+import Button from "@/components/admin/ui/Button.js";
 
 export const metadata = { title: "Directory" };
 
@@ -85,7 +87,20 @@ async function emailLink(formData) {
     }
   }
   refresh();
-  redirect("/admin/directory?invited=" + (entry?.contact_email ? id : "noemail") + "#biz-" + id);
+  if (entry?.contact_email) {
+    redirect(
+      "/admin/directory?toast=" +
+        encodeURIComponent(`Self-edit link emailed to ${entry.contact_email}.`) +
+        "&toastType=success#biz-" + id
+    );
+  }
+  redirect(
+    "/admin/directory?toast=" +
+      encodeURIComponent(
+        "No tenant email on file — add one and save, then try again. The link is ready to copy below."
+      ) +
+      "&toastType=error#biz-" + id
+  );
 }
 
 /* ---- Suites ---- */
@@ -163,7 +178,7 @@ function TenantFields({ entry = {}, suites = [] }) {
 function SelfEditLink({ entry }) {
   const link = entry.edit_token ? `${APP_URL}/business-listing/${entry.edit_token}` : null;
   return (
-    <div className="mt-4 rounded-lg border border-ink/10 bg-paper-warm p-4">
+    <div className="mt-4 rounded-xl border border-line bg-paper-warm p-4">
       <p className="text-sm font-semibold text-ink">Tenant self-edit link</p>
       {link ? (
         <>
@@ -174,15 +189,15 @@ function SelfEditLink({ entry }) {
           <input readOnly value={link} className="field mt-2 text-xs" />
           <form action={emailLink} className="mt-2">
             <input type="hidden" name="id" value={entry.id} />
-            <button className="btn-ghost text-sm">
+            <Button type="submit" variant="ghost" size="sm">
               {entry.contact_email ? `Email link to ${entry.contact_email}` : "Add a tenant email above to email this link"}
-            </button>
+            </Button>
           </form>
         </>
       ) : (
         <form action={generateLink} className="mt-2">
           <input type="hidden" name="id" value={entry.id} />
-          <button className="btn-ghost text-sm">Generate self-edit link</button>
+          <Button type="submit" variant="ghost" size="sm">Generate self-edit link</Button>
         </form>
       )}
     </div>
@@ -212,7 +227,7 @@ function SuiteRow({ suite, tenant }) {
             Occupied by <strong>{tenant.business_name}</strong>. Change this from the tenant&apos;s suite checkboxes above.
           </p>
         ) : (
-          <div className="rounded-lg border border-ink/10 bg-paper-warm p-4">
+          <div className="rounded-xl border border-line bg-paper-warm p-4">
             <p className="text-sm font-semibold text-ink">Vacant — show as available?</p>
             <label className="mt-2 flex items-center gap-2">
               <input type="checkbox" name="available" defaultChecked={Number(suite.available) === 1} />
@@ -227,50 +242,36 @@ function SuiteRow({ suite, tenant }) {
             </div>
           </div>
         )}
-        <button className="btn-primary w-fit">Save suite</button>
+        <Button type="submit" className="w-fit">Save suite</Button>
       </form>
     </details>
   );
 }
 
-export default function DirectoryAdminPage({ searchParams }) {
+export default function DirectoryAdminPage() {
   const tenants = listDirectory();
   // Exclude the two rentable spaces (gallery = Main Floor, 200 = Loft) — those
   // are managed under Spaces, not assigned to tenants.
   const suites = listSuites().filter((s) => !zoneSpace(s.zone));
   const byId = Object.fromEntries(tenants.map((t) => [t.id, t]));
-  const invited = searchParams?.invited;
 
   const lower = suites.filter((s) => s.floor === "lower");
   const upper = suites.filter((s) => s.floor !== "lower");
 
   return (
     <div>
-      <p className="eyebrow">Admin</p>
-      <h1 className="font-display text-3xl font-semibold text-ink">Directory</h1>
-      <p className="mt-1 text-ink-muted">
-        Manage the businesses in the building and which suites they occupy. The public directory and the
-        interactive floor map update automatically.
-      </p>
-
-      {invited && invited !== "noemail" ? (
-        <div className="mt-4 rounded-lg border border-brass/30 bg-brass/10 px-4 py-2 text-sm text-brass-dark">
-          Self-edit link emailed to the tenant.
-        </div>
-      ) : null}
-      {invited === "noemail" ? (
-        <div className="mt-4 rounded-lg border border-rust/30 bg-rust/10 px-4 py-2 text-sm text-rust">
-          No tenant email on file — add one and save, then try again. The link is ready to copy below.
-        </div>
-      ) : null}
+      <PageHeader
+        title="Directory"
+        subtitle="Manage the businesses in the building and which suites they occupy. The public directory and the interactive floor map update automatically."
+      />
 
       {/* Tenants */}
-      <h2 className="mt-8 font-display text-xl font-semibold text-ink">Tenants</h2>
+      <h2 className="text-xl font-semibold text-ink">Tenants</h2>
       <details className="mt-3 card p-5" open={tenants.length === 0}>
         <summary className="cursor-pointer font-semibold text-ink">+ Add a tenant</summary>
         <form action={addTenant} className="mt-4">
           <TenantFields suites={suites} />
-          <button className="btn-primary mt-4">Add tenant</button>
+          <Button type="submit" className="mt-4">Add tenant</Button>
         </form>
       </details>
 
@@ -288,7 +289,7 @@ export default function DirectoryAdminPage({ searchParams }) {
               <form action={saveTenant} className="mt-4">
                 <input type="hidden" name="id" value={e.id} />
                 <TenantFields entry={e} suites={suites} />
-                <button className="btn-primary mt-4">Save</button>
+                <Button type="submit" className="mt-4">Save</Button>
               </form>
               <SelfEditLink entry={e} />
               <form action={removeTenant} className="mt-2">
@@ -301,7 +302,7 @@ export default function DirectoryAdminPage({ searchParams }) {
       </div>
 
       {/* Building suites */}
-      <h2 className="mt-10 font-display text-xl font-semibold text-ink">Building suites</h2>
+      <h2 className="mt-10 text-xl font-semibold text-ink">Building suites</h2>
       <p className="mt-1 text-sm text-ink-muted">
         Name each suite and, for empty ones, add a photo + blurb and mark it available to lease.
       </p>

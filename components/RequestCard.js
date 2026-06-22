@@ -7,18 +7,19 @@ import {
   formatTime,
   formatMoney,
 } from "@/lib/constants.js";
+import Button from "@/components/admin/ui/Button.js";
 
 /**
  * A submit button bound to a specific server action via formAction. Uses
  * useFormStatus for the pending state instead of a manual onClick+disabled,
  * which would otherwise cancel the form submission for server actions.
  */
-function SubmitButton({ formAction, className, children, pendingLabel }) {
+function SubmitButton({ formAction, variant, children, pendingLabel }) {
   const { pending } = useFormStatus();
   return (
-    <button formAction={formAction} disabled={pending} className={className}>
+    <Button formAction={formAction} disabled={pending} variant={variant} size="sm">
       {pending ? pendingLabel || "Working…" : children}
-    </button>
+    </Button>
   );
 }
 
@@ -46,18 +47,18 @@ export default function RequestCard({ booking, approveAction, denyAction }) {
     ) : null;
 
   return (
-    <div className="card p-6">
+    <div className="card animate-fade-in-up p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wider text-brass-dark">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-verde-deep">
             {spaceName(booking.space)}
             {booking.is_public_event ? (
-              <span className="ml-2 rounded-full bg-brass/15 px-2 py-0.5 text-[10px] text-brass-dark">
+              <span className="rounded-full border border-verde-deep/30 bg-verde-deep/15 px-2 py-0.5 text-[10px] normal-case tracking-normal text-verde-deep">
                 Wants calendar listing
               </span>
             ) : null}
           </div>
-          <h3 className="mt-1 font-display text-xl font-semibold text-ink">
+          <h3 className="mt-1 text-xl font-semibold text-ink">
             {booking.client_name}
           </h3>
           <p className="text-sm text-ink-muted">
@@ -66,7 +67,7 @@ export default function RequestCard({ booking, approveAction, denyAction }) {
           </p>
         </div>
         <div className="text-right text-sm">
-          <a href={`mailto:${booking.client_email}`} className="block text-brass-dark hover:underline">
+          <a href={`mailto:${booking.client_email}`} className="block font-medium text-verde-deep hover:underline">
             {booking.client_email}
           </a>
           <a href={`tel:${booking.client_phone}`} className="block text-ink-muted">
@@ -93,7 +94,7 @@ export default function RequestCard({ booking, approveAction, denyAction }) {
       ) : null}
 
       {/* Pricing editor + actions */}
-      <form className="mt-5 border-t border-ink/10 pt-5">
+      <form className="mt-5 border-t border-line pt-5">
         <input type="hidden" name="id" value={booking.id} />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div>
@@ -119,22 +120,18 @@ export default function RequestCard({ booking, approveAction, denyAction }) {
             Rental {formatMoney(rental)}
             {Number(sessions) > 1 ? ` (${sessions} sessions)` : ""} + deposit{" "}
             {formatMoney(Number(deposit) || 0)} ={" "}
-            <span className="font-display text-lg font-semibold text-ink">
+            <span className="text-lg font-semibold text-ink">
               {formatMoney(total)}
             </span>
           </div>
           <div className="flex gap-2">
-            <SubmitButton
-              formAction={denyAction}
-              pendingLabel="Denying…"
-              className="btn-ghost !px-4 !py-2 text-sm text-rust hover:border-rust/50 disabled:opacity-50"
-            >
+            <SubmitButton formAction={denyAction} pendingLabel="Denying…" variant="danger">
               Deny
             </SubmitButton>
             <SubmitButton
               formAction={approveAction}
               pendingLabel="Approving…"
-              className="btn-accent !px-5 !py-2 text-sm disabled:opacity-50"
+              variant="accent"
             >
               Approve &amp; send payment link
             </SubmitButton>

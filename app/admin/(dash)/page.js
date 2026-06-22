@@ -1,9 +1,13 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Inbox, Clock, CalendarCheck, Megaphone } from "lucide-react";
 import { listBookings } from "@/lib/bookings.js";
 import { listLiveEvents } from "@/lib/catalog.js";
 import { sendEmail } from "@/lib/email.js";
 import { BOOKING_STATUS } from "@/lib/constants.js";
+import PageHeader from "@/components/admin/ui/PageHeader.js";
+import StatCard from "@/components/admin/ui/StatCard.js";
+import Card from "@/components/admin/ui/Card.js";
+import Button from "@/components/admin/ui/Button.js";
 
 export const metadata = { title: "Dashboard" };
 
@@ -30,91 +34,67 @@ async function sendTestEmail() {
   redirect(`/admin?test=${ok ? "ok" : "fail"}&mode=${mode}`);
 }
 
-function StatCard({ label, value, href, hint }) {
-  return (
-    <Link href={href} className="card block p-5 transition hover:border-brass/50">
-      <div className="text-3xl font-semibold text-ink">{value}</div>
-      <div className="mt-1 text-sm font-semibold text-ink-soft">{label}</div>
-      {hint ? <div className="mt-0.5 text-xs text-ink-muted">{hint}</div> : null}
-    </Link>
-  );
-}
-
-export default function AdminDashboard({ searchParams }) {
+export default function AdminDashboard() {
   const pending = listBookings({ status: BOOKING_STATUS.PENDING });
   const held = listBookings({ status: BOOKING_STATUS.HELD });
   const confirmed = listBookings({ status: BOOKING_STATUS.CONFIRMED });
   const liveEvents = listLiveEvents();
-  const test = searchParams?.test;
-  const mode = searchParams?.mode;
 
   return (
     <div>
-      <p className="eyebrow">Overview</p>
-      <h1 className="font-display text-3xl font-semibold text-ink">Dashboard</h1>
-      <p className="mt-1 text-ink-muted">
-        Everything happening at The Alley, at a glance.
-      </p>
+      <PageHeader
+        eyebrow="Overview"
+        title="Dashboard"
+        subtitle="Everything happening at The Alley, at a glance."
+      />
 
-      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard
           label="Pending requests"
           value={pending.length}
           href="/admin/requests"
           hint="Awaiting your review"
+          icon={Inbox}
+          accent
         />
         <StatCard
           label="Held bookings"
           value={held.length}
           href="/admin/bookings"
           hint="Awaiting payment"
+          icon={Clock}
         />
         <StatCard
           label="Confirmed"
           value={confirmed.length}
           href="/admin/bookings"
           hint="Paid & on the calendar"
+          icon={CalendarCheck}
         />
         <StatCard
           label="Live events"
           value={liveEvents.length}
           href="/admin/events"
           hint="Public listings"
+          icon={Megaphone}
         />
       </div>
 
       {/* TEMP: pre-launch email check. Remove this card + sendTestEmail action
-          once email delivery is confirmed in production. */}
-      <div className="mt-8 card p-6">
-        <h2 className="font-display text-xl font-semibold text-ink">
-          Email check
-        </h2>
+          once email delivery is confirmed in production. The result toast is
+          handled globally by <Toaster /> via the ?test= redirect param. */}
+      <Card pad="lg" className="mt-8">
+        <h2 className="text-lg font-semibold text-ink">Email check</h2>
         <p className="mt-1 text-sm text-ink-muted">
           Send a test email to{" "}
           <strong>{process.env.OWNER_EMAIL || "thealleyoncenter@gmail.com"}</strong>{" "}
           to confirm email sending works. (Temporary — we&apos;ll remove this
           after launch.)
         </p>
-
-        {test === "ok" ? (
-          <div className="mt-4 rounded-lg border border-brass/40 bg-brass/20 px-4 py-2 text-sm text-ink">
-            {mode === "smtp" || mode === "resend"
-              ? `Sent via ${mode}. Check the inbox — it should arrive shortly.`
-              : `The app reported success but used "${mode}" mode (no live email provider). Check the server config.`}
-          </div>
-        ) : null}
-        {test === "fail" ? (
-          <div className="mt-4 rounded-lg border border-rust/30 bg-rust/10 px-4 py-2 text-sm text-rust">
-            Sending failed (mode: {mode}). Check the SMTP settings / server logs.
-          </div>
-        ) : null}
-
         <form action={sendTestEmail} className="mt-4">
-          <button type="submit" className="btn-primary">
-            Send test email
-          </button>
+          <Button type="submit">Send test email</Button>
         </form>
-      </div>
+      </Card>
     </div>
   );
 }

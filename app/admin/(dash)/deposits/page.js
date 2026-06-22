@@ -10,6 +10,9 @@ import {
   formatDate,
   formatMoney,
 } from "@/lib/constants.js";
+import PageHeader from "@/components/admin/ui/PageHeader.js";
+import Card from "@/components/admin/ui/Card.js";
+import Button from "@/components/admin/ui/Button.js";
 
 export const metadata = { title: "Deposits" };
 
@@ -18,7 +21,11 @@ async function refund(formData) {
   await resolveDeposit(Number(formData.get("id")), "refund");
   revalidatePath("/admin/deposits");
   revalidatePath("/admin");
-  redirect("/admin/deposits?done=refunded");
+  redirect(
+    "/admin/deposits?toast=" +
+      encodeURIComponent("Deposit refunded — reminders stopped.") +
+      "&toastType=success"
+  );
 }
 
 async function withhold(formData) {
@@ -26,15 +33,18 @@ async function withhold(formData) {
   await resolveDeposit(Number(formData.get("id")), "withhold");
   revalidatePath("/admin/deposits");
   revalidatePath("/admin");
-  redirect("/admin/deposits?done=withheld");
+  redirect(
+    "/admin/deposits?toast=" +
+      encodeURIComponent("Deposit logged as withheld.") +
+      "&toastType=success"
+  );
 }
 
-export default async function DepositsPage({ searchParams }) {
+export default async function DepositsPage() {
   // Lazy sweep: send any due day-1/2/3 reminders (a cron also hits this daily).
   await runDepositReminders();
 
   const items = listDepositsToRefund();
-  const done = searchParams?.done;
 
   function daysAgo(ymd) {
     const [y, m, d] = ymd.split("-").map(Number);
@@ -46,47 +56,39 @@ export default async function DepositsPage({ searchParams }) {
 
   return (
     <div>
-      <p className="eyebrow">Admin</p>
-      <h1 className="font-display text-3xl font-semibold text-ink">Deposits to refund</h1>
-      <p className="mt-1 text-ink-muted">
-        Events that have passed with a cleaning deposit still to resolve. Inspect
-        the space, then refund or withhold. Reminders go out on days 1–3 until
-        resolved.
-      </p>
-
-      {done ? (
-        <div className="mt-4 rounded-lg border border-brass/30 bg-brass/10 px-4 py-2 text-sm text-brass-dark">
-          Deposit {done}. {done === "refunded" ? "Reminders stopped and the refund was issued." : "Logged as withheld."}
-        </div>
-      ) : null}
+      <PageHeader
+        title="Deposits to refund"
+        subtitle="Events that have passed with a cleaning deposit still to resolve. Inspect the space, then refund or withhold. Reminders go out on days 1–3 until resolved."
+      />
 
       {items.length === 0 ? (
-        <div className="mt-6 card p-10 text-center text-ink-muted">
+        <Card pad="lg" className="py-12 text-center text-ink-muted">
           No deposits awaiting action. 🎉
-        </div>
+        </Card>
       ) : (
-        <div className="mt-6 space-y-4">
+        <div className="space-y-4">
           {items.map((b) => {
             const ago = daysAgo(b.date);
             return (
-              <div key={b.id} className="card p-5">
+              <Card key={b.id} pad="md" className="animate-fade-in-up">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h3 className="font-display text-xl font-semibold text-ink">
-                      {b.client_name}
-                    </h3>
+                    <h3 className="text-lg font-semibold text-ink">{b.client_name}</h3>
                     <p className="text-sm text-ink-muted">
                       {spaceName(b.space)} · {formatDate(b.date)} ·{" "}
                       <span className={ago >= 3 ? "font-semibold text-rust" : ""}>
                         {ago === 0 ? "today" : `${ago} day${ago === 1 ? "" : "s"} ago`}
                       </span>
                     </p>
-                    <a href={`mailto:${b.client_email}`} className="text-sm text-brass-dark hover:underline">
+                    <a
+                      href={`mailto:${b.client_email}`}
+                      className="text-sm font-medium text-verde-deep hover:underline"
+                    >
                       {b.client_email}
                     </a>
                   </div>
                   <div className="text-right">
-                    <div className="font-display text-2xl font-semibold text-ink">
+                    <div className="text-2xl font-semibold text-ink">
                       {formatMoney(b.deposit)}
                     </div>
                     <div className="text-xs uppercase tracking-wider text-ink-muted">
@@ -94,21 +96,21 @@ export default async function DepositsPage({ searchParams }) {
                     </div>
                   </div>
                 </div>
-                <div className="mt-4 flex gap-2 border-t border-ink/10 pt-4">
+                <div className="mt-4 flex gap-2 border-t border-line pt-4">
                   <form action={refund}>
                     <input type="hidden" name="id" value={b.id} />
-                    <button className="btn-accent !px-4 !py-2 text-sm">
+                    <Button type="submit" variant="accent" size="sm">
                       Refund deposit
-                    </button>
+                    </Button>
                   </form>
                   <form action={withhold}>
                     <input type="hidden" name="id" value={b.id} />
-                    <button className="btn-ghost !px-4 !py-2 text-sm text-rust hover:border-rust/50">
+                    <Button type="submit" variant="danger" size="sm">
                       Withhold
-                    </button>
+                    </Button>
                   </form>
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>

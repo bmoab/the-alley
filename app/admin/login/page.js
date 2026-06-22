@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { verifyCredentials, setSessionCookie, getSession } from "@/lib/auth.js";
+import Button from "@/components/admin/ui/Button.js";
 
 export const metadata = { title: "Admin Sign In" };
 
@@ -22,22 +24,24 @@ export default async function LoginPage({ searchParams }) {
   const hasError = searchParams?.error;
 
   return (
-    <main className="admin-ui flex min-h-screen items-center justify-center bg-ink px-5 py-16">
-      <div className="w-full max-w-md">
-        <div className="mb-8 text-center">
-          <Link
-            href="/"
-            className="font-display text-2xl font-semibold tracking-tight text-paper"
-          >
-            The Alley <span className="text-brass-light">On Center</span>
+    <main className="admin-ui flex min-h-screen items-center justify-center bg-paper-warm px-5 py-16">
+      <div className="w-full max-w-md animate-fade-in-up">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <Image
+            src="/brand/emblem-black.png"
+            alt="The Alley On Center"
+            width={48}
+            height={48}
+            className="h-12 w-12 object-contain"
+          />
+          <Link href="/" className="mt-3 text-xl font-semibold tracking-tight text-ink">
+            The Alley <span className="text-verde-deep">On Center</span>
           </Link>
-          <p className="mt-2 text-sm text-paper/60">Owner administration</p>
+          <p className="mt-1 text-sm text-ink-muted">Owner administration</p>
         </div>
 
         <div className="card p-8">
-          <h1 className="font-display text-2xl font-semibold text-ink">
-            Welcome back
-          </h1>
+          <h1 className="text-2xl font-semibold text-ink">Welcome back</h1>
           <p className="mt-1 text-sm text-ink-muted">
             Sign in to manage bookings, events, and your site.
           </p>
@@ -77,14 +81,14 @@ export default async function LoginPage({ searchParams }) {
                 placeholder="••••••••"
               />
             </div>
-            <button type="submit" className="btn-primary w-full">
+            <Button type="submit" full>
               Sign in
-            </button>
+            </Button>
           </form>
         </div>
 
-        <p className="mt-6 text-center text-xs text-paper/40">
-          ← <Link href="/" className="hover:text-paper/70">Back to the website</Link>
+        <p className="mt-6 text-center text-xs text-ink-muted">
+          ← <Link href="/" className="hover:text-ink">Back to the website</Link>
         </p>
       </div>
     </main>
