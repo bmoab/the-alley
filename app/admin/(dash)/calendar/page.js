@@ -45,6 +45,7 @@ const SPACE_LABEL = { all: "Whole building", loft: "The Loft", main: "The Main F
 export default function CalendarPage() {
   const held = listBookings({ status: "held" });
   const confirmed = listBookings({ status: "confirmed" });
+  const cancelled = listBookings({ status: "cancelled" });
   const events = listLiveEvents();
   const closures = listClosures();
   // Full-day closures → calendar markers (date → labels).
@@ -81,7 +82,19 @@ export default function CalendarPage() {
     href: `/admin/events#ev-${e.id}`,
   }));
 
-  const items = [...bookingItems, ...eventItems];
+  // Cancelled bookings stay visible (greyed) for the record, but no longer
+  // block the slot — they're not in held/confirmed above.
+  const cancelledItems = cancelled.map((b) => ({
+    id: b.id,
+    date: b.date,
+    time: b.start_time,
+    kind: "cancelled",
+    title: `${b.client_name || spaceName(b.space)} (cancelled)`,
+    meta: `${spaceName(b.space)} · cancelled`,
+    href: `/admin/all-requests?status=cancelled`,
+  }));
+
+  const items = [...bookingItems, ...eventItems, ...cancelledItems];
 
   return (
     <div>

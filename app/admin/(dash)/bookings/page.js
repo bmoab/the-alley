@@ -148,7 +148,17 @@ export default async function BookingsPage({ searchParams }) {
                           Open invoice ↗
                         </a>
                       ) : null}
+                      <Link
+                        href={`/admin/bookings/${b.id}/cancel`}
+                        className="text-xs font-medium text-rust hover:underline"
+                      >
+                        Cancel booking
+                      </Link>
                     </div>
+                  ) : b.status === "confirmed" ? (
+                    <Button href={`/admin/bookings/${b.id}/cancel`} variant="ghost" size="sm">
+                      Cancel booking
+                    </Button>
                   ) : (
                     <span className="text-xs text-ink-muted">—</span>
                   )}

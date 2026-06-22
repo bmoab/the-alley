@@ -5,6 +5,7 @@ import { formatTime } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
 import Button from "@/components/admin/ui/Button.js";
+import CancellationPolicyForm from "@/components/admin/CancellationPolicyForm.js";
 
 export const metadata = { title: "Settings" };
 
@@ -67,6 +68,20 @@ async function save(formData) {
   revalidatePath("/admin/settings");
   revalidatePath("/book");
   redirect("/admin/settings?saved=1");
+}
+
+const REFUND_VALUES = ["full", "deposit_only", "none"];
+
+async function saveCancellationPolicy(formData) {
+  "use server";
+  const hours = Math.max(0, Number(formData.get("cancellation_cutoff_hours")) || 0);
+  const before = formData.get("refund_before_cutoff");
+  const within = formData.get("refund_within_cutoff");
+  setSetting("cancellation_cutoff_hours", String(hours));
+  setSetting("refund_before_cutoff", REFUND_VALUES.includes(before) ? before : "full");
+  setSetting("refund_within_cutoff", REFUND_VALUES.includes(within) ? within : "deposit_only");
+  revalidatePath("/admin/settings");
+  redirect("/admin/settings?toast=" + encodeURIComponent("Cancellation policy saved.") + "&toastType=success");
 }
 
 export default function SettingsPage() {
@@ -161,6 +176,10 @@ export default function SettingsPage() {
 
         <Button type="submit">Save changes</Button>
       </form>
+
+      <div className="mt-5">
+        <CancellationPolicyForm action={saveCancellationPolicy} values={s} />
+      </div>
     </div>
   );
 }

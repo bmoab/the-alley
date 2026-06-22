@@ -6,12 +6,14 @@ const KIND_STYLES = {
   loft: "bg-brass text-ink",
   main: "bg-ink text-paper",
   event: "bg-rust text-paper",
+  cancelled: "bg-ink/15 text-ink-muted line-through",
 };
 
 const KIND_LABELS = {
   loft: "Loft booking",
   main: "Main Floor booking",
   event: "Public event",
+  cancelled: "Cancelled",
 };
 
 function fmtTime(hhmm) {
