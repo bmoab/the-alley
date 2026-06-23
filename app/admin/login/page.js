@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { verifyCredentials, setSessionCookie, getSession, recordLogin, ensureSeeded } from "@/lib/auth.js";
+import { verifyCredentials, setSessionCookie, getCurrentUser, recordLogin, ensureSeeded } from "@/lib/auth.js";
 import Button from "@/components/admin/ui/Button.js";
 
 export const metadata = { title: "Admin Sign In" };
@@ -24,8 +24,10 @@ export default async function LoginPage({ searchParams }) {
   // Ensure the two owner accounts exist (prints their one-time temp passwords to
   // the server console on first run). Idempotent.
   ensureSeeded();
-  // Already signed in? Go straight to the dashboard.
-  if (await getSession()) redirect("/admin");
+  // Already signed in with an ACTIVE account? Go straight to the dashboard.
+  // (Checking getCurrentUser, not just the raw cookie, so a stale session for a
+  // since-deactivated account doesn't bounce /admin ⇄ /admin/login forever.)
+  if (await getCurrentUser()) redirect("/admin");
   const hasError = searchParams?.error;
   const didReset = searchParams?.reset;
 
