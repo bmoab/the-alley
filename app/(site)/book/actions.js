@@ -1,6 +1,6 @@
 "use server";
 
-import { isSlotAvailable, createBookingRequest, getBooking } from "@/lib/bookings.js";
+import { isSlotAvailable, isStartInPast, createBookingRequest, getBooking } from "@/lib/bookings.js";
 import { isClosedForBooking } from "@/lib/closures.js";
 import { getSetting } from "@/lib/db.js";
 import { SPACE_BY_ID, EVENT_TYPES, GUEST_RANGES } from "@/lib/constants.js";
@@ -43,6 +43,11 @@ export async function submitBooking(payload) {
   }
 
   if (errors.length) return { ok: false, error: errors.join(" ") };
+
+  // Can't book a time that's already passed today.
+  if (isStartInPast(date, start_time)) {
+    return { ok: false, error: "That start time has already passed today — please pick a later time." };
+  }
 
   // Closed by the owner?
   const [sh, sm] = start_time.split(":").map(Number);

@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
-import { useFormStatus } from "react-dom";
+import { useEffect, useState } from "react";
+import { useFormStatus, createPortal } from "react-dom";
 import { DENIAL_REASONS } from "@/lib/denial.js";
 import Button from "@/components/admin/ui/Button.js";
 
@@ -23,7 +23,11 @@ function ConfirmButton() {
 export default function DenyDialog({ bookingId, clientName, denyAction }) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("date_unavailable");
+  const [mounted, setMounted] = useState(false);
   const isOther = reason === "other";
+
+  // Portal target is only available on the client.
+  useEffect(() => setMounted(true), []);
 
   return (
     <>
@@ -31,8 +35,12 @@ export default function DenyDialog({ bookingId, clientName, denyAction }) {
         Deny
       </Button>
 
-      {open ? (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true">
+      {/* The dialog (which contains its OWN <form>) is portaled to <body> so it
+          is NOT nested inside the request card's pricing <form> — nested forms
+          are invalid HTML and would silently swallow the deny submission. */}
+      {mounted && open
+        ? createPortal(
+        <div className="admin-ui fixed inset-0 z-[60] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true">
           <button
             aria-label="Cancel"
             onClick={() => setOpen(false)}
@@ -93,8 +101,10 @@ export default function DenyDialog({ bookingId, clientName, denyAction }) {
               </div>
             </form>
           </div>
-        </div>
-      ) : null}
+        </div>,
+            document.body
+          )
+        : null}
     </>
   );
 }

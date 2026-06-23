@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
-import { spaceName, formatDate } from "@/lib/constants.js";
+import { useEffect, useState } from "react";
+import { spaceName, formatDate, formatTime } from "@/lib/constants.js";
 
 async function uploadFile(file, kind) {
   const fd = new FormData();
@@ -29,10 +29,17 @@ export default function HostListingForm({ event, saveAction, alreadyLive }) {
   });
   const [uploading, setUploading] = useState("");
   const [error, setError] = useState("");
-  const [done, setDone] = useState(false);
+  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
+
+  // Auto-dismiss the "saved" notice so it reads as a transient toast.
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(""), 5000);
+    return () => clearTimeout(t);
+  }, [notice]);
 
   async function onPhoto(e) {
     const file = e.target.files?.[0];
@@ -56,7 +63,7 @@ export default function HostListingForm({ event, saveAction, alreadyLive }) {
   }
 
   async function handleSubmit(submit) {
-    setError(""); setBusy(true);
+    setError(""); setNotice(""); setBusy(true);
     const res = await saveAction({
       ...form,
       tickets: form.tickets === "" ? null : Number(form.tickets),
@@ -66,36 +73,32 @@ export default function HostListingForm({ event, saveAction, alreadyLive }) {
     });
     setBusy(false);
     if (res?.ok) {
-      if (submit) setDone(true);
-      else setError(""); // saved as draft
+      // Stay on the form; show a transient confirmation instead of navigating away.
+      setNotice(
+        !submit
+          ? "Draft saved — keep editing whenever you like."
+          : alreadyLive
+            ? "Changes saved — your listing is updated."
+            : "Submitted! The Alley will take a quick look, then it goes live. You can keep editing from this same link."
+      );
     } else {
       setError(res?.error || "Something went wrong.");
     }
-  }
-
-  if (done) {
-    return (
-      <div className="card p-8 text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-brass/15 text-2xl text-brass-dark">✓</div>
-        <h2 className="mt-4 font-display text-2xl font-semibold text-ink">
-          {alreadyLive ? "Listing updated" : "Submitted for review"}
-        </h2>
-        <p className="mt-3 text-ink-muted">
-          {alreadyLive
-            ? "Your changes are saved."
-            : "Thanks! The Alley will give it a quick look and then it goes live on the public calendar. You can keep editing from this same link."}
-        </p>
-      </div>
-    );
   }
 
   return (
     <div className="space-y-5">
       <div className="rounded-xl bg-paper-warm p-4 text-sm text-ink-soft">
         Booking: <strong>{spaceName(event.space)}</strong>
-        {event.date ? ` · ${formatDate(event.date)}` : ""} — pre-filled below,
-        editable.
+        {event.date ? ` · ${formatDate(event.date)}` : ""} — the date &amp; time are
+        locked to your reservation; fill in the listing details below.
       </div>
+
+      {notice ? (
+        <div className="rounded-lg border border-verde-deep/30 bg-verde/40 px-4 py-2.5 text-sm font-medium text-ink">
+          ✓ {notice}
+        </div>
+      ) : null}
 
       {error ? (
         <div className="rounded-lg border border-rust/30 bg-rust/10 px-4 py-2 text-sm text-rust">{error}</div>
@@ -111,13 +114,21 @@ export default function HostListingForm({ event, saveAction, alreadyLive }) {
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <label className="label">Date</label>
-            <input type="date" className="field" value={form.date} onChange={(e) => set({ date: e.target.value })} />
+            <div className="field bg-paper-warm text-ink-soft" aria-readonly="true">
+              {form.date ? formatDate(form.date) : "—"}
+            </div>
           </div>
           <div>
             <label className="label">Time</label>
-            <input type="time" className="field" value={form.time} onChange={(e) => set({ time: e.target.value })} />
+            <div className="field bg-paper-warm text-ink-soft" aria-readonly="true">
+              {form.time ? formatTime(form.time) : "—"}
+            </div>
           </div>
         </div>
+        <p className="mt-2 text-xs text-ink-muted">
+          Date &amp; time come from your booking and can&apos;t be changed here. Need a different
+          time? Contact The Alley.
+        </p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <label className="label">Spots available</label>

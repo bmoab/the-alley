@@ -9,6 +9,7 @@ import {
   SPACES,
   spaceName,
   formatDate,
+  formatDateShort,
   formatTime,
   formatMoney,
 } from "@/lib/constants.js";
@@ -100,21 +101,22 @@ export default async function BookingsPage({ searchParams }) {
             {all.map((b) => (
               <Tr key={b.id} id={`b-${b.id}`} className={focus === b.id ? "bg-verde/40" : ""}>
                 <Td>
-                  <div className="font-medium text-ink">{formatDate(b.date)}</div>
+                  <div className="whitespace-nowrap font-medium text-ink">{formatDateShort(b.date)}</div>
                   <div className="text-xs text-ink-muted">
                     {formatTime(b.start_time)} · {b.hours}h
                   </div>
                 </Td>
-                <Td>{spaceName(b.space)}</Td>
+                <Td className="whitespace-nowrap">{spaceName(b.space).replace("The Alley ", "")}</Td>
                 <Td>
+                  <div className="font-medium text-ink">{b.client_name}</div>
+                  <div className="text-xs text-ink-muted">{b.client_email}</div>
                   <Link
                     href={`/admin/bookings?${spaceFilter ? `space=${spaceFilter}&` : ""}b=${b.id}`}
-                    className="font-medium text-ink hover:text-verde-deep hover:underline"
+                    className="mt-0.5 inline-block whitespace-nowrap text-xs font-medium text-verde-deep hover:underline"
                     scroll={false}
                   >
-                    {b.client_name}
+                    View activity →
                   </Link>
-                  <div className="text-xs text-ink-muted">{b.client_email}</div>
                 </Td>
                 <Td>
                   <Badge status={b.status} />
@@ -130,40 +132,42 @@ export default async function BookingsPage({ searchParams }) {
                 <Td className="text-right font-medium text-ink">{formatMoney(b.total)}</Td>
                 <Td className="text-right">
                   {b.status === "held" ? (
-                    <div className="flex flex-col items-end gap-1.5">
+                    <div className="ml-auto flex w-[150px] flex-col gap-1.5">
                       {b.square_invoice_id ? (
                         <form action={checkPayment}>
                           <input type="hidden" name="id" value={b.id} />
-                          <Button type="submit" variant="ghost" size="sm">
+                          <Button type="submit" variant="ghost" size="sm" full className="whitespace-nowrap">
                             Check for payment
                           </Button>
                         </form>
                       ) : null}
                       <form action={markPaid}>
                         <input type="hidden" name="id" value={b.id} />
-                        <Button type="submit" variant="accent" size="sm">
+                        <Button type="submit" variant="accent" size="sm" full className="whitespace-nowrap">
                           Mark as paid
                         </Button>
                       </form>
-                      {b.payment_link ? (
-                        <a
-                          href={b.payment_link}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-xs font-medium text-verde-deep hover:underline"
+                      <div className="flex items-center justify-between gap-2 px-0.5 text-xs">
+                        {b.payment_link ? (
+                          <a
+                            href={b.payment_link}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="whitespace-nowrap font-medium text-verde-deep hover:underline"
+                          >
+                            Invoice ↗
+                          </a>
+                        ) : <span />}
+                        <Link
+                          href={`/admin/bookings/${b.id}/cancel`}
+                          className="whitespace-nowrap font-medium text-rust hover:underline"
                         >
-                          Open invoice ↗
-                        </a>
-                      ) : null}
-                      <Link
-                        href={`/admin/bookings/${b.id}/cancel`}
-                        className="text-xs font-medium text-rust hover:underline"
-                      >
-                        Cancel booking
-                      </Link>
+                          Cancel
+                        </Link>
+                      </div>
                     </div>
                   ) : b.status === "confirmed" ? (
-                    <Button href={`/admin/bookings/${b.id}/cancel`} variant="ghost" size="sm">
+                    <Button href={`/admin/bookings/${b.id}/cancel`} variant="ghost" size="sm" className="whitespace-nowrap">
                       Cancel booking
                     </Button>
                   ) : (
