@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { verifyCredentials, setSessionCookie, getSession } from "@/lib/auth.js";
+import { verifyCredentials, setSessionCookie, getSession, recordLogin, ensureSeeded } from "@/lib/auth.js";
 import Button from "@/components/admin/ui/Button.js";
 
 export const metadata = { title: "Admin Sign In" };
@@ -14,14 +14,20 @@ async function login(formData) {
   if (!user) {
     redirect("/admin/login?error=1");
   }
+  recordLogin(user.id);
   await setSessionCookie(user);
-  redirect("/admin");
+  // First login (or an owner-reset) forces choosing a new password.
+  redirect(user.must_change_password ? "/admin/set-password" : "/admin");
 }
 
 export default async function LoginPage({ searchParams }) {
+  // Ensure the two owner accounts exist (prints their one-time temp passwords to
+  // the server console on first run). Idempotent.
+  ensureSeeded();
   // Already signed in? Go straight to the dashboard.
   if (await getSession()) redirect("/admin");
   const hasError = searchParams?.error;
+  const didReset = searchParams?.reset;
 
   return (
     <main className="admin-ui flex min-h-screen items-center justify-center bg-paper-warm px-5 py-16">
@@ -49,6 +55,11 @@ export default async function LoginPage({ searchParams }) {
           {hasError ? (
             <div className="mt-4 rounded-lg border border-rust/30 bg-rust/10 px-3 py-2 text-sm text-rust">
               That email and password don&apos;t match. Please try again.
+            </div>
+          ) : null}
+          {didReset ? (
+            <div className="mt-4 rounded-lg border border-verde-deep/30 bg-verde/40 px-3 py-2 text-sm text-ink">
+              Your password was updated. Sign in with your new password.
             </div>
           ) : null}
 
@@ -85,6 +96,11 @@ export default async function LoginPage({ searchParams }) {
               Sign in
             </Button>
           </form>
+          <p className="mt-4 text-center text-sm">
+            <Link href="/admin/forgot" className="text-verde-deep hover:underline">
+              Forgot your password?
+            </Link>
+          </p>
         </div>
 
         <p className="mt-6 text-center text-xs text-ink-muted">

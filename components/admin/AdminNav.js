@@ -4,7 +4,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { ExternalLink, LogOut } from "lucide-react";
 import NavGroup from "./NavGroup.js";
-import { NAV, isActive } from "./nav-config.js";
+import { navFor, isActive } from "./nav-config.js";
 import { cx } from "./ui/cx.js";
 
 /**
@@ -12,8 +12,9 @@ import { cx } from "./ui/cx.js";
  * active state with a sage accent bar. Footer actions (View website / Sign out)
  * are always visible here. `logout` is a server action passed from the layout.
  */
-export default function AdminNav({ email, logout }) {
+export default function AdminNav({ email, isOwner = false, logout }) {
   const pathname = usePathname();
+  const nav = navFor(isOwner);
 
   return (
     <div className="flex h-full flex-col">
@@ -34,7 +35,7 @@ export default function AdminNav({ email, logout }) {
 
       {/* Nav */}
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3">
-        {NAV.map((item) =>
+        {nav.map((item) =>
           item.group ? (
             <NavGroup
               key={item.group}

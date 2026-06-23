@@ -8,7 +8,8 @@ import {
 } from "@/lib/bookings.js";
 import { refundPayment } from "@/lib/square.js";
 import { emailClientCancelled } from "@/lib/email.js";
-import { getSession } from "@/lib/auth.js";
+import { getActor } from "@/lib/auth.js";
+import { logActivity, logEmail } from "@/lib/activity.js";
 import { spaceName, formatDate, formatTime, formatMoney } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
@@ -25,7 +26,7 @@ async function confirmCancel(formData) {
   if (booking.status === "cancelled") redirect("/admin/bookings");
 
   const quote = cancellationQuote(booking);
-  const session = await getSession();
+  const actor = await getActor();
 
   // Issue the Square refund (partial deposit-only or full) before recording.
   if (quote.hasPayment && quote.refundAmount > 0) {
@@ -50,11 +51,31 @@ async function confirmCancel(formData) {
   cancelBooking(id, {
     refundAmount: quote.refundAmount,
     refundType: quote.refundType,
-    cancelledBy: session?.email || "owner",
+    cancelledBy: actor.actorName,
+  });
+
+  // Activity: cancelled (with the refund outcome), attributed to the real user.
+  logActivity({
+    bookingId: id,
+    eventType: "cancelled",
+    description:
+      quote.refundType === "none"
+        ? "Booking cancelled · no payment on file"
+        : `Booking cancelled · refunded ${formatMoney(quote.refundAmount)} (${quote.refundType === "full" ? "full" : "deposit only"})`,
+    amount: quote.refundAmount || null,
+    metadata: { refund_type: quote.refundType, side: quote.side },
+    ...actor,
   });
 
   try {
-    await emailClientCancelled(getBooking(id));
+    const res = await emailClientCancelled(getBooking(id));
+    logEmail({
+      bookingId: id,
+      eventType: "cancellation_sent",
+      description: "Cancellation confirmation sent",
+      recipientEmail: booking.client_email,
+      sendResult: res,
+    });
   } catch (err) {
     console.error(`[cancel] cancellation email failed for #${id}:`, err.message);
   }

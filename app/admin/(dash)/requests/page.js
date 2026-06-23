@@ -9,6 +9,10 @@ import {
 } from "@/lib/bookings.js";
 import { createBookingInvoice } from "@/lib/square.js";
 import { emailClientApproved, emailClientDenied } from "@/lib/email.js";
+import { logActivity, logEmail } from "@/lib/activity.js";
+import { getActor } from "@/lib/auth.js";
+import { resolveDenial } from "@/lib/denial.js";
+import { formatMoney } from "@/lib/constants.js";
 import RequestCard from "@/components/RequestCard.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
@@ -30,11 +34,21 @@ function refresh() {
 async function approve(formData) {
   "use server";
   const id = Number(formData.get("id"));
+  const actor = await getActor();
   let booking = approveBooking(id, {
     rate: formData.get("rate"),
     hours: formData.get("hours"),
     sessions: formData.get("sessions"),
     deposit: formData.get("deposit"),
+  });
+
+  // Activity: approved (by the real logged-in user).
+  logActivity({
+    bookingId: booking.id,
+    eventType: "approved",
+    description: `Approved · hold placed (${formatMoney(booking.total)})`,
+    amount: booking.total,
+    ...actor,
   });
 
   let problem = "";
@@ -43,7 +57,15 @@ async function approve(formData) {
     const { invoiceId, paymentLink } = await createBookingInvoice(booking);
     booking = setInvoiceInfo(id, { invoiceId, paymentLink });
     // #6 Email: approval + payment link + rental agreement PDF attached.
-    await emailClientApproved(booking);
+    const res = await emailClientApproved(booking);
+    logEmail({
+      bookingId: booking.id,
+      eventType: "invoice_sent",
+      description: `Invoice / payment link sent · ${formatMoney(booking.total)}`,
+      recipientEmail: booking.client_email,
+      amount: booking.total,
+      sendResult: res,
+    });
   } catch (err) {
     console.error("[requests] approve post-processing error:", err.message);
     problem = err.message || "invoice/email error";
@@ -66,9 +88,36 @@ async function approve(formData) {
 async function deny(formData) {
   "use server";
   const id = Number(formData.get("id"));
+  const actor = await getActor();
+
+  // Resolve the denial reason: internal label (candid, logged) vs. client
+  // phrasing (gracious, emailed). "Other" keeps free text internal-only.
+  const { reasonValue, internalLabel, clientPhrasing } = resolveDenial(
+    formData.get("reason"),
+    formData.get("reason_note")
+  );
+
   denyBooking(id);
+
+  // Activity: denied — records the actor + the internal reason in metadata.
+  logActivity({
+    bookingId: id,
+    eventType: "denied",
+    description: `Denied — ${internalLabel}`,
+    metadata: { reason: reasonValue, internal_label: internalLabel },
+    ...actor,
+  });
+
   try {
-    await emailClientDenied(getBooking(id));
+    const booking = getBooking(id);
+    const res = await emailClientDenied(booking, clientPhrasing);
+    logEmail({
+      bookingId: id,
+      eventType: "denial_sent",
+      description: "Denial email sent",
+      recipientEmail: booking.client_email,
+      sendResult: res,
+    });
   } catch (err) {
     console.error("[requests] deny email error:", err.message);
   }

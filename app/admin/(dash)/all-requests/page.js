@@ -7,6 +7,8 @@ import {
   findRestoreConflict,
   restoreBooking,
 } from "@/lib/bookings.js";
+import { logActivity } from "@/lib/activity.js";
+import { getActor } from "@/lib/auth.js";
 import { spaceName, formatDate, formatTime, formatMoney } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
@@ -48,6 +50,14 @@ async function restore(formData) {
   }
 
   restoreBooking(id, to);
+  const actor = await getActor();
+  logActivity({
+    bookingId: id,
+    eventType: "restored",
+    description: `Restored from denied → ${to === "held" ? "held (approved)" : "pending"}`,
+    metadata: { to },
+    ...actor,
+  });
   revalidatePath("/admin/all-requests");
   revalidatePath("/admin/requests");
   revalidatePath("/admin/bookings");
@@ -128,9 +138,13 @@ export default function AllRequestsPage({ searchParams }) {
                     {formatDate(b.date)}
                   </Td>
                   <Td>
-                    <div className={cancelled ? "text-ink-soft line-through" : "text-ink"}>
+                    <Link
+                      href={`${qs({ status, sort })}${qs({ status, sort }).includes("?") ? "&" : "?"}b=${b.id}`}
+                      className={cancelled ? "text-ink-soft line-through hover:underline" : "text-ink hover:text-verde-deep hover:underline"}
+                      scroll={false}
+                    >
                       {b.client_name}
-                    </div>
+                    </Link>
                     <div className="text-xs text-ink-muted">{b.client_email}</div>
                   </Td>
                   <Td>{spaceName(b.space)}</Td>

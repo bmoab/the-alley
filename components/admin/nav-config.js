@@ -16,6 +16,8 @@ import {
   Settings,
   ClipboardList,
   History,
+  Activity,
+  Users,
 } from "lucide-react";
 
 // Full navigation, in sidebar order. Items are either a link
@@ -30,6 +32,7 @@ export const NAV = [
       { href: "/admin/bookings", label: "Bookings", icon: CalendarCheck },
       { href: "/admin/all-requests", label: "All Requests", icon: History },
       { href: "/admin/deposits", label: "Deposits", icon: Wallet },
+      { href: "/admin/activity", label: "Activity", icon: Activity },
     ],
   },
   { href: "/admin/calendar", label: "Calendar", icon: CalendarDays },
@@ -47,7 +50,24 @@ export const NAV = [
     ],
   },
   { href: "/admin/settings", label: "Settings", icon: Settings },
+  // Owner-only: managing admin accounts. Hidden for regular users (and the
+  // route itself is guarded server-side).
+  { href: "/admin/team", label: "Team", icon: Users, ownerOnly: true },
 ];
+
+/**
+ * NAV filtered for the current user. Drops owner-only items (and prunes any
+ * group left empty) when `isOwner` is false.
+ */
+export function navFor(isOwner) {
+  return NAV.flatMap((item) => {
+    if (item.group) {
+      const items = item.items.filter((sub) => isOwner || !sub.ownerOnly);
+      return items.length ? [{ ...item, items }] : [];
+    }
+    return isOwner || !item.ownerOnly ? [item] : [];
+  });
+}
 
 // The 4 primary destinations for the mobile bottom tab bar. Everything else
 // lives behind the "More" tab/sheet.

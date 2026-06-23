@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Menu, X, ExternalLink, LogOut } from "lucide-react";
-import { NAV, PRIMARY_TABS, isActive } from "./nav-config.js";
+import { navFor, PRIMARY_TABS, isActive } from "./nav-config.js";
 import { cx } from "./ui/cx.js";
 
 /**
@@ -12,9 +12,10 @@ import { cx } from "./ui/cx.js";
  * section plus View website / Sign out / the signed-in email — the actions
  * that were previously unreachable on a phone.
  */
-export default function BottomNav({ email, logout }) {
+export default function BottomNav({ email, isOwner = false, logout }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const nav = navFor(isOwner);
 
   // Close the sheet on navigation.
   useEffect(() => {
@@ -57,7 +58,7 @@ export default function BottomNav({ email, logout }) {
             </div>
 
             <div className="px-3 py-3">
-              {NAV.map((item) =>
+              {nav.map((item) =>
                 item.group ? (
                   <div key={item.group} className="mb-1 mt-3 first:mt-0">
                     <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-ink-muted">

@@ -2,6 +2,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSettings, setSetting } from "@/lib/db.js";
 import { formatTime } from "@/lib/constants.js";
+import { logActivity } from "@/lib/activity.js";
+import { getActor } from "@/lib/auth.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
 import Button from "@/components/admin/ui/Button.js";
@@ -65,6 +67,11 @@ async function save(formData) {
     "listing_auto_publish",
     formData.get("listing_auto_publish") === "true" ? "true" : "false"
   );
+  logActivity({
+    eventType: "settings_changed",
+    description: "Settings updated · pricing & booking rules",
+    ...(await getActor()),
+  });
   revalidatePath("/admin/settings");
   revalidatePath("/book");
   redirect("/admin/settings?saved=1");
@@ -80,6 +87,11 @@ async function saveCancellationPolicy(formData) {
   setSetting("cancellation_cutoff_hours", String(hours));
   setSetting("refund_before_cutoff", REFUND_VALUES.includes(before) ? before : "full");
   setSetting("refund_within_cutoff", REFUND_VALUES.includes(within) ? within : "deposit_only");
+  logActivity({
+    eventType: "settings_changed",
+    description: `Cancellation policy updated · ${hours}h cutoff`,
+    ...(await getActor()),
+  });
   revalidatePath("/admin/settings");
   redirect("/admin/settings?toast=" + encodeURIComponent("Cancellation policy saved.") + "&toastType=success");
 }
