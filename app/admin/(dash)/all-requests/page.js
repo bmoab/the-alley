@@ -9,7 +9,7 @@ import {
 } from "@/lib/bookings.js";
 import { logActivity } from "@/lib/activity.js";
 import { getActor } from "@/lib/auth.js";
-import { spaceName, formatDate, formatTime, formatMoney } from "@/lib/constants.js";
+import { spaceName, formatDate, formatDateShort, formatTime, formatMoney } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
 import Badge from "@/components/admin/ui/Badge.js";
@@ -128,26 +128,30 @@ export default function AllRequestsPage({ searchParams }) {
               "Total",
               "Action",
             ]}
-            minWidth={760}
+            minWidth={700}
           >
             {rows.map((b) => {
               const cancelled = b.status === "cancelled";
+              const drawerHref = `${qs({ status, sort })}${qs({ status, sort }).includes("?") ? "&" : "?"}b=${b.id}`;
               return (
                 <Tr key={b.id} className={cancelled ? "opacity-55" : ""}>
                   <Td className="whitespace-nowrap font-medium text-ink">
-                    {formatDate(b.date)}
+                    {formatDateShort(b.date)}
                   </Td>
                   <Td>
+                    <div className={cancelled ? "text-ink-soft line-through" : "text-ink"}>
+                      {b.client_name}
+                    </div>
+                    <div className="text-xs text-ink-muted">{b.client_email}</div>
                     <Link
-                      href={`${qs({ status, sort })}${qs({ status, sort }).includes("?") ? "&" : "?"}b=${b.id}`}
-                      className={cancelled ? "text-ink-soft line-through hover:underline" : "text-ink hover:text-verde-deep hover:underline"}
+                      href={drawerHref}
+                      className="mt-0.5 inline-block whitespace-nowrap text-xs font-medium text-verde-deep hover:underline"
                       scroll={false}
                     >
-                      {b.client_name}
+                      View activity →
                     </Link>
-                    <div className="text-xs text-ink-muted">{b.client_email}</div>
                   </Td>
-                  <Td>{spaceName(b.space)}</Td>
+                  <Td className="whitespace-nowrap">{spaceName(b.space).replace("The Alley ", "")}</Td>
                   <Td className="whitespace-nowrap">
                     {formatTime(b.start_time)} · {b.hours}h
                   </Td>
@@ -162,23 +166,24 @@ export default function AllRequestsPage({ searchParams }) {
                   <Td className="text-right font-medium text-ink">{formatMoney(b.total)}</Td>
                   <Td className="text-right">
                     {b.status === "denied" ? (
-                      <form action={restore} className="flex items-center justify-end gap-1.5">
-                        <input type="hidden" name="id" value={b.id} />
-                        <select
-                          name="to"
-                          defaultValue="pending"
-                          className="rounded-lg border border-line bg-paper px-2 py-1 text-xs text-ink"
-                          title="Restore as"
-                        >
-                          <option value="pending">→ Pending</option>
-                          <option value="held">→ Held (approved)</option>
-                        </select>
-                        <Button type="submit" variant="ghost" size="sm">
-                          Restore
-                        </Button>
-                      </form>
+                      <div className="ml-auto flex w-[132px] flex-col gap-1">
+                        <form action={restore}>
+                          <input type="hidden" name="id" value={b.id} />
+                          <input type="hidden" name="to" value="pending" />
+                          <Button type="submit" variant="ghost" size="sm" full className="whitespace-nowrap">
+                            Restore → Pending
+                          </Button>
+                        </form>
+                        <form action={restore}>
+                          <input type="hidden" name="id" value={b.id} />
+                          <input type="hidden" name="to" value="held" />
+                          <Button type="submit" variant="subtle" size="sm" full className="whitespace-nowrap">
+                            Restore → Held
+                          </Button>
+                        </form>
+                      </div>
                     ) : b.status === "held" || b.status === "confirmed" ? (
-                      <Button href={`/admin/bookings/${b.id}/cancel`} variant="ghost" size="sm">
+                      <Button href={`/admin/bookings/${b.id}/cancel`} variant="ghost" size="sm" className="whitespace-nowrap">
                         Cancel
                       </Button>
                     ) : (

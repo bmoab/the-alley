@@ -29,15 +29,21 @@ async function confirmCancel(formData) {
   const actor = await getActor();
 
   // Issue the Square refund (partial deposit-only or full) before recording.
+  // If the booking is marked paid but Square has no captured payment (manual
+  // "Mark as paid", cash/check, etc.), refundPayment returns { noPayment:true }
+  // instead of throwing — we still cancel, but record no refund and flag that a
+  // manual refund may be needed. Genuine API errors (network/auth) still block.
+  let noPaymentFound = false;
   if (quote.hasPayment && quote.refundAmount > 0) {
     try {
-      await refundPayment(
+      const res = await refundPayment(
         booking,
         quote.refundAmount,
         quote.refundType === "full"
           ? "Cancellation — full refund (rental + deposit)"
           : "Cancellation — deposit refund (rental forfeited)"
       );
+      if (res?.noPayment) noPaymentFound = true;
     } catch (err) {
       console.error(`[cancel] refund failed for #${id}:`, err.message);
       redirect(
@@ -48,9 +54,12 @@ async function confirmCancel(formData) {
     }
   }
 
+  const refundAmount = noPaymentFound ? 0 : quote.refundAmount;
+  const refundType = noPaymentFound ? "none" : quote.refundType;
+
   cancelBooking(id, {
-    refundAmount: quote.refundAmount,
-    refundType: quote.refundType,
+    refundAmount,
+    refundType,
     cancelledBy: actor.actorName,
   });
 
@@ -58,12 +67,13 @@ async function confirmCancel(formData) {
   logActivity({
     bookingId: id,
     eventType: "cancelled",
-    description:
-      quote.refundType === "none"
+    description: noPaymentFound
+      ? "Booking cancelled · marked paid but no Square payment found (refund manually)"
+      : refundType === "none"
         ? "Booking cancelled · no payment on file"
-        : `Booking cancelled · refunded ${formatMoney(quote.refundAmount)} (${quote.refundType === "full" ? "full" : "deposit only"})`,
-    amount: quote.refundAmount || null,
-    metadata: { refund_type: quote.refundType, side: quote.side },
+        : `Booking cancelled · refunded ${formatMoney(refundAmount)} (${refundType === "full" ? "full" : "deposit only"})`,
+    amount: refundAmount || null,
+    metadata: { refund_type: refundType, side: quote.side, no_payment_found: noPaymentFound },
     ...actor,
   });
 
@@ -87,11 +97,13 @@ async function confirmCancel(formData) {
   redirect(
     "/admin/bookings?toast=" +
       encodeURIComponent(
-        quote.refundType === "none"
-          ? `Booking #${id} cancelled. No payment on file — nothing refunded.`
-          : `Booking #${id} cancelled. Refunded ${formatMoney(quote.refundAmount)} (${quote.refundType === "full" ? "full" : "deposit only"}).`
+        noPaymentFound
+          ? `Booking #${id} cancelled. It was marked paid but no Square payment was found — refund manually if you collected payment another way.`
+          : refundType === "none"
+            ? `Booking #${id} cancelled. No payment on file — nothing refunded.`
+            : `Booking #${id} cancelled. Refunded ${formatMoney(refundAmount)} (${refundType === "full" ? "full" : "deposit only"}).`
       ) +
-      "&toastType=success"
+      "&toastType=" + (noPaymentFound ? "neutral" : "success")
   );
 }
 
