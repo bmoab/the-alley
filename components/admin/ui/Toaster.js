@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { CheckCircle2, AlertTriangle, Info, X } from "lucide-react";
 import { subscribeToasts } from "./toast-store.js";
 import { cx } from "./cx.js";
@@ -52,10 +52,10 @@ const CONSUMED = ["toast", "toastType", "paid", "checked", "r", "test", "mode", 
 
 export default function Toaster() {
   const [items, setItems] = useState([]);
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const timers = useRef(new Map());
+  const cleanedKey = useRef(null);
 
   const remove = useCallback((id) => {
     setItems((list) => list.filter((t) => t.id !== id));
@@ -80,18 +80,31 @@ export default function Toaster() {
 
   // Server-redirect toasts (query params) — show, then clean the URL so a
   // refresh doesn't replay the toast.
+  //
+  // The URL is cleaned with native history.replaceState (NOT router.replace) on
+  // purpose: router.replace triggers a Next soft-navigation + RSC re-fetch that
+  // re-runs this effect before searchParams settles, which — with another
+  // searchParams subscriber mounted (the booking drawer) — can loop and trip
+  // the browser's "replaceState >100x/10s" guard, crashing the admin shell. A
+  // ref keyed on the param string makes each param set process exactly once.
   useEffect(() => {
+    const key = searchParams.toString();
+    if (cleanedKey.current === key) return;
+
     const t = paramsToToast(searchParams);
     if (!t) return;
+    cleanedKey.current = key;
     push({ id: `p${Date.now()}`, ...t });
 
+    if (typeof window === "undefined") return;
     const next = new URLSearchParams(searchParams);
     CONSUMED.forEach((k) => next.delete(k));
     const qs = next.toString();
-    const hash = typeof window !== "undefined" ? window.location.hash : "";
-    router.replace(pathname + (qs ? `?${qs}` : "") + hash, { scroll: false });
+    const url = pathname + (qs ? `?${qs}` : "") + window.location.hash;
+    // Preserve Next's internal history state so the router stays consistent.
+    window.history.replaceState(window.history.state, "", url);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, pathname]);
+  }, [searchParams, pathname, push]);
 
   if (items.length === 0) return null;
 
