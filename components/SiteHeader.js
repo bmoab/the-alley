@@ -9,6 +9,9 @@ import { useScrolled, useBodyScrollLock } from "@/components/hooks.js";
 export default function SiteHeader() {
   const pathname = usePathname();
   const scrolled = useScrolled(40);
+  // The Gallery is a dark page: use a solid dark nav from the top (no
+  // transparent-hero state) so it doesn't flicker clear→verde over the dark hall.
+  const dark = pathname === "/gallery";
   const [menuOpen, setMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   useBodyScrollLock(menuOpen);
@@ -17,11 +20,11 @@ export default function SiteHeader() {
   const isActive = (href) => pathname === href || pathname.startsWith(href + "/");
 
   return (
-    <header className="sh" data-on={scrolled ? "true" : "false"}>
+    <header className="sh" data-on={scrolled || dark ? "true" : "false"} data-theme={dark ? "dark" : undefined}>
       <div className="sh-inner">
         <Link href="/" className="sh-logo" aria-label="The Alley On Center — home">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/logo-horizontal-black.png" alt="The Alley On Center" />
+          <img src={dark ? "/brand/logo-horizontal-white.png" : "/brand/logo-horizontal-black.png"} alt="The Alley On Center" />
         </Link>
 
         <nav className="sh-nav" aria-label="Primary">
