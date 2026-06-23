@@ -5,6 +5,7 @@ import {
   resolveDeposit,
   runDepositReminders,
 } from "@/lib/deposits.js";
+import { getActor } from "@/lib/auth.js";
 import {
   spaceName,
   formatDate,
@@ -18,7 +19,7 @@ export const metadata = { title: "Deposits" };
 
 async function refund(formData) {
   "use server";
-  await resolveDeposit(Number(formData.get("id")), "refund");
+  await resolveDeposit(Number(formData.get("id")), "refund", await getActor());
   revalidatePath("/admin/deposits");
   revalidatePath("/admin");
   redirect(
@@ -30,7 +31,7 @@ async function refund(formData) {
 
 async function withhold(formData) {
   "use server";
-  await resolveDeposit(Number(formData.get("id")), "withhold");
+  await resolveDeposit(Number(formData.get("id")), "withhold", await getActor());
   revalidatePath("/admin/deposits");
   revalidatePath("/admin");
   redirect(

@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
+import Link from "next/link";
 import {
   spaceName,
   formatDate,
@@ -8,6 +9,7 @@ import {
   formatMoney,
 } from "@/lib/constants.js";
 import Button from "@/components/admin/ui/Button.js";
+import DenyDialog from "@/components/admin/DenyDialog.js";
 
 /**
  * A submit button bound to a specific server action via formAction. Uses
@@ -65,6 +67,13 @@ export default function RequestCard({ booking, approveAction, denyAction }) {
             {formatDate(booking.date)} · {formatTime(booking.start_time)} ·{" "}
             {booking.hours}h
           </p>
+          <Link
+            href={`/admin/requests?b=${booking.id}`}
+            scroll={false}
+            className="mt-1 inline-block text-xs font-medium text-verde-deep hover:underline"
+          >
+            View activity →
+          </Link>
         </div>
         <div className="text-right text-sm">
           <a href={`mailto:${booking.client_email}`} className="block font-medium text-verde-deep hover:underline">
@@ -125,9 +134,12 @@ export default function RequestCard({ booking, approveAction, denyAction }) {
             </span>
           </div>
           <div className="flex gap-2">
-            <SubmitButton formAction={denyAction} pendingLabel="Denying…" variant="danger">
-              Deny
-            </SubmitButton>
+            {/* Deny opens a dialog (its own form) to capture the reason. */}
+            <DenyDialog
+              bookingId={booking.id}
+              clientName={booking.client_name}
+              denyAction={denyAction}
+            />
             <SubmitButton
               formAction={approveAction}
               pendingLabel="Approving…"

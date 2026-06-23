@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { listBookings, getBooking } from "@/lib/bookings.js";
 import { confirmBookingPaid, releaseExpiredHolds } from "@/lib/payments.js";
 import { getInvoiceStatus } from "@/lib/square.js";
+import { getActor } from "@/lib/auth.js";
 import {
   SPACES,
   spaceName,
@@ -23,7 +24,7 @@ export const metadata = { title: "Bookings" };
 async function markPaid(formData) {
   "use server";
   const id = Number(formData.get("id"));
-  await confirmBookingPaid(id);
+  await confirmBookingPaid(id, await getActor());
   revalidatePath("/admin/bookings");
   revalidatePath("/admin");
   revalidatePath("/admin/events");
@@ -40,7 +41,7 @@ async function checkPayment(formData) {
     try {
       const status = await getInvoiceStatus(b.square_invoice_id);
       if (status === "paid") {
-        await confirmBookingPaid(id);
+        await confirmBookingPaid(id, await getActor());
         result = "paid";
       }
     } catch (err) {
@@ -106,7 +107,13 @@ export default async function BookingsPage({ searchParams }) {
                 </Td>
                 <Td>{spaceName(b.space)}</Td>
                 <Td>
-                  <div className="text-ink">{b.client_name}</div>
+                  <Link
+                    href={`/admin/bookings?${spaceFilter ? `space=${spaceFilter}&` : ""}b=${b.id}`}
+                    className="font-medium text-ink hover:text-verde-deep hover:underline"
+                    scroll={false}
+                  >
+                    {b.client_name}
+                  </Link>
                   <div className="text-xs text-ink-muted">{b.client_email}</div>
                 </Td>
                 <Td>

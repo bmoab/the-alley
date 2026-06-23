@@ -2,6 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getEventByToken, saveHostListing } from "@/lib/catalog.js";
 import { getSetting } from "@/lib/db.js";
+import { logActivity } from "@/lib/activity.js";
 import HostListingForm from "@/components/HostListingForm.js";
 
 export const metadata = { title: "Post your event" };
@@ -32,11 +33,23 @@ export default function HostListingPage({ params }) {
     "use server";
     const autoPublish = getSetting("listing_auto_publish", "false") === "true";
     // If it's already live, keep it live on edit; otherwise route through review.
-    const wasLive = getEventByToken(params.token)?.status === "live";
+    const existing = getEventByToken(params.token);
+    const wasLive = existing?.status === "live";
     saveHostListing(params.token, data, {
       submit: data.submit,
       autoPublish: autoPublish || wasLive,
     });
+    // Activity: host listing submitted (a public-event host self-action). Only
+    // log an actual submission, not autosaves/drafts.
+    if (data.submit && existing?.booking_id) {
+      logActivity({
+        bookingId: existing.booking_id,
+        eventType: "host_listing_submitted",
+        description: `Host listing submitted${data.title ? ` · "${data.title}"` : ""}`,
+        actorUserId: null,
+        actorName: existing.host_name || "Host",
+      });
+    }
     revalidatePath("/events");
     revalidatePath("/calendar");
     revalidatePath("/admin/events");

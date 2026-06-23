@@ -5,6 +5,9 @@ import { isClosedForBooking } from "@/lib/closures.js";
 import { getSetting } from "@/lib/db.js";
 import { SPACE_BY_ID, EVENT_TYPES, GUEST_RANGES } from "@/lib/constants.js";
 import { emailOwnerNewRequest, emailClientReceived } from "@/lib/email.js";
+import { logActivity, logEmail } from "@/lib/activity.js";
+
+const OWNER_EMAIL = process.env.OWNER_EMAIL || "thealleyoncenter@gmail.com";
 
 /**
  * Validate and persist a booking request (status = pending).
@@ -77,8 +80,35 @@ export async function submitBooking(payload) {
   // Notify the owner and acknowledge the client. (Emails log to the console
   // when no provider is configured.)
   const booking = getBooking(id);
+
+  // Activity: request submitted (attributed to the client who submitted it).
+  logActivity({
+    bookingId: booking.id,
+    eventType: "request_submitted",
+    description: `Request submitted by ${booking.client_name}`,
+    actorUserId: null,
+    actorName: booking.client_name,
+  });
+
   try {
-    await Promise.all([emailOwnerNewRequest(booking), emailClientReceived(booking)]);
+    const [ownerRes, clientRes] = await Promise.all([
+      emailOwnerNewRequest(booking),
+      emailClientReceived(booking),
+    ]);
+    logEmail({
+      bookingId: booking.id,
+      eventType: "owner_notified",
+      description: "Owner notified of new request",
+      recipientEmail: OWNER_EMAIL,
+      sendResult: ownerRes,
+    });
+    logEmail({
+      bookingId: booking.id,
+      eventType: "client_received",
+      description: "Request acknowledgment sent",
+      recipientEmail: booking.client_email,
+      sendResult: clientRes,
+    });
   } catch (err) {
     console.error("[booking] email send error:", err.message);
   }
