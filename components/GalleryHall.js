@@ -1,146 +1,156 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import PhotoSlot from "@/components/site/PhotoSlot.js";
 import { useBodyScrollLock } from "@/components/hooks.js";
 
 /**
- * The Gallery as an immersive exhibition hall: a dark salon wall with a
- * cursor-tracking spotlight, 3D-tilt framed photos, tag filter chips, and a
- * cinematic keyboard-navigable lightbox over the currently filtered set.
+ * The Gallery as a dark, curated exhibition wall: a near-black editorial hall
+ * with a responsive CSS-column masonry of pure photographs (no labels at rest),
+ * a hover-only caption on desktop, tag filter pills with a live count, and a
+ * minimal keyboard-navigable lightbox over the currently filtered set.
  *
- * `photos` = [{ id, cap, tags[], variant, ar, src }]; `tags` = [{ tag, count }].
+ * Neutral cream accent (no chromatic accent) so the photography carries the
+ * color. `photos` = [{ id, cap, tags[], src }]; `tags` = [{ tag, count }].
  */
-export default function GalleryHall({ title, subtitle, note, photos = [], tags = [] }) {
+export default function GalleryHall({ title, subtitle, lede, photos = [], tags = [] }) {
   const [filter, setFilter] = useState("All");
-  const [open, setOpen] = useState(false);
-  const [index, setIndex] = useState(0);
+  const [lbIndex, setLbIndex] = useState(null); // null = closed
   const wallRef = useRef(null);
 
-  const list = filter === "All" ? photos : photos.filter((p) => p.tags.includes(filter));
-  const openAt = (i) => {
-    setIndex(i);
-    setOpen(true);
-  };
+  const visible = useMemo(
+    () => photos.filter((p) => filter === "All" || p.tags.includes(filter)),
+    [photos, filter]
+  );
+
+  // Category label for a tile/lightbox: the active filter when filtering,
+  // otherwise the photo's first tag.
+  const catOf = (p) => (filter !== "All" ? filter : p.tags[0] || "");
+
   const pickFilter = (t) => {
-    setOpen(false);
+    setLbIndex(null); // close the lightbox when the set changes
     setFilter(t);
   };
 
-  const onWallMove = (e) => {
-    const el = wallRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    el.style.setProperty("--sx", (((e.clientX - r.left) / r.width) * 100).toFixed(1) + "%");
-    el.style.setProperty("--sy", (((e.clientY - r.top) / r.height) * 100).toFixed(1) + "%");
-  };
+  // Scroll-reveal: fade + rise each tile once as it enters the viewport. The
+  // observer stays connected so tiles revealed by a later filter change animate
+  // in too. CSS disables this under prefers-reduced-motion.
+  useEffect(() => {
+    const els = wallRef.current?.querySelectorAll(".gx-tile");
+    if (!els || !els.length) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add("gx-in");
+            io.unobserve(e.target);
+          }
+        });
+      },
+      { threshold: 0.08, rootMargin: "0px 0px -40px 0px" }
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, []);
+
+  const open = lbIndex !== null;
 
   return (
-    <section className="gx-hall" ref={wallRef} onMouseMove={onWallMove}>
-      <div className="gx-rail" aria-hidden="true" />
+    <section className="gx-hall">
       <div className="gx-hall-inner wrap">
         <header className="gx-hall-head">
-          <div>
-            <p className="gx-eyebrow">{subtitle}</p>
-            <h2 className="gx-hall-title">{title}</h2>
-          </div>
-          {note ? <p className="gx-hall-note">{note}</p> : null}
+          {subtitle ? <p className="gx-eyebrow">{subtitle}</p> : null}
+          <h1 className="gx-hall-title">{title}</h1>
+          {lede ? <p className="gx-hall-lede">{lede}</p> : null}
         </header>
 
         <div className="gx-filters" role="group" aria-label="Filter photos by tag">
-          <button className={"gx-chip mono" + (filter === "All" ? " is-on" : "")} onClick={() => pickFilter("All")}>
+          <button
+            className={"gx-chip" + (filter === "All" ? " is-on" : "")}
+            onClick={() => pickFilter("All")}
+            aria-pressed={filter === "All"}
+          >
             All <span className="gx-chip-n">{photos.length}</span>
           </button>
           {tags.map(({ tag, count }) => (
-            <button key={tag} className={"gx-chip mono" + (filter === tag ? " is-on" : "")} onClick={() => pickFilter(tag)}>
+            <button
+              key={tag}
+              className={"gx-chip" + (filter === tag ? " is-on" : "")}
+              onClick={() => pickFilter(tag)}
+              aria-pressed={filter === tag}
+            >
               {tag} <span className="gx-chip-n">{count}</span>
             </button>
           ))}
         </div>
 
-        {list.length ? (
-          <div className="gx-wall" key={filter}>
-            {list.map((photo, i) => (
-              <WallPhoto key={photo.id} photo={photo} n={photos.indexOf(photo) + 1} pos={i} onOpen={openAt} />
-            ))}
-          </div>
+        {photos.length ? (
+          <>
+            <div className="gx-wall" ref={wallRef}>
+              {photos.map((photo) => {
+                const shown = filter === "All" || photo.tags.includes(filter);
+                const pos = shown ? visible.indexOf(photo) : -1;
+                const cat = catOf(photo);
+                return (
+                  <figure
+                    key={photo.id}
+                    className={"gx-tile" + (shown ? "" : " gx-tile--hide")}
+                    role="button"
+                    tabIndex={shown ? 0 : -1}
+                    aria-label={`${photo.cap} — view larger`}
+                    onClick={() => shown && setLbIndex(pos)}
+                    onKeyDown={(e) => {
+                      if (shown && (e.key === "Enter" || e.key === " ")) {
+                        e.preventDefault();
+                        setLbIndex(pos);
+                      }
+                    }}
+                  >
+                    {photo.src ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img className="gx-img" src={photo.src} alt={photo.cap} loading="lazy" />
+                    ) : (
+                      <div className="gx-img gx-img--empty" aria-hidden="true" />
+                    )}
+                    {/* Caption is revealed on hover (desktop only); CSS hides it
+                        entirely on touch so tiles stay pure images on mobile. */}
+                    <figcaption className="gx-tile-cap" aria-hidden="true">
+                      {cat ? <span className="gx-tile-cat">{cat}</span> : null}
+                      <span className="gx-tile-title">{photo.cap}</span>
+                    </figcaption>
+                  </figure>
+                );
+              })}
+            </div>
+            <p className="gx-count" aria-live="polite">
+              {visible.length} {visible.length === 1 ? "image" : "images"}
+            </p>
+          </>
         ) : (
           <p className="gx-empty">No photos here yet — check back soon.</p>
         )}
 
         <footer className="gx-hall-foot">
-          <p className="mono">
-            Open during building hours · New photos as events happen ·{" "}
-            <Link href="/contact" className="gx-foot-link">Tag us @thealleyoncenter</Link>
-          </p>
-          <Link className="btn btn--verde" href="/spaces">
-            Make the next photo yours <span className="arrow" style={{ marginLeft: 6 }}>→</span>
+          <p className="gx-foot-note">The Alley On Center · Logan, Utah</p>
+          <Link className="btn btn--ghost-light" href="/spaces">
+            Host your event <span className="arrow" style={{ marginLeft: 6 }}>→</span>
           </Link>
         </footer>
       </div>
 
       {open ? (
-        <Lightbox list={list} index={Math.min(index, list.length - 1)} setIndex={setIndex} onClose={() => setOpen(false)} />
+        <Lightbox
+          list={visible}
+          index={Math.min(lbIndex, visible.length - 1)}
+          setIndex={setLbIndex}
+          catOf={catOf}
+          onClose={() => setLbIndex(null)}
+        />
       ) : null}
     </section>
   );
 }
 
-function WallPhoto({ photo, n, pos, onOpen }) {
-  const ref = useRef(null);
-  const raf = useRef(0);
-
-  const onMove = (e) => {
-    const el = ref.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const px = (e.clientX - r.left) / r.width - 0.5;
-    const py = (e.clientY - r.top) / r.height - 0.5;
-    cancelAnimationFrame(raf.current);
-    raf.current = requestAnimationFrame(() => {
-      el.style.setProperty("--rx", (py * -7).toFixed(2) + "deg");
-      el.style.setProperty("--ry", (px * 9).toFixed(2) + "deg");
-      el.style.setProperty("--lx", ((px + 0.5) * 100).toFixed(1) + "%");
-      el.style.setProperty("--ly", ((py + 0.5) * 100).toFixed(1) + "%");
-    });
-  };
-  const reset = () => {
-    const el = ref.current;
-    if (!el) return;
-    cancelAnimationFrame(raf.current);
-    el.style.setProperty("--rx", "0deg");
-    el.style.setProperty("--ry", "0deg");
-  };
-
-  return (
-    <figure
-      ref={ref}
-      className="gx-piece"
-      style={{ "--ar": photo.ar, animationDelay: Math.min(pos, 7) * 55 + "ms" }}
-      onMouseMove={onMove}
-      onMouseLeave={reset}
-      onClick={() => onOpen(pos)}
-      tabIndex={0}
-      role="button"
-      aria-label={`${photo.cap} — view larger`}
-      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onOpen(pos))}
-    >
-      <div className="gx-frame">
-        <div className="gx-art">
-          <PhotoSlot src={photo.src || null} tag={photo.tags[0]} variant={photo.variant} className="gx-photo" />
-          <span className="gx-gloss" aria-hidden="true" />
-        </div>
-        <figcaption className="gx-cap">
-          <span className="gx-cap-text">{photo.cap}</span>
-          {photo.tags[0] ? <span className="gx-cap-tag mono">{photo.tags[0]}</span> : null}
-        </figcaption>
-      </div>
-      <span className="gx-num mono">{String(n).padStart(2, "0")}</span>
-    </figure>
-  );
-}
-
-function Lightbox({ list, index, setIndex, onClose }) {
+function Lightbox({ list, index, setIndex, catOf, onClose }) {
   useBodyScrollLock(true);
   const go = (d) => setIndex((i) => (i + d + list.length) % list.length);
 
@@ -157,37 +167,33 @@ function Lightbox({ list, index, setIndex, onClose }) {
 
   const p = list[index];
   if (!p) return null;
+  const cat = catOf(p);
 
   return (
     <div className="gx-lb" role="dialog" aria-modal="true" aria-label={p.cap}>
       <div className="gx-lb-scrim" onClick={onClose} />
       <button className="gx-lb-x" aria-label="Close" onClick={onClose}>×</button>
-      <button className="gx-lb-nav gx-lb-prev" aria-label="Previous photo" onClick={() => go(-1)}>‹</button>
-      <button className="gx-lb-nav gx-lb-next" aria-label="Next photo" onClick={() => go(1)}>›</button>
+      {list.length > 1 ? (
+        <>
+          <button className="gx-lb-nav gx-lb-prev" aria-label="Previous photo" onClick={() => go(-1)}>‹</button>
+          <button className="gx-lb-nav gx-lb-next" aria-label="Next photo" onClick={() => go(1)}>›</button>
+        </>
+      ) : null}
 
-      <div className="gx-lb-stage">
+      <div className="gx-lb-inner">
         <div className="gx-lb-frame" key={index}>
-          <PhotoSlot src={p.src || null} tag={p.tags[0]} variant={p.variant} className="gx-lb-photo" />
+          {p.src ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className="gx-lb-img" src={p.src} alt={p.cap} />
+          ) : (
+            <div className="gx-lb-img gx-img--empty" aria-hidden="true" />
+          )}
         </div>
-        <aside className="gx-lb-cap" key={"c" + index}>
-          <span className="gx-lb-count mono">
-            {String(index + 1).padStart(2, "0")} / {String(list.length).padStart(2, "0")}
-          </span>
-          <h3 className="gx-lb-title">{p.cap}</h3>
-          <div className="gx-lb-tags">
-            {p.tags.map((t) => <span key={t} className="gx-lb-tag mono">{t}</span>)}
-          </div>
-          <p className="gx-lb-foot mono">Photographed at The Alley On Center · Logan, Utah</p>
-          <Link className="gx-lb-cta" href="/spaces">Host your own here <span className="arrow">→</span></Link>
-        </aside>
-      </div>
-
-      <div className="gx-strip">
-        {list.map((t, i) => (
-          <button key={t.id} className={"gx-thumb" + (i === index ? " is-on" : "")} aria-label={t.cap} onClick={() => setIndex(i)}>
-            <PhotoSlot src={t.src || null} tag="" variant={t.variant} showTag={false} />
-          </button>
-        ))}
+        <div className="gx-lb-cap">
+          {cat ? <span className="gx-lb-cat">{cat}</span> : null}
+          <h2 className="gx-lb-title">{p.cap}</h2>
+          <span className="gx-lb-count">{index + 1} / {list.length}</span>
+        </div>
       </div>
     </div>
   );
