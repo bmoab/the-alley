@@ -288,6 +288,20 @@
 .sh-more-link:hover, .sh-more-link.is-active { color: var(--ink); background: var(--paper-warm); }
 .sh-burger { display: none; width: 42px; height: 42px; border: 1px solid var(--line-strong); background: transparent; border-radius: 50%; place-items: center; cursor: pointer; color: var(--ink); }
 .sh-burger:hover { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+/* Dark nav variant (Gallery): solid near-black bar, white logo + links, so it
+   blends into the dark hall and never flickers clear→verde. Set via
+   data-theme="dark" on /gallery in SiteHeader.js (data-on is forced true there). */
+.sh[data-theme="dark"] { background: rgba(19,19,17,.72); border-bottom-color: rgba(255,255,255,.08); }
+.sh[data-theme="dark"][data-on="true"] { background: rgba(19,19,17,.9); backdrop-filter: blur(10px); border-bottom-color: rgba(255,255,255,.1); }
+.sh[data-theme="dark"] .sh-link { color: rgba(255,255,255,.78); }
+.sh[data-theme="dark"] .sh-link:hover, .sh[data-theme="dark"] .sh-link.is-active { color: #fff; }
+.sh[data-theme="dark"] .sh-link::after { background: #fff; }
+.sh[data-theme="dark"] .sh-more-btn { color: rgba(255,255,255,.78); }
+.sh[data-theme="dark"] .sh-burger { color: #fff; border-color: rgba(255,255,255,.3); }
+.sh[data-theme="dark"] .sh-burger:hover { background: #fff; color: #161614; border-color: #fff; }
+.sh[data-theme="dark"] .sh-cta.btn--solid { background: #f4f0e8; color: #17130f; }
+.sh[data-theme="dark"] .sh-cta.btn--solid:hover { background: #fff; color: #17130f; }
 .sh-sheet { position: fixed; inset: 0; z-index: 80; background: rgba(22,22,20,.5); backdrop-filter: blur(4px); display: flex; justify-content: flex-end; animation: fadein .2s ease; }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
 .sh-sheet-nav { width: min(320px,82vw); background: var(--verde); height: 100%; padding: 92px 30px 30px; display: flex; flex-direction: column; gap: 6px; border-left: 1px solid var(--line-strong); }
@@ -575,7 +589,7 @@
 .gx-hall-lede { max-width: 54ch; margin: 16px auto 0; font-weight: 300; font-size: clamp(15px,1.5vw,17px); line-height: 1.6; color: rgba(244,240,232,.66); }
 
 /* sticky translucent filter bar (centered to match the centered hero) */
-.gx-filters { position: sticky; top: 0; z-index: 6; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: clamp(22px,2.6vw,36px); padding: 12px 0; background: linear-gradient(180deg, rgba(19,19,17,.94), rgba(19,19,17,.72) 72%, transparent); backdrop-filter: blur(7px); }
+.gx-filters { position: sticky; top: 66px; z-index: 6; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: clamp(22px,2.6vw,36px); padding: 12px 0; background: linear-gradient(180deg, rgba(19,19,17,.94), rgba(19,19,17,.72) 72%, transparent); backdrop-filter: blur(7px); }
 .gx-chip { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; padding: 9px 16px; border-radius: 100px; cursor: pointer; color: rgba(244,240,232,.74); background: transparent; border: 1px solid rgba(244,240,232,.22); transition: background .2s, color .2s, border-color .2s; }
 .gx-chip:hover { border-color: rgba(244,240,232,.6); color: #fff; }
 .gx-chip.is-on { background: var(--gx-cream); color: #17130f; border-color: var(--gx-cream); font-weight: 600; }
@@ -625,14 +639,14 @@
 .gx-lb-cap { margin-top: 18px; }
 .gx-lb-cat { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--gx-cream); }
 .gx-lb-title { font-family: var(--font-display); font-weight: 600; font-size: clamp(20px,3vw,30px); line-height: 1.1; letter-spacing: -.02em; margin: 8px 0 0; color: #fff; }
-.gx-lb-count { display: block; margin-top: 12px; font-family: var(--font-mono); font-size: 11px; letter-spacing: .18em; color: rgba(244,240,232,.5); }
+/* navigation controls sit BELOW the photo (never over it), on all sizes; touch
+   swipe also navigates on mobile (handled in GalleryHall.js) */
+.gx-lb-controls { display: inline-flex; align-items: center; gap: 18px; margin-top: 16px; }
+.gx-lb-count { font-family: var(--font-mono); font-size: 11px; letter-spacing: .18em; color: rgba(244,240,232,.6); min-width: 56px; text-align: center; }
+.gx-lb-arrow { display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 46px; border-radius: 50%; border: 1px solid rgba(244,240,232,.25); background: rgba(244,240,232,.05); color: #fff; font-size: 24px; line-height: 1; cursor: pointer; transition: background .2s, color .2s, border-color .2s; }
+.gx-lb-arrow:hover { background: var(--gx-cream); color: #17130f; border-color: var(--gx-cream); }
 .gx-lb-x { position: absolute; z-index: 3; top: clamp(14px,3vw,26px); right: clamp(14px,3vw,26px); width: 46px; height: 46px; border-radius: 50%; border: 1px solid rgba(244,240,232,.2); background: rgba(244,240,232,.05); color: #fff; font-size: 26px; line-height: 1; cursor: pointer; transition: .2s; }
 .gx-lb-x:hover { background: #fff; color: #161614; }
-.gx-lb-nav { position: absolute; z-index: 3; top: 50%; transform: translateY(-50%); width: 52px; height: 52px; border-radius: 50%; border: 1px solid rgba(244,240,232,.2); background: rgba(244,240,232,.05); color: #fff; font-size: 28px; line-height: 1; cursor: pointer; transition: .2s; }
-.gx-lb-nav:hover { background: var(--gx-cream); color: #17130f; border-color: var(--gx-cream); }
-.gx-lb-prev { left: clamp(10px,2vw,24px); }
-.gx-lb-next { right: clamp(10px,2vw,24px); }
-@media (max-width: 680px) { .gx-lb-nav { display: none; } }
 
 @media (prefers-reduced-motion: reduce) {
   .gx-tile { opacity: 1 !important; transform: none !important; transition: none; }

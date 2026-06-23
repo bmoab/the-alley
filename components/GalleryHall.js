@@ -154,6 +154,19 @@ function Lightbox({ list, index, setIndex, catOf, onClose }) {
   useBodyScrollLock(true);
   const go = (d) => setIndex((i) => (i + d + list.length) % list.length);
 
+  // Touch swipe (mobile): horizontal drag on the image navigates; a tap on the
+  // surrounding scrim still closes (its onClick is untouched).
+  const touchStartX = useRef(null);
+  const onTouchStart = (e) => {
+    touchStartX.current = e.changedTouches[0].clientX;
+  };
+  const onTouchEnd = (e) => {
+    if (touchStartX.current == null || list.length < 2) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1);
+  };
+
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === "Escape") onClose();
@@ -173,18 +186,12 @@ function Lightbox({ list, index, setIndex, catOf, onClose }) {
     <div className="gx-lb" role="dialog" aria-modal="true" aria-label={p.cap}>
       <div className="gx-lb-scrim" onClick={onClose} />
       <button className="gx-lb-x" aria-label="Close" onClick={onClose}>×</button>
-      {list.length > 1 ? (
-        <>
-          <button className="gx-lb-nav gx-lb-prev" aria-label="Previous photo" onClick={() => go(-1)}>‹</button>
-          <button className="gx-lb-nav gx-lb-next" aria-label="Next photo" onClick={() => go(1)}>›</button>
-        </>
-      ) : null}
 
-      <div className="gx-lb-inner">
+      <div className="gx-lb-inner" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         <div className="gx-lb-frame" key={index}>
           {p.src ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img className="gx-lb-img" src={p.src} alt={p.cap} />
+            <img className="gx-lb-img" src={p.src} alt={p.cap} draggable={false} />
           ) : (
             <div className="gx-lb-img gx-img--empty" aria-hidden="true" />
           )}
@@ -192,7 +199,15 @@ function Lightbox({ list, index, setIndex, catOf, onClose }) {
         <div className="gx-lb-cap">
           {cat ? <span className="gx-lb-cat">{cat}</span> : null}
           <h2 className="gx-lb-title">{p.cap}</h2>
-          <span className="gx-lb-count">{index + 1} / {list.length}</span>
+          <div className="gx-lb-controls">
+            {list.length > 1 ? (
+              <button className="gx-lb-arrow" aria-label="Previous photo" onClick={() => go(-1)}>‹</button>
+            ) : null}
+            <span className="gx-lb-count">{index + 1} / {list.length}</span>
+            {list.length > 1 ? (
+              <button className="gx-lb-arrow" aria-label="Next photo" onClick={() => go(1)}>›</button>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>
