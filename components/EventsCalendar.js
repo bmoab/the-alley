@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { formatTime } from "@/lib/constants.js";
 
 function parseYmd(s) {
   const [y, m, d] = s.split("-").map(Number);
@@ -26,7 +27,8 @@ export default function EventsCalendar({ events = [] }) {
 }
 
 function whenLabel(e) {
-  return e.end_label || (e.time ? e.time : "");
+  // Custom end_label (e.g. "6–9 PM") wins; otherwise format the 24h time as am/pm.
+  return e.end_label || (e.time ? formatTime(e.time) : "");
 }
 
 function CalList({ events }) {
