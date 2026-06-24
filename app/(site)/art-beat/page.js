@@ -24,7 +24,7 @@ export default function ArtBeatPage() {
       <header className="ab-hero">
         <div className="wallpaper" aria-hidden="true" />
         <div className="wrap ab-hero-inner">
-          <p className="eyebrow">{ab.date}</p>
+          <p className="eyebrow" data-edit="art_beat">{ab.date}</p>
           <h1>Center Street Art Beat</h1>
           <p>
             A community-powered music and arts fest built by the people who show up — a day dedicated to

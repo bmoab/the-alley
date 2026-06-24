@@ -4,7 +4,7 @@ import { Arrow } from "@/components/site/Primitives.js";
 /** The four "what you'll find here" destination cards. */
 export default function DestinationsRow({ items = [] }) {
   return (
-    <div className="dest-grid">
+    <div className="dest-grid" data-edit="home_destinations">
       {items.map((d, i) => (
         <Link key={d.title} href={d.href} className="dest-card reveal">
           <span className="dest-num mono">0{i + 1}</span>

@@ -12,7 +12,7 @@ import { useBodyScrollLock } from "@/components/hooks.js";
  * Neutral cream accent (no chromatic accent) so the photography carries the
  * color. `photos` = [{ id, cap, tags[], src }]; `tags` = [{ tag, count }].
  */
-export default function GalleryHall({ title, subtitle, lede, photos = [], tags = [] }) {
+export default function GalleryHall({ title, subtitle, lede, photos = [], tags = [], editKeys = {} }) {
   const [filter, setFilter] = useState("All");
   const [lbIndex, setLbIndex] = useState(null); // null = closed
   const wallRef = useRef(null);
@@ -58,9 +58,9 @@ export default function GalleryHall({ title, subtitle, lede, photos = [], tags =
     <section className="gx-hall">
       <div className="gx-hall-inner wrap">
         <header className="gx-hall-head">
-          {subtitle ? <p className="gx-eyebrow">{subtitle}</p> : null}
-          <h1 className="gx-hall-title">{title}</h1>
-          {lede ? <p className="gx-hall-lede">{lede}</p> : null}
+          {subtitle ? <p className="gx-eyebrow" data-edit={editKeys.subtitle}>{subtitle}</p> : null}
+          <h1 className="gx-hall-title" data-edit={editKeys.title}>{title}</h1>
+          {lede ? <p className="gx-hall-lede" data-edit={editKeys.lede}>{lede}</p> : null}
         </header>
 
         <div className="gx-filters" role="group" aria-label="Filter photos by tag">

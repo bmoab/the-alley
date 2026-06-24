@@ -2,6 +2,7 @@ import "./site.css";
 import SiteHeader from "@/components/SiteHeader.js";
 import SiteFooter from "@/components/SiteFooter.js";
 import RevealMount from "@/components/site/RevealMount.js";
+import PreviewBridge from "@/components/site/PreviewBridge.js";
 import { BookProvider } from "@/components/BookContext.js";
 import { getSettings } from "@/lib/db.js";
 
@@ -27,6 +28,7 @@ export default function SiteLayout({ children }) {
     <div className="dir-b">
       <BookProvider config={bookingConfig}>
         <RevealMount />
+        <PreviewBridge />
         <SiteHeader />
         {children}
         <SiteFooter />

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listExhibitorsByPhase } from "@/lib/catalog.js";
+import { getContentValue } from "@/lib/db.js";
 import { formatMonthRange } from "@/lib/constants.js";
 import PageHero from "@/components/site/PageHero.js";
 import PhotoSlot from "@/components/site/PhotoSlot.js";
@@ -50,9 +51,13 @@ export default function ExhibitorsPage() {
   return (
     <main>
       <PageHero
-        eyebrow="The artists"
-        title="Exhibitors"
-        lede="The painters, printers, potters and makers who've filled the gallery walls. Their work rotates each season — here's who's showing now, and everyone who came before."
+        eyebrow={getContentValue("exhibitors_hero_eyebrow", "The artists")}
+        title={getContentValue("exhibitors_hero_title", "Exhibitors")}
+        lede={getContentValue(
+          "exhibitors_hero_lede",
+          "The painters, printers, potters and makers who've filled the gallery walls. Their work rotates each season — here's who's showing now, and everyone who came before."
+        )}
+        editKeys={{ eyebrow: "exhibitors_hero_eyebrow", title: "exhibitors_hero_title", lede: "exhibitors_hero_lede" }}
       />
 
       {current.length ? (
@@ -89,8 +94,8 @@ export default function ExhibitorsPage() {
       <section className="iband iband--verde">
         <div className="wrap ex-cta">
           <div>
-            <h2>Want to show your work?</h2>
-            <p>We host a new exhibitor most seasons — solo walls, group shows, and pop-ups. Tell us what you make.</p>
+            <h2 data-edit="exhibitors_cta_heading">{getContentValue("exhibitors_cta_heading", "Want to show your work?")}</h2>
+            <p data-edit="exhibitors_cta_blurb">{getContentValue("exhibitors_cta_blurb", "We host a new exhibitor most seasons — solo walls, group shows, and pop-ups. Tell us what you make.")}</p>
           </div>
           <Link className="btn btn--solid" href="/contact">
             Pitch an exhibition <span className="arrow" style={{ marginLeft: 6 }}>→</span>

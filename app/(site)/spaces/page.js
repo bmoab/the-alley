@@ -1,5 +1,5 @@
 import { SPACES } from "@/lib/constants.js";
-import { getSettings, getContent } from "@/lib/db.js";
+import { getSettings, getContent, getContentValue } from "@/lib/db.js";
 import { listSpacePhotos } from "@/lib/catalog.js";
 import PageHero from "@/components/site/PageHero.js";
 import SpaceGallery from "@/components/site/SpaceGallery.js";
@@ -15,12 +15,22 @@ export default function SpacesPage() {
   const minHours = Number(s.minimum_hours) || 2;
   const deposit = Number(s.deposit) || 150;
 
+  // "{deposit}" in the editable body is replaced with the live deposit amount.
+  const bookBody = getContentValue(
+    "spaces_book_body",
+    "Every booking includes a refundable {deposit} cleaning deposit and a quick rental agreement. We'll review your request and email you within a day to confirm — no charge happens until then."
+  ).replaceAll("{deposit}", `$${deposit}`);
+
   return (
     <main className="ipage">
       <PageHero
-        eyebrow="Rent a space"
-        title="The Loft & more"
-        lede="You bring the idea — we'll help with the space. From workshops and meetings to markets and celebrations, The Alley gives you a warm, characterful room where ideas turn into experiences."
+        eyebrow={getContentValue("spaces_hero_eyebrow", "Rent a space")}
+        title={getContentValue("spaces_hero_title", "The Loft & more")}
+        lede={getContentValue(
+          "spaces_hero_lede",
+          "You bring the idea — we'll help with the space. From workshops and meetings to markets and celebrations, The Alley gives you a warm, characterful room where ideas turn into experiences."
+        )}
+        editKeys={{ eyebrow: "spaces_hero_eyebrow", title: "spaces_hero_title", lede: "spaces_hero_lede" }}
       />
 
       <section className="wrap">
@@ -61,11 +71,8 @@ export default function SpacesPage() {
         <div className="iband iband--verde" style={{ marginTop: "clamp(48px,6vw,84px)", padding: "clamp(26px,3vw,40px)", border: "1px solid var(--line-strong)" }}>
           <div className="agreement">
             <div>
-              <h2>Before you book</h2>
-              <p style={{ color: "var(--ink-soft)" }}>
-                Every booking includes a refundable ${deposit} cleaning deposit and a quick rental agreement.
-                We&apos;ll review your request and email you within a day to confirm — no charge happens until then.
-              </p>
+              <h2 data-edit="spaces_book_heading">{getContentValue("spaces_book_heading", "Before you book")}</h2>
+              <p style={{ color: "var(--ink-soft)" }} data-edit="spaces_book_body">{bookBody}</p>
             </div>
             <a className="btn btn--ghost" href="/rental-agreement.pdf" target="_blank" rel="noreferrer">
               Read the agreement
