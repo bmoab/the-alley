@@ -18,6 +18,7 @@ import {
   History,
   Activity,
   Users,
+  LayoutTemplate,
 } from "lucide-react";
 
 // Full navigation, in sidebar order. Items are either a link
@@ -43,6 +44,7 @@ export const NAV = [
     group: "Site Content",
     icon: LayoutGrid,
     items: [
+      { href: "/admin/pages", label: "Pages", icon: LayoutTemplate },
       { href: "/admin/descriptors", label: "Descriptors", icon: FileText },
       { href: "/admin/site-photos", label: "Site Photos", icon: Image },
       { href: "/admin/spaces", label: "Spaces Photos", icon: Images },
