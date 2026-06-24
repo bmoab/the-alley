@@ -109,27 +109,6 @@ function Stepper({ step }) {
   );
 }
 
-/** Heads-up shown when the chosen date/time is within the cancellation cutoff. */
-function CutoffWarn({ cutoff, deposit }) {
-  return (
-    <div
-      style={{
-        marginTop: 16,
-        padding: "12px 14px",
-        border: "1px solid var(--ink)",
-        background: "var(--paper-warm)",
-        fontSize: 13,
-        lineHeight: 1.55,
-        color: "var(--ink-soft)",
-      }}
-    >
-      <strong style={{ color: "var(--ink)" }}>Heads up:</strong> your event is within {cutoff} hours, so the
-      rental fee is <strong style={{ color: "var(--ink)" }}>non-refundable</strong> if you cancel — only your
-      ${deposit} cleaning deposit is refundable.
-    </div>
-  );
-}
-
 const fieldStyle = {
   width: "100%",
   padding: "12px 14px",
@@ -413,6 +392,7 @@ function BookModal({ initialRoom, config, onClose }) {
     alcohol: false,
     agreed: false,
     is_public_event: false,
+    cutoff_ack: false,
   });
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -489,7 +469,12 @@ function BookModal({ initialRoom, config, onClose }) {
   const canNext =
     (step === 0 && room) ||
     (step === 1 && form.date && form.start && form.hours) ||
-    (step === 2 && form.name && /.+@.+\..+/.test(form.email) && form.phone.trim() && form.agreed);
+    (step === 2 &&
+      form.name &&
+      /.+@.+\..+/.test(form.email) &&
+      form.phone.trim() &&
+      form.agreed &&
+      (!withinCutoff || form.cutoff_ack));
 
   const next = () => setStep((s) => Math.min(3, s + 1));
   const back = () => setStep((s) => Math.max(0, s - 1));
@@ -630,7 +615,6 @@ function BookModal({ initialRoom, config, onClose }) {
                   )}
                 </div>
               </div>
-              {withinCutoff ? <CutoffWarn cutoff={cancellationCutoffHours} deposit={deposit} /> : null}
             </div>
           ) : null}
 
@@ -671,6 +655,16 @@ function BookModal({ initialRoom, config, onClose }) {
                     email you a link to add your details.)
                   </span>
                 </label>
+                {withinCutoff ? (
+                  <label style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13, color: "var(--ink-soft)", fontWeight: 300, padding: "12px 14px", border: "1px solid var(--ink)", background: "var(--paper-warm)" }}>
+                    <input type="checkbox" checked={form.cutoff_ack} onChange={(e) => setForm((f) => ({ ...f, cutoff_ack: e.target.checked }))} style={{ marginTop: 3 }} />
+                    <span>
+                      I understand my event is within {cancellationCutoffHours} hours, so the rental fee is{" "}
+                      <strong style={{ color: "var(--ink)" }}>non-refundable</strong> if I cancel — only my ${deposit} cleaning
+                      deposit is refundable.
+                    </span>
+                  </label>
+                ) : null}
                 <label style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13, color: "var(--ink-soft)", fontWeight: 300 }}>
                   <input type="checkbox" checked={form.agreed} onChange={(e) => setForm((f) => ({ ...f, agreed: e.target.checked }))} style={{ marginTop: 3 }} />
                   <span>
@@ -685,7 +679,6 @@ function BookModal({ initialRoom, config, onClose }) {
                 <div className="bk-est-row bk-est-total"><span>Estimated total</span><span>${estTotal}</span></div>
                 <p className="bk-est-note mono">Estimate only — no charge happens now. If approved, you'll get a payment link.</p>
               </div>
-              {withinCutoff ? <CutoffWarn cutoff={cancellationCutoffHours} deposit={deposit} /> : null}
               {submitError ? <p style={{ color: "var(--rust, #9c4a2e)", fontSize: 14, marginTop: 12 }}>{submitError}</p> : null}
             </div>
           ) : null}
