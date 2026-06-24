@@ -1,6 +1,6 @@
 "use server";
 
-import { isSlotAvailable, isStartInPast, createBookingRequest, getBooking } from "@/lib/bookings.js";
+import { isSlotAvailable, isStartTooSoon, createBookingRequest, getBooking } from "@/lib/bookings.js";
 import { isClosedForBooking } from "@/lib/closures.js";
 import { getSetting } from "@/lib/db.js";
 import { SPACE_BY_ID, EVENT_TYPES, GUEST_RANGES } from "@/lib/constants.js";
@@ -26,9 +26,10 @@ export async function submitBooking(payload) {
   if (!start_time || !/^\d{2}:\d{2}$/.test(start_time)) errors.push("Please choose a start time.");
 
   const minHours = Number(getSetting("minimum_hours", "2"));
+  const maxHours = Number(getSetting("maximum_hours", "8")) || 8;
   const hours = Number(payload.hours);
   if (!hours || hours < minHours) errors.push(`Minimum booking is ${minHours} hours.`);
-  if (hours > 8) errors.push("Maximum booking is 8 hours.");
+  if (hours > maxHours) errors.push(`Maximum booking is ${maxHours} hours.`);
 
   if (!payload.client_name?.trim()) errors.push("Your name is required.");
   if (!payload.client_email?.trim()) errors.push("Your email is required.");
@@ -44,9 +45,16 @@ export async function submitBooking(payload) {
 
   if (errors.length) return { ok: false, error: errors.join(" ") };
 
-  // Can't book a time that's already passed today.
-  if (isStartInPast(date, start_time)) {
-    return { ok: false, error: "That start time has already passed today — please pick a later time." };
+  // Can't book a time that's already passed, or inside the advance-notice window.
+  if (isStartTooSoon(date, start_time)) {
+    const leadHours = Number(getSetting("min_lead_hours", "0")) || 0;
+    return {
+      ok: false,
+      error:
+        leadHours > 0
+          ? `Bookings must be made at least ${leadHours} hours in advance — please pick a later time.`
+          : "That start time has already passed — please pick a later time.",
+    };
   }
 
   // Closed by the owner?

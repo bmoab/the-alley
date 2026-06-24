@@ -15,10 +15,13 @@ export default function SiteLayout({ children }) {
   const bookingConfig = {
     rate: Number(s.standard_rate) || 75,
     minHours: Number(s.minimum_hours) || 2,
+    maxHours: Number(s.maximum_hours) || 8,
+    minLeadHours: Number(s.min_lead_hours) || 0,
     deposit: Number(s.deposit) || 150,
     openHour: Number(s.open_hour) || 8,
     closeHour: Number(s.close_hour) || 23,
     cleanupBuffer: (Number(s.cleanup_buffer_minutes) || 60) / 60,
+    cancellationCutoffHours: Number(s.cancellation_cutoff_hours) || 72,
   };
   return (
     <div className="dir-b">

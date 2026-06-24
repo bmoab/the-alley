@@ -41,6 +41,20 @@ const NUMBER_FIELDS = [
     step: 1,
   },
   {
+    key: "maximum_hours",
+    label: "Maximum booking length (hours)",
+    hint: "Longest single rental a guest can request.",
+    min: 1,
+    step: 1,
+  },
+  {
+    key: "min_lead_hours",
+    label: "Minimum advance notice (hours)",
+    hint: "How far ahead a booking must be made. 0 = no requirement; 24 = one day; 48 = two days.",
+    min: 0,
+    step: 1,
+  },
+  {
     key: "cleanup_buffer_minutes",
     label: "Cleanup buffer (minutes)",
     hint: "Gap reserved after each booking before the next can start.",
@@ -122,9 +136,13 @@ export default function SettingsPage() {
           <h2 className="text-lg font-semibold text-ink">Booking rules</h2>
           <div className="mt-4 grid gap-5 sm:grid-cols-2">
             {NUMBER_FIELDS.filter((f) =>
-              ["minimum_hours", "cleanup_buffer_minutes", "payment_window_days"].includes(
-                f.key
-              )
+              [
+                "minimum_hours",
+                "maximum_hours",
+                "min_lead_hours",
+                "cleanup_buffer_minutes",
+                "payment_window_days",
+              ].includes(f.key)
             ).map((f) => (
               <NumberField key={f.key} field={f} value={s[f.key]} />
             ))}

@@ -41,6 +41,19 @@ function hoursBetween(a, b) {
   if (!a || !b) return 0;
   return Math.max(0, (toMin(b) - toMin(a)) / 60);
 }
+/**
+ * Earliest bookable start (fractional hour-of-day) for `dateStr`, given the
+ * advance-notice window. null = no restriction; 24 = whole day too soon. Greys
+ * past + too-soon start chips in SmartTime; the server is authoritative.
+ */
+function earliestStartFracFor(dateStr, leadHours = 0) {
+  if (!dateStr) return null;
+  const cutoff = new Date(Date.now() + (Number(leadHours) || 0) * 3600 * 1000);
+  const cutoffDate = ymd(cutoff.getFullYear(), cutoff.getMonth(), cutoff.getDate());
+  if (dateStr > cutoffDate) return null;
+  if (dateStr < cutoffDate) return 24;
+  return cutoff.getHours() + cutoff.getMinutes() / 60;
+}
 
 export function BookProvider({ children, config }) {
   const [open, setOpen] = useState(false);
@@ -92,6 +105,27 @@ function Stepper({ step }) {
           {i < labels.length - 1 ? <span className="bk-stepper-line" /> : null}
         </span>
       ))}
+    </div>
+  );
+}
+
+/** Heads-up shown when the chosen date/time is within the cancellation cutoff. */
+function CutoffWarn({ cutoff, deposit }) {
+  return (
+    <div
+      style={{
+        marginTop: 16,
+        padding: "12px 14px",
+        border: "1px solid var(--ink)",
+        background: "var(--paper-warm)",
+        fontSize: 13,
+        lineHeight: 1.55,
+        color: "var(--ink-soft)",
+      }}
+    >
+      <strong style={{ color: "var(--ink)" }}>Heads up:</strong> your event is within {cutoff} hours, so the
+      rental fee is <strong style={{ color: "var(--ink)" }}>non-refundable</strong> if you cancel — only your
+      ${deposit} cleaning deposit is refundable.
     </div>
   );
 }
@@ -215,8 +249,9 @@ function fmtFrac(v) {
  * `value` = { start: "HH:MM"|"", hours: number|null }. `bookings` = raw
  * [{ start, end }] fractional-hour intervals (buffer applied here).
  */
-function SmartTime({ config, bookings, closures, value, onChange }) {
-  const { rate, deposit, minHours, openHour, closeHour, cleanupBuffer } = config;
+function SmartTime({ config, bookings, closures, value, onChange, minStartFrac = null }) {
+  const { rate, deposit, minHours, openHour, closeHour, cleanupBuffer, maxHours } = config;
+  const maxH = maxHours || 24; // configurable maximum booking length (hours)
   const list = bookings || [];
   const closed = closures || [];
   const startVal = value.start ? hhmmToFrac(value.start) : null;
@@ -238,7 +273,7 @@ function SmartTime({ config, bookings, closures, value, onChange }) {
     closed.forEach((c) => {
       if (c.start > start) limit = Math.min(limit, c.start - start);
     });
-    return Math.floor(limit);
+    return Math.min(Math.floor(limit), maxH);
   };
 
   // Whole operating day closed?
@@ -274,7 +309,7 @@ function SmartTime({ config, bookings, closures, value, onChange }) {
   let note = null;
   if (startVal != null) {
     const md = maxDurationFrom(startVal);
-    const closeMax = Math.floor(closeHour - startVal);
+    const closeMax = Math.min(Math.floor(closeHour - startVal), maxH);
     const durations = [];
     for (let d = minHours; d <= closeMax; d++) durations.push(d);
     durChips = durations.map((d) => {
@@ -313,7 +348,10 @@ function SmartTime({ config, bookings, closures, value, onChange }) {
       </div>
       <div className="bk-chips">
         {starts.map((val) => {
-          const taken = isStartTaken(val) || maxDurationFrom(val) < minHours;
+          const taken =
+            isStartTaken(val) ||
+            maxDurationFrom(val) < minHours ||
+            (minStartFrac != null && val < minStartFrac);
           const selected = startVal === val;
           return (
             <button
@@ -359,7 +397,7 @@ function SmartTime({ config, bookings, closures, value, onChange }) {
 }
 
 function BookModal({ initialRoom, config, onClose }) {
-  const { rate, minHours, deposit, openHour, closeHour } = config;
+  const { rate, minHours, deposit, openHour, closeHour, minLeadHours = 0, cancellationCutoffHours = 72 } = config;
   const [step, setStep] = useState(initialRoom ? 1 : 0);
   const [room, setRoom] = useState(initialRoom || null);
   const [form, setForm] = useState({
@@ -436,6 +474,18 @@ function BookModal({ initialRoom, config, onClose }) {
 
   const hours = Number(form.hours) || 0;
 
+  // Earliest bookable start for the chosen day (past + advance-notice) — greys
+  // too-soon start chips in SmartTime.
+  const minStartFrac = earliestStartFracFor(form.date, minLeadHours);
+  // Is the chosen date+time inside the cancellation cutoff? → rental non-refundable.
+  const withinCutoff = (() => {
+    if (!form.date || !form.start) return false;
+    const [y, mo, d] = form.date.split("-").map(Number);
+    const [hh, mm] = form.start.split(":").map(Number);
+    const start = new Date(y, mo - 1, d, hh || 0, mm || 0, 0, 0);
+    return start.getTime() - Date.now() < cancellationCutoffHours * 3600 * 1000;
+  })();
+
   const canNext =
     (step === 0 && room) ||
     (step === 1 && form.date && form.start && form.hours) ||
@@ -483,7 +533,7 @@ function BookModal({ initialRoom, config, onClose }) {
         alignItems: "flex-start",
         justifyContent: "center",
         padding: "max(4vh,20px) 12px",
-        overflowY: "auto",
+        overflowY: "hidden",
         overflowX: "hidden",
         animation: "fadein .25s ease",
       }}
@@ -494,6 +544,9 @@ function BookModal({ initialRoom, config, onClose }) {
         style={{
           width: "min(720px,100%)",
           maxWidth: "100%",
+          maxHeight: "90vh",
+          overflowY: "auto",
+          WebkitOverflowScrolling: "touch",
           background: "var(--paper)",
           border: "1px solid var(--ink)",
           boxShadow: "0 30px 80px rgba(0,0,0,.3)",
@@ -570,12 +623,14 @@ function BookModal({ initialRoom, config, onClose }) {
                       config={config}
                       bookings={dayBookings}
                       closures={dayClosures}
+                      minStartFrac={minStartFrac}
                       value={{ start: form.start, hours: form.hours }}
                       onChange={({ start, hours }) => setForm((f) => ({ ...f, start, hours }))}
                     />
                   )}
                 </div>
               </div>
+              {withinCutoff ? <CutoffWarn cutoff={cancellationCutoffHours} deposit={deposit} /> : null}
             </div>
           ) : null}
 
@@ -584,11 +639,11 @@ function BookModal({ initialRoom, config, onClose }) {
               <h3 style={{ fontSize: 26, marginBottom: 18 }}>Tell us about it.</h3>
               <div style={{ display: "grid", gap: 16 }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                  <label><span style={labStyle}>Your name</span><input value={form.name} onChange={set("name")} placeholder="Jane Maker" style={fieldStyle} /></label>
-                  <label><span style={labStyle}>Email</span><input value={form.email} onChange={set("email")} placeholder="you@email.com" style={fieldStyle} /></label>
+                  <label><span style={labStyle}>Your name</span><input name="name" autoComplete="name" value={form.name} onChange={set("name")} placeholder="Jane Maker" style={fieldStyle} /></label>
+                  <label><span style={labStyle}>Email</span><input name="email" type="email" autoComplete="email" inputMode="email" value={form.email} onChange={set("email")} placeholder="you@email.com" style={fieldStyle} /></label>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                  <label><span style={labStyle}>Phone</span><input value={form.phone} onChange={set("phone")} placeholder="(435) 555-0123" style={fieldStyle} /></label>
+                  <label><span style={labStyle}>Phone</span><input name="phone" type="tel" autoComplete="tel" inputMode="tel" value={form.phone} onChange={set("phone")} placeholder="(435) 555-0123" style={fieldStyle} /></label>
                   <label><span style={labStyle}>Occasion</span>
                     <select value={form.type} onChange={set("type")} style={fieldStyle}>
                       <option value="">Select…</option>
@@ -630,6 +685,7 @@ function BookModal({ initialRoom, config, onClose }) {
                 <div className="bk-est-row bk-est-total"><span>Estimated total</span><span>${estTotal}</span></div>
                 <p className="bk-est-note mono">Estimate only — no charge happens now. If approved, you'll get a payment link.</p>
               </div>
+              {withinCutoff ? <CutoffWarn cutoff={cancellationCutoffHours} deposit={deposit} /> : null}
               {submitError ? <p style={{ color: "var(--rust, #9c4a2e)", fontSize: 14, marginTop: 12 }}>{submitError}</p> : null}
             </div>
           ) : null}
