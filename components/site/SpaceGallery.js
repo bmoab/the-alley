@@ -5,14 +5,13 @@ import PhotoSlot from "@/components/site/PhotoSlot.js";
 /**
  * A space's photo gallery: a main image plus a thumbnail strip that swaps it.
  * Shows ONLY the real uploaded photos ([{ image_path, caption }], first = lead).
- * If none are uploaded yet, shows a single styled placeholder (the optional
- * legacy `image`) with no thumbnail strip.
+ * If none are uploaded yet, shows a single styled placeholder with no strip.
  */
-export default function SpaceGallery({ photos = [], image, lead = "verde" }) {
+export default function SpaceGallery({ photos = [], lead = "verde" }) {
   const real = photos.filter((p) => p.image_path);
   const shots = real.length
     ? real.map((p) => ({ src: p.image_path, tag: p.caption || "", variant: lead }))
-    : [{ src: image || null, tag: "", variant: lead }];
+    : [{ src: null, tag: "", variant: lead }];
 
   const [sel, setSel] = useState(0);
   const cur = shots[Math.min(sel, shots.length - 1)];

@@ -32,7 +32,6 @@ export default function ArtBeatPage() {
           </p>
           <div className="ab-hero-cta">
             <Link className="btn btn--verde" href="/contact">Get involved</Link>
-            <Link className="btn btn--ghost-light" href="/calendar">See the calendar</Link>
           </div>
         </div>
       </header>

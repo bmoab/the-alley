@@ -27,7 +27,7 @@ export default function EventDetailPage({ params }) {
       </Link>
 
       <div style={{ marginTop: 28, display: "grid", gap: "clamp(24px,4vw,48px)", gridTemplateColumns: "minmax(0,1.1fr) minmax(0,.9fr)" }} className="ev-detail-grid">
-        <PhotoSlot src={e.photo_path || null} tag={e.kind || e.title} variant="verde" style={{ minHeight: 320 }} />
+        <PhotoSlot src={e.photo_path || null} tag={e.title} showTag={false} variant="verde" style={{ minHeight: 320 }} />
         <div>
           <p className="eyebrow" style={{ color: "var(--verde-deep)" }}>
             {formatDate(e.date)} {e.time ? `· ${formatTime(e.time)}` : ""}{e.end_label ? ` · ${e.end_label}` : ""}

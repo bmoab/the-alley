@@ -29,17 +29,17 @@ export default function HostListingForm({ event, saveAction, alreadyLive }) {
   });
   const [uploading, setUploading] = useState("");
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [toast, setToast] = useState(null); // { msg, at: Date } | null
   const [busy, setBusy] = useState(false);
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
 
-  // Auto-dismiss the "saved" notice so it reads as a transient toast.
+  // Auto-dismiss the saved toast after a bit (it also has an × to close).
   useEffect(() => {
-    if (!notice) return;
-    const t = setTimeout(() => setNotice(""), 5000);
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 10000);
     return () => clearTimeout(t);
-  }, [notice]);
+  }, [toast]);
 
   async function onPhoto(e) {
     const file = e.target.files?.[0];
@@ -63,7 +63,7 @@ export default function HostListingForm({ event, saveAction, alreadyLive }) {
   }
 
   async function handleSubmit(submit) {
-    setError(""); setNotice(""); setBusy(true);
+    setError(""); setToast(null); setBusy(true);
     const res = await saveAction({
       ...form,
       tickets: form.tickets === "" ? null : Number(form.tickets),
@@ -73,14 +73,15 @@ export default function HostListingForm({ event, saveAction, alreadyLive }) {
     });
     setBusy(false);
     if (res?.ok) {
-      // Stay on the form; show a transient confirmation instead of navigating away.
-      setNotice(
-        !submit
+      // Stay on the form; show a transient toast pill instead of navigating away.
+      setToast({
+        msg: !submit
           ? "Draft saved — keep editing whenever you like."
           : alreadyLive
             ? "Changes saved — your listing is updated."
-            : "Submitted! The Alley will take a quick look, then it goes live. You can keep editing from this same link."
-      );
+            : "Submitted! The Alley will take a quick look, then it goes live. You can keep editing from this link.",
+        at: new Date(),
+      });
     } else {
       setError(res?.error || "Something went wrong.");
     }
@@ -88,17 +89,23 @@ export default function HostListingForm({ event, saveAction, alreadyLive }) {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl bg-paper-warm p-4 text-sm text-ink-soft">
-        Booking: <strong>{spaceName(event.space)}</strong>
-        {event.date ? ` · ${formatDate(event.date)}` : ""} — the date &amp; time are
-        locked to your reservation; fill in the listing details below.
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-paper-warm p-4 text-sm text-ink-soft">
+        <span>
+          Booking: <strong>{spaceName(event.space)}</strong>
+          {event.date ? ` · ${formatDate(event.date)}` : ""} — the date &amp; time are
+          locked to your reservation; fill in the listing details below.
+        </span>
+        {alreadyLive ? (
+          <a
+            href={`/events/${event.id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="shrink-0 whitespace-nowrap font-semibold text-brass-dark hover:underline"
+          >
+            View your live listing →
+          </a>
+        ) : null}
       </div>
-
-      {notice ? (
-        <div className="rounded-lg border border-verde-deep/30 bg-verde/40 px-4 py-2.5 text-sm font-medium text-ink">
-          ✓ {notice}
-        </div>
-      ) : null}
 
       {error ? (
         <div className="rounded-lg border border-rust/30 bg-rust/10 px-4 py-2 text-sm text-rust">{error}</div>
@@ -193,6 +200,33 @@ export default function HostListingForm({ event, saveAction, alreadyLive }) {
           {alreadyLive ? "Save & update listing" : "Submit for review →"}
         </button>
       </div>
+
+      {/* Floating saved-toast pill (message + time + × to close). */}
+      {toast ? (
+        <div
+          className="fixed inset-x-0 bottom-5 z-50 flex justify-center px-4"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex max-w-lg items-start gap-3 rounded-full border border-ink/10 bg-ink px-5 py-3 text-sm text-paper shadow-lg">
+            <span className="mt-0.5 text-brass">✓</span>
+            <span className="flex-1">
+              {toast.msg}{" "}
+              <span className="opacity-60">
+                · {toast.at.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setToast(null)}
+              aria-label="Dismiss"
+              className="-mr-1 -mt-0.5 rounded-full p-1 text-paper/70 transition hover:bg-paper/10 hover:text-paper"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

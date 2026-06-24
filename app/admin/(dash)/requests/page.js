@@ -126,7 +126,8 @@ async function deny(formData) {
 }
 
 export default function RequestsPage() {
-  const pending = listBookings({ status: "pending" });
+  // Oldest submitted at the top (FIFO) so requests are worked in arrival order.
+  const pending = listBookings({ status: "pending", sort: "created_asc" });
 
   return (
     <div>
