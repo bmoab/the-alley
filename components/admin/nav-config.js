@@ -9,7 +9,6 @@ import {
   Megaphone,
   Building2,
   Store,
-  FileText,
   Image,
   Images,
   LayoutGrid,
@@ -45,7 +44,6 @@ export const NAV = [
     icon: LayoutGrid,
     items: [
       { href: "/admin/pages", label: "Pages", icon: LayoutTemplate },
-      { href: "/admin/descriptors", label: "Descriptors", icon: FileText },
       { href: "/admin/site-photos", label: "Site Photos", icon: Image },
       { href: "/admin/spaces", label: "Spaces Photos", icon: Images },
       { href: "/admin/gallery", label: "Gallery", icon: LayoutGrid },

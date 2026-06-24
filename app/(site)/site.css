@@ -751,3 +751,10 @@
 
 @media (max-width: 640px) { .bk-when-grid { grid-template-columns: 1fr; } .bk-slots { grid-template-columns: repeat(4,1fr); } }
 @media (max-width: 820px) { .ev-detail-grid { grid-template-columns: 1fr !important; } }
+
+/* Admin Pages preview: flash the element matching the focused editor field. */
+.alley-edit-flash { animation: alley-edit-flash 1.4s ease-out; border-radius: 4px; }
+@keyframes alley-edit-flash {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(123,160,91,0); }
+  12% { box-shadow: 0 0 0 4px rgba(123,160,91,.65); background-color: rgba(123,160,91,.12); }
+}

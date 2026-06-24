@@ -20,7 +20,7 @@ export default function Hero({ eyebrow, rotate = ["MUSIC", "ART", "EVENTS", "COM
       <img className="hero-b-vert" src="/brand/logo-vertical-black.png" alt="" aria-hidden="true" />
       <Stripes count={4} className="hero-b-stripes" />
       <div className="wrap hero-b-inner">
-        <p className="eyebrow hero-b-eyebrow">{eyebrow}</p>
+        <p className="eyebrow hero-b-eyebrow" data-edit="home_hero_eyebrow">{eyebrow}</p>
         <p className="hero-b-kicker">The Alley is a home for</p>
         <div className="hero-b-rot">
           {/* Hidden sizer reserves constant space (the longest word). */}
@@ -35,7 +35,7 @@ export default function Hero({ eyebrow, rotate = ["MUSIC", "ART", "EVENTS", "COM
         <div className="hero-b-foot">
           <Bolt width={120} height={52} className="hero-b-bolt" />
           <div className="hero-b-foot-col">
-            <p className="lede hero-b-lede">{lede}</p>
+            <p className="lede hero-b-lede" data-edit="home_hero_lede">{lede}</p>
             <div className="hero-b-cta">
               <Link href="/calendar" className="rulelink">
                 What&apos;s happening next <Arrow />

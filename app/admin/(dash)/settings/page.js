@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getSettings, setSetting } from "@/lib/db.js";
+import { getSettings, setSetting, getContentValue, setContent } from "@/lib/db.js";
 import { formatTime } from "@/lib/constants.js";
 import { logActivity } from "@/lib/activity.js";
 import { getActor } from "@/lib/auth.js";
@@ -81,6 +81,8 @@ async function save(formData) {
     "listing_auto_publish",
     formData.get("listing_auto_publish") === "true" ? "true" : "false"
   );
+  // Shared calendar link is content (used in tenant/host/exhibitor invite emails).
+  setContent("calendar_share_url", (formData.get("calendar_share_url") || "").toString());
   logActivity({
     eventType: "settings_changed",
     description: "Settings updated · pricing & booking rules",
@@ -112,6 +114,7 @@ async function saveCancellationPolicy(formData) {
 
 export default function SettingsPage() {
   const s = getSettings();
+  const calendarShareUrl = getContentValue("calendar_share_url", "");
 
   return (
     <div>
@@ -200,6 +203,26 @@ export default function SettingsPage() {
             </select>
             <p className="mt-1 text-xs text-ink-muted">
               When off, host submissions wait for your approval in the Events tab.
+            </p>
+          </div>
+        </Card>
+
+        <Card pad="md">
+          <h2 className="text-lg font-semibold text-ink">Shared links</h2>
+          <div className="mt-4">
+            <label className="label" htmlFor="calendar_share_url">
+              Shared calendar link (Google Calendar)
+            </label>
+            <input
+              id="calendar_share_url"
+              name="calendar_share_url"
+              type="url"
+              defaultValue={calendarShareUrl}
+              placeholder="https://calendar.google.com/calendar/u/0?cid=…"
+              className="field"
+            />
+            <p className="mt-1 text-xs text-ink-muted">
+              Included in tenant, host, and exhibitor invite emails so they can add the building calendar.
             </p>
           </div>
         </Card>

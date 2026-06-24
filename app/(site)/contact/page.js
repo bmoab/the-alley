@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getContent } from "@/lib/db.js";
+import { getContent, getContentValue } from "@/lib/db.js";
 import PageHero from "@/components/site/PageHero.js";
 
 export const metadata = { title: "Contact" };
@@ -15,9 +15,13 @@ export default function ContactPage() {
   return (
     <main className="ipage">
       <PageHero
-        eyebrow="Say hello"
-        title="Contact"
-        lede="Questions about a booking, the building, or becoming a tenant? Send us an email or stop by — we'd love to hear from you."
+        eyebrow={getContentValue("contact_hero_eyebrow", "Say hello")}
+        title={getContentValue("contact_hero_title", "Contact")}
+        lede={getContentValue(
+          "contact_hero_lede",
+          "Questions about a booking, the building, or becoming a tenant? Send us an email or stop by — we'd love to hear from you."
+        )}
+        editKeys={{ eyebrow: "contact_hero_eyebrow", title: "contact_hero_title", lede: "contact_hero_lede" }}
       />
       <section className="wrap">
         <div className="contact-grid">
@@ -25,15 +29,15 @@ export default function ContactPage() {
             <dl className="contact-dl">
               <div>
                 <div className="k">Email</div>
-                <div className="v"><a href={`mailto:${email}`}>{email}</a></div>
+                <div className="v" data-edit="contact_email"><a href={`mailto:${email}`}>{email}</a></div>
               </div>
               <div>
                 <div className="k">Phone</div>
-                <div className="v"><a href={`tel:${phone.replace(/[^\d]/g, "")}`}>{phone}</a></div>
+                <div className="v" data-edit="contact_phone"><a href={`tel:${phone.replace(/[^\d]/g, "")}`}>{phone}</a></div>
               </div>
               <div>
                 <div className="k">Find us</div>
-                <div className="v">{address}</div>
+                <div className="v" data-edit="contact_address">{address}</div>
                 <div className="v" style={{ marginTop: 6 }}>
                   <a
                     href={directions}
@@ -48,7 +52,7 @@ export default function ContactPage() {
               {c.social_instagram ? (
                 <div>
                   <div className="k">Follow</div>
-                  <div className="v"><a href={c.social_instagram} target="_blank" rel="noreferrer">@thealleyoncenter</a></div>
+                  <div className="v" data-edit="social_instagram"><a href={c.social_instagram} target="_blank" rel="noreferrer">@thealleyoncenter</a></div>
                 </div>
               ) : null}
             </dl>

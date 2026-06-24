@@ -25,10 +25,10 @@ export default function SiteFooter() {
           </p>
           <div className="footer-social">
             {c.social_instagram ? (
-              <a href={c.social_instagram} target="_blank" rel="noreferrer">Instagram</a>
+              <a href={c.social_instagram} target="_blank" rel="noreferrer" data-edit="social_instagram">Instagram</a>
             ) : null}
             {c.social_facebook ? (
-              <a href={c.social_facebook} target="_blank" rel="noreferrer">Facebook</a>
+              <a href={c.social_facebook} target="_blank" rel="noreferrer" data-edit="social_facebook">Facebook</a>
             ) : null}
           </div>
         </div>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getContent } from "@/lib/db.js";
+import { getContent, getContentValue } from "@/lib/db.js";
 import PageHero from "@/components/site/PageHero.js";
 import PhotoSlot from "@/components/site/PhotoSlot.js";
 
@@ -21,15 +21,19 @@ export default function AboutPage() {
 
   return (
     <main className="ipage">
-      <PageHero eyebrow="Our story" title="More than a building; an invitation." />
+      <PageHero
+        eyebrow={getContentValue("about_hero_eyebrow", "Our story")}
+        title={getContentValue("about_hero_title", "More than a building; an invitation.")}
+        editKeys={{ eyebrow: "about_hero_eyebrow", title: "about_hero_title" }}
+      />
 
       <section className="wrap iband" style={{ paddingTop: "clamp(20px,3vw,40px)" }}>
         <div className="about-grid">
-          <div className="about-body">
+          <div className="about-body" data-edit="about_body">
             {body.map((p, i) => <p key={i}>{p}</p>)}
             <Link className="btn btn--solid" href="/directory" style={{ marginTop: 10 }}>Meet the makers</Link>
           </div>
-          <div>
+          <div data-edit="about_image">
             <PhotoSlot src={c.about_image || null} tag="The Alley" variant="verde" style={{ height: "clamp(280px,30vw,360px)" }} />
             <blockquote className="about-quote">
               &ldquo;Art is what we use to decorate space. Music is what we use to decorate time.&rdquo;
@@ -43,7 +47,7 @@ export default function AboutPage() {
           <div className="wrap">
             <p className="eyebrow">The founders</p>
             <h2 className="sec-title" style={{ marginTop: 8 }}>Built by a Cache Valley mother and daughter</h2>
-            <div className="founders-grid">
+            <div className="founders-grid" data-edit="about_founders">
               {founders.map((f) => (
                 <div key={f.name} className="founder reveal">
                   <PhotoSlot src={f.photo || null} tag="" variant="soft" showTag={false} />
@@ -63,7 +67,7 @@ export default function AboutPage() {
         <section className="iband wrap">
           <p className="eyebrow">What we stand for</p>
           <h2 className="sec-title" style={{ marginTop: 8 }}>The ideas that hold The Alley together</h2>
-          <div className="pillars-grid">
+          <div className="pillars-grid" data-edit="about_pillars">
             {pillars.map((p, i) => (
               <div key={p} className="pillar reveal">
                 <div className="pn">{String(i + 1).padStart(2, "0")}</div>
