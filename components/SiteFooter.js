@@ -58,7 +58,8 @@ export default function SiteFooter() {
 
       <div className="wrap footer-base">
         <span>© {year} The Alley On Center</span>
-        <span>Logan, Utah · Est. 1995</span>
+        {/* Mirror the homepage hero eyebrow so the founding line always matches. */}
+        <span>{c.home_hero_eyebrow || "Logan, Utah · Founded 2023"}</span>
       </div>
     </footer>
   );

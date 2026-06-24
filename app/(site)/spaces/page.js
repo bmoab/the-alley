@@ -38,7 +38,7 @@ export default function SpacesPage() {
         <div style={{ marginTop: "clamp(44px,5vw,76px)" }}>
           {SPACES.map((r, i) => (
             <div key={r.id} id={r.id} className={"space-row reveal" + (i % 2 ? " is-rev" : "")}>
-              <SpaceGallery photos={listSpacePhotos(r.id)} image={c[`space_${r.id}_image`] || null} lead={i === 0 ? "verde" : "soft"} />
+              <SpaceGallery photos={listSpacePhotos(r.id)} lead={i === 0 ? "verde" : "soft"} />
               <div>
                 <div className="space-meta">
                   <span>{r.location}</span>

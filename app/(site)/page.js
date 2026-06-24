@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getContent } from "@/lib/db.js";
-import { listPublicDirectoryWithSuites, listExhibitorsByPhase, listGallery, listUpcomingLiveEvents } from "@/lib/catalog.js";
+import { listPublicDirectoryWithSuites, listExhibitorsByPhase, listGallery, listUpcomingLiveEvents, listSpacePhotos } from "@/lib/catalog.js";
 import { SPACES } from "@/lib/constants.js";
 import Hero from "@/components/home/Hero.js";
 import SectionHead from "@/components/site/SectionHead.js";
@@ -33,7 +33,8 @@ export default function HomePage() {
     blurb: s.blurb,
     rateLabel: `$${c.standard_rate || 75} / hour`,
     tag: `${s.name.toLowerCase()} · ${s.location.toLowerCase()}`,
-    image: c[`space_${s.id}_image`] || null,
+    // Lead image = the first photo from this space's gallery (single source).
+    image: listSpacePhotos(s.id)[0]?.image_path || null,
   }));
 
   const tenants = listPublicDirectoryWithSuites();

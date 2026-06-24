@@ -9,7 +9,7 @@ import {
 } from "@/lib/bookings.js";
 import { logActivity } from "@/lib/activity.js";
 import { getActor } from "@/lib/auth.js";
-import { spaceName, formatDate, formatDateShort, formatTime, formatMoney } from "@/lib/constants.js";
+import { SPACES, spaceName, formatDate, formatDateShort, formatTime, formatMoney } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
 import Badge from "@/components/admin/ui/Badge.js";
@@ -74,13 +74,31 @@ async function restore(formData) {
 export default function AllRequestsPage({ searchParams }) {
   const status = searchParams?.status || "all";
   const sort = searchParams?.sort === "date_asc" ? "date_asc" : "date_desc";
-  const rows = listBookings({ status: status === "all" ? undefined : status, sort });
+  const q = (searchParams?.q || "").toString();
+  const space = (searchParams?.space || "").toString();
+  const from = (searchParams?.from || "").toString();
+  const to = (searchParams?.to || "").toString();
+  const rows = listBookings({
+    status: status === "all" ? undefined : status,
+    sort,
+    q,
+    space: space || undefined,
+    from: from || undefined,
+    to: to || undefined,
+  });
+  const hasFilters = q || space || from || to;
 
   const otherSort = sort === "date_desc" ? "date_asc" : "date_desc";
-  const qs = (next) => {
+  const current = { status, sort, q, space, from, to };
+  const qs = (next = {}) => {
+    const m = { ...current, ...next };
     const p = new URLSearchParams();
-    if (next.status && next.status !== "all") p.set("status", next.status);
-    if (next.sort) p.set("sort", next.sort);
+    if (m.status && m.status !== "all") p.set("status", m.status);
+    if (m.sort) p.set("sort", m.sort);
+    if (m.q) p.set("q", m.q);
+    if (m.space) p.set("space", m.space);
+    if (m.from) p.set("from", m.from);
+    if (m.to) p.set("to", m.to);
     const s = p.toString();
     return "/admin/all-requests" + (s ? `?${s}` : "");
   };
@@ -109,6 +127,37 @@ export default function AllRequestsPage({ searchParams }) {
           </Link>
         ))}
       </div>
+
+      {/* Search + space + date filters (GET; status/sort preserved via hidden inputs) */}
+      <form method="get" className="mb-5 flex flex-wrap items-end gap-3">
+        {status !== "all" ? <input type="hidden" name="status" value={status} /> : null}
+        <input type="hidden" name="sort" value={sort} />
+        <div className="min-w-[12rem] flex-1">
+          <label className="label" htmlFor="q">Search client</label>
+          <input id="q" name="q" defaultValue={q} className="field" placeholder="Name or email" />
+        </div>
+        <div>
+          <label className="label" htmlFor="space">Space</label>
+          <select id="space" name="space" defaultValue={space} className="field">
+            <option value="">All spaces</option>
+            {SPACES.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="label" htmlFor="from">From</label>
+          <input id="from" name="from" type="date" defaultValue={from} className="field" />
+        </div>
+        <div>
+          <label className="label" htmlFor="to">To</label>
+          <input id="to" name="to" type="date" defaultValue={to} className="field" />
+        </div>
+        <Button type="submit" variant="ghost">Filter</Button>
+        {hasFilters ? (
+          <Button href={qs({ q: "", space: "", from: "", to: "" })} variant="subtle">Clear</Button>
+        ) : null}
+      </form>
 
       {rows.length === 0 ? (
         <Card pad="lg" className="py-12 text-center text-ink-muted">
