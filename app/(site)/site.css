@@ -538,7 +538,9 @@
   .ex-past-grid { grid-template-columns: repeat(2,1fr); }
   .extz-grid { grid-template-columns: 1fr; }
   .space-row, .ab-intro, .about-grid, .contact-grid { grid-template-columns: 1fr; }
-  .space-row.is-rev > *:first-child { order: 2; }
+  /* On mobile the photo should always lead (above title/description) — don't
+     apply the desktop alternating column-flip. */
+  .space-row.is-rev > *:first-child { order: 0; }
   .ways-grid, .pillars-grid { grid-template-columns: 1fr 1fr; }
   .cal-item { grid-template-columns: 84px 1fr; }
   .cal-kind { display: none; }
