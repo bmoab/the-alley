@@ -100,6 +100,16 @@ h1, h2, h3, .font-display {
   }
 }
 
+/* Native date/time pickers keep an intrinsic min-width on iOS Safari and
+   overflow narrow mobile columns even with width:100%. Let them shrink to fit
+   their container (fixes admin closures + event forms running off-screen). */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  min-width: 0;
+  max-width: 100%;
+}
+
 /* ---------------------------------------------------------------------------
    Admin (light & airy) — scoped to .admin-ui. The public site is unaffected.
    --------------------------------------------------------------------------- */
