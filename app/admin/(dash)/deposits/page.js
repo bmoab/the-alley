@@ -19,13 +19,28 @@ export const metadata = { title: "Deposits" };
 
 async function refund(formData) {
   "use server";
-  await resolveDeposit(Number(formData.get("id")), "refund", await getActor());
+  const id = Number(formData.get("id"));
+  let noPayment = false;
+  try {
+    ({ noPayment } = await resolveDeposit(id, "refund", await getActor()));
+  } catch (err) {
+    console.error(`[deposits] refund action error for #${id}:`, err.message);
+    redirect(
+      "/admin/deposits?toast=" +
+        encodeURIComponent(`Couldn't refund the deposit: ${err.message}`) +
+        "&toastType=error"
+    );
+  }
   revalidatePath("/admin/deposits");
   revalidatePath("/admin");
   redirect(
     "/admin/deposits?toast=" +
-      encodeURIComponent("Deposit refunded — reminders stopped.") +
-      "&toastType=success"
+      encodeURIComponent(
+        noPayment
+          ? "Deposit marked refunded — no Square payment was found, so refund it manually if you collected one."
+          : "Deposit refunded — reminders stopped."
+      ) +
+      "&toastType=" + (noPayment ? "neutral" : "success")
   );
 }
 
