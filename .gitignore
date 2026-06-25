@@ -28,6 +28,8 @@ npm-debug.log*
 /data/*.db-journal
 /data/*.db-wal
 /data/*.db-shm
+# automated backups (db + uploads archives) — live on the volume, never in git
+/data/backups/
 
 # uploads (user-generated; keep folder, ignore contents except samples)
 /public/uploads/*
