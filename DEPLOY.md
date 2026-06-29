@@ -72,6 +72,12 @@ Add a Railway **Cron** (or an external scheduler) hitting
 `GET https://alleyoncenter.com/api/cron/deposit-reminders` once a day with header
 `Authorization: Bearer <CRON_SECRET>`.
 
+Schedule it for **9 AM** — Railway crons run in **UTC**, so use `0 15 * * *`
+for 9 AM Mountain (MDT, summer) or `0 16 * * *` for MST (winter). The endpoint
+re-sends a reminder every day starting the day after the event and keeps going
+until the owner refunds or withholds the deposit (resolved deposits stop
+automatically; it's idempotent, so at most one email per booking per day).
+
 ---
 
 ## Backups

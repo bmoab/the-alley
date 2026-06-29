@@ -79,7 +79,7 @@ Copy `.env.example` to `.env` and fill in what you have. **Nothing is required.*
    payment instructions/link) → owner moderation → public calendar (list + month
    views) + detail pages. Owner can also post The Alley's own events.
 9. **Deposits** — refund queue for past events, refund (Square) / withhold, and
-   day-1/2/3 reminder emails (idempotent; lazy sweep + `/api/cron/deposit-reminders`).
+   daily reminder emails until resolved (idempotent; lazy sweep + `/api/cron/deposit-reminders`).
 10. **Polish + seed data** — responsive throughout; `npm run seed` loads a full demo set.
 
 ---
@@ -140,6 +140,6 @@ scripts/seed.mjs Demo data
   agreement checkbox, and attached to approval emails.
 - Settings (rate, deposit, hours, cleanup buffer, payment window, listing
   auto-publish) live in the `settings` table.
-- Deposit reminders: point a daily 11 AM cron at `/api/cron/deposit-reminders`
-  in production (the app also sweeps lazily when the owner opens the Deposits
-  page).
+- Deposit reminders: point a daily 9 AM cron at `/api/cron/deposit-reminders`
+  in production; it re-sends daily until the deposit is refunded/withheld (the
+  app also sweeps lazily when the owner opens the Deposits page).
