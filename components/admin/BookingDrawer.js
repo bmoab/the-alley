@@ -216,6 +216,10 @@ function Details({ booking }) {
     booking.guests ? ["Guests", booking.guests] : null,
     ["Alcohol", booking.alcohol ? "Yes" : "No"],
     booking.is_recurring ? ["Recurring", booking.recurring_schedule || "Yes"] : null,
+    booking.series_id ? ["Series session", `${booking.series_index} of ${booking.series_total}`] : null,
+    booking.series_id && booking.is_deposit_holder
+      ? ["Series deposit", `${formatMoney(booking.deposit)} · ${booking.deposit_payment_status || "unpaid"}`]
+      : null,
     ["Status", booking.status],
     ["Payment", booking.payment_status || "unpaid"],
     ["Deposit", formatMoney(booking.deposit)],

@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
-import { getBookingByInvoice } from "@/lib/bookings.js";
+import { getBookingByInvoice, getBookingByDepositInvoice, markDepositPaid } from "@/lib/bookings.js";
 import { getInvoiceStatus } from "@/lib/square.js";
 import { confirmBookingPaid } from "@/lib/payments.js";
 
@@ -63,6 +63,16 @@ export async function POST(request) {
         if (status === "paid") {
           await confirmBookingPaid(booking.id);
           console.log(`[square:webhook] confirmed booking #${booking.id} from ${event.type}`);
+        }
+      } else if (!booking) {
+        // Maybe it's a recurring series' standalone deposit invoice.
+        const holder = getBookingByDepositInvoice(invoiceId);
+        if (holder && holder.deposit_payment_status !== "paid") {
+          const status = await getInvoiceStatus(invoiceId);
+          if (status === "paid") {
+            markDepositPaid(holder.id);
+            console.log(`[square:webhook] series #${holder.series_id} deposit paid (holder #${holder.id})`);
+          }
         }
       }
     }

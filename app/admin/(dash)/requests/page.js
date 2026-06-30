@@ -6,9 +6,14 @@ import {
   denyBooking,
   getBooking,
   setInvoiceInfo,
+  reserveSeries,
+  getSeries,
+  denySeries,
+  setDepositInvoiceInfo,
+  rentalAmount,
 } from "@/lib/bookings.js";
-import { createBookingInvoice } from "@/lib/square.js";
-import { emailClientApproved, emailClientDenied } from "@/lib/email.js";
+import { createBookingInvoice, createDepositInvoice } from "@/lib/square.js";
+import { emailClientApproved, emailClientDenied, emailClientSeriesApproved } from "@/lib/email.js";
 import { logActivity, logEmail } from "@/lib/activity.js";
 import { getActor } from "@/lib/auth.js";
 import { resolveDenial } from "@/lib/denial.js";
@@ -85,6 +90,110 @@ async function approve(formData) {
   );
 }
 
+async function approveSeries(formData) {
+  "use server";
+  const seriesId = Number(formData.get("series_id"));
+  const actor = await getActor();
+  const pricing = {
+    rate: formData.get("rate"),
+    hours: formData.get("hours"),
+    deposit: formData.get("deposit"),
+  };
+  const invoiceMode = formData.get("invoice_mode") === "upfront" ? "upfront" : "scheduled";
+
+  // Apply pricing across the series + place every date on the calendar (reserved).
+  let rows = reserveSeries(seriesId, pricing);
+  const holder = rows.find((r) => r.is_deposit_holder) || rows[0];
+
+  logActivity({
+    bookingId: holder.id,
+    eventType: "approved",
+    description: `Recurring series approved (${rows.length} sessions) · holds placed`,
+    amount: rentalAmount(holder) * rows.length + (Number(holder.deposit) || 0),
+    ...actor,
+  });
+
+  let problem = "";
+  try {
+    // One deposit invoice for the series (on the holder), always up front.
+    const dep = await createDepositInvoice(holder);
+    setDepositInvoiceInfo(holder.id, { invoiceId: dep.invoiceId, paymentLink: dep.paymentLink });
+
+    // Rental invoices: scheduled → first session now (the cron sends the rest);
+    // up-front → every session now. Each row is rental-only (series_id set).
+    const toInvoice = invoiceMode === "upfront" ? rows : [holder];
+    for (const r of toInvoice) {
+      const { invoiceId, paymentLink } = await createBookingInvoice(getBooking(r.id));
+      setInvoiceInfo(r.id, { invoiceId, paymentLink });
+      logActivity({
+        bookingId: r.id,
+        eventType: "invoice_sent",
+        description: `Rental invoice sent · session ${r.series_index} of ${r.series_total}`,
+        amount: rentalAmount(r),
+        ...actor,
+      });
+    }
+
+    rows = getSeries(seriesId);
+    const res = await emailClientSeriesApproved(getBooking(holder.id), rows);
+    logEmail({
+      bookingId: holder.id,
+      eventType: "invoice_sent",
+      description: `Series approval sent · deposit + ${invoiceMode === "upfront" ? "all" : "first"} rental invoice`,
+      recipientEmail: holder.client_email,
+      sendResult: res,
+    });
+  } catch (err) {
+    console.error("[requests] series approve error:", err.message);
+    problem = err.message || "invoice/email error";
+  }
+
+  refresh();
+  if (problem) {
+    toastRedirect(
+      `Series approved (holds placed), but the invoice/email step failed: ${problem}.`,
+      "error"
+    );
+  }
+  toastRedirect(`Recurring series approved — holds placed and the client was invoiced.`);
+}
+
+async function denySeriesAction(formData) {
+  "use server";
+  const id = Number(formData.get("id"));
+  const actor = await getActor();
+  const { reasonValue, internalLabel, clientPhrasing } = resolveDenial(
+    formData.get("reason"),
+    formData.get("reason_note")
+  );
+  const holder = getBooking(id);
+  if (!holder?.series_id) return deny(formData); // safety fallback
+  denySeries(holder.series_id);
+
+  logActivity({
+    bookingId: holder.id,
+    eventType: "denied",
+    description: `Recurring series denied — ${internalLabel}`,
+    metadata: { reason: reasonValue, internal_label: internalLabel },
+    ...actor,
+  });
+
+  try {
+    const res = await emailClientDenied(holder, clientPhrasing);
+    logEmail({
+      bookingId: holder.id,
+      eventType: "denial_sent",
+      description: "Series denial email sent",
+      recipientEmail: holder.client_email,
+      sendResult: res,
+    });
+  } catch (err) {
+    console.error("[requests] series deny email error:", err.message);
+  }
+  refresh();
+  toastRedirect(`Recurring request declined — the client has been notified.`, "neutral");
+}
+
 async function deny(formData) {
   "use server";
   const id = Number(formData.get("id"));
@@ -129,6 +238,22 @@ export default function RequestsPage() {
   // Oldest submitted at the top (FIFO) so requests are worked in arrival order.
   const pending = listBookings({ status: "pending", sort: "created_asc" });
 
+  // Collapse each recurring series into a single card (anchored at the holder).
+  const seenSeries = new Set();
+  const items = [];
+  for (const b of pending) {
+    if (b.series_id) {
+      if (seenSeries.has(b.series_id)) continue;
+      seenSeries.add(b.series_id);
+      const rows = getSeries(b.series_id).filter((r) => r.status === "pending");
+      if (rows.length) {
+        items.push({ type: "series", holder: rows.find((r) => r.is_deposit_holder) || rows[0], rows });
+      }
+    } else {
+      items.push({ type: "single", booking: b });
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -136,21 +261,31 @@ export default function RequestsPage() {
         subtitle="Pending booking requests. Adjust pricing if needed, then approve (places a hold and sends a payment link) or deny."
       />
 
-      {pending.length === 0 ? (
+      {items.length === 0 ? (
         <Card pad="lg" className="py-12 text-center text-ink-muted">
           No pending requests right now. New requests from the website will appear
           here.
         </Card>
       ) : (
         <div className="space-y-5">
-          {pending.map((b) => (
-            <RequestCard
-              key={b.id}
-              booking={b}
-              approveAction={approve}
-              denyAction={deny}
-            />
-          ))}
+          {items.map((it) =>
+            it.type === "series" ? (
+              <RequestCard
+                key={`s${it.holder.series_id}`}
+                booking={it.holder}
+                series={it.rows}
+                approveSeriesAction={approveSeries}
+                denyAction={denySeriesAction}
+              />
+            ) : (
+              <RequestCard
+                key={it.booking.id}
+                booking={it.booking}
+                approveAction={approve}
+                denyAction={deny}
+              />
+            )
+          )}
         </div>
       )}
     </div>

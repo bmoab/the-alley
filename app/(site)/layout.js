@@ -23,6 +23,7 @@ export default function SiteLayout({ children }) {
     closeHour: Number(s.close_hour) || 23,
     cleanupBuffer: (Number(s.cleanup_buffer_minutes) || 60) / 60,
     cancellationCutoffHours: Number(s.cancellation_cutoff_hours) || 72,
+    seriesMaxOcc: Number(s.series_max_occurrences) || 8,
   };
   return (
     <div className="dir-b">

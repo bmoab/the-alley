@@ -68,6 +68,27 @@ const NUMBER_FIELDS = [
     min: 1,
     step: 1,
   },
+  {
+    key: "series_invoice_lead_days",
+    label: "Recurring invoice lead time (days)",
+    hint: "For recurring bookings, the first session's invoice is sent as soon as you approve. Each remaining session is invoiced this many days before it.",
+    min: 0,
+    step: 1,
+  },
+  {
+    key: "series_max_occurrences",
+    label: "Max sessions per recurring request",
+    hint: "The most sessions a guest can request in one recurring booking.",
+    min: 2,
+    step: 1,
+  },
+  {
+    key: "series_max_span_days",
+    label: "Max span of a recurring request (days)",
+    hint: "Recurring sessions must all fall within this many days (e.g. 31 ≈ one month).",
+    min: 1,
+    step: 1,
+  },
 ];
 
 async function save(formData) {
@@ -183,6 +204,21 @@ export default function SettingsPage() {
                 ))}
               </select>
             </div>
+          </div>
+        </Card>
+
+        <Card pad="md">
+          <h2 className="text-lg font-semibold text-ink">Recurring bookings</h2>
+          <p className="mt-1 text-xs text-ink-muted">
+            For a recurring series, one cleaning deposit covers the whole series and each
+            session is billed on its own invoice (so cancelling one session is a clean refund).
+          </p>
+          <div className="mt-4 grid gap-5 sm:grid-cols-2">
+            {NUMBER_FIELDS.filter((f) =>
+              ["series_invoice_lead_days", "series_max_occurrences", "series_max_span_days"].includes(f.key)
+            ).map((f) => (
+              <NumberField key={f.key} field={f} value={s[f.key]} />
+            ))}
           </div>
         </Card>
 
