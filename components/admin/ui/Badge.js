@@ -9,6 +9,7 @@ import { cx } from "./cx.js";
  */
 const STATUS_STYLES = {
   held: "bg-amber-100 text-amber-800 border-amber-200",
+  reserved: "bg-sky-100 text-sky-800 border-sky-200",
   pending: "bg-paper-warm text-ink-muted border-line",
   confirmed: "bg-verde/60 text-ink border-verde-deep/30",
   completed: "bg-ink/10 text-ink-soft border-ink/15",
