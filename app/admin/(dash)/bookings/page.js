@@ -70,7 +70,7 @@ export default async function BookingsPage({ searchParams }) {
 
   return (
     <div>
-      <PageHeader title="Bookings" subtitle="Held, confirmed, and past bookings." />
+      <PageHeader title="Bookings" subtitle="Held, reserved (recurring), confirmed, and past bookings." />
 
       {/* Space filter */}
       <div className="mb-6 inline-flex flex-wrap gap-1 rounded-full border border-line bg-paper p-1">
@@ -110,6 +110,11 @@ export default async function BookingsPage({ searchParams }) {
                 <Td>
                   <div className="font-medium text-ink">{b.client_name}</div>
                   <div className="text-xs text-ink-muted">{b.client_email}</div>
+                  {b.series_id ? (
+                    <div className="text-xs font-medium text-sky-700">
+                      Recurring · session {b.series_index}/{b.series_total}
+                    </div>
+                  ) : null}
                   <Link
                     href={`/admin/bookings?${spaceFilter ? `space=${spaceFilter}&` : ""}b=${b.id}`}
                     className="mt-0.5 inline-block whitespace-nowrap text-xs font-medium text-verde-deep hover:underline"
@@ -131,7 +136,7 @@ export default async function BookingsPage({ searchParams }) {
                 </Td>
                 <Td className="text-right font-medium text-ink">{formatMoney(b.total)}</Td>
                 <Td className="text-right">
-                  {b.status === "held" ? (
+                  {b.status === "held" || b.status === "reserved" ? (
                     <div className="ml-auto flex w-[150px] flex-col gap-1.5">
                       {b.square_invoice_id ? (
                         <form action={checkPayment}>
@@ -165,11 +170,29 @@ export default async function BookingsPage({ searchParams }) {
                           Cancel
                         </Link>
                       </div>
+                      {b.series_id ? (
+                        <Link
+                          href={`/admin/bookings/series/${b.series_id}/cancel`}
+                          className="px-0.5 text-xs font-medium text-rust hover:underline"
+                        >
+                          Cancel whole series
+                        </Link>
+                      ) : null}
                     </div>
                   ) : b.status === "confirmed" ? (
-                    <Button href={`/admin/bookings/${b.id}/cancel`} variant="ghost" size="sm" className="whitespace-nowrap">
-                      Cancel booking
-                    </Button>
+                    <div className="ml-auto flex w-[150px] flex-col gap-1.5">
+                      <Button href={`/admin/bookings/${b.id}/cancel`} variant="ghost" size="sm" className="whitespace-nowrap">
+                        Cancel booking
+                      </Button>
+                      {b.series_id ? (
+                        <Link
+                          href={`/admin/bookings/series/${b.series_id}/cancel`}
+                          className="px-0.5 text-xs font-medium text-rust hover:underline"
+                        >
+                          Cancel whole series
+                        </Link>
+                      ) : null}
+                    </div>
                   ) : (
                     <span className="text-xs text-ink-muted">—</span>
                   )}

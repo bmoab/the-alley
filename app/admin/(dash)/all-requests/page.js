@@ -192,6 +192,11 @@ export default function AllRequestsPage({ searchParams }) {
                       {b.client_name}
                     </div>
                     <div className="text-xs text-ink-muted">{b.client_email}</div>
+                    {b.series_id ? (
+                      <div className="text-xs font-medium text-sky-700">
+                        Recurring · session {b.series_index}/{b.series_total}
+                      </div>
+                    ) : null}
                     <Link
                       href={drawerHref}
                       className="mt-0.5 inline-block whitespace-nowrap text-xs font-medium text-verde-deep hover:underline"

@@ -79,6 +79,15 @@ re-sends a reminder every day starting the day after the event and keeps going
 until the owner refunds or withholds the deposit (resolved deposits stop
 automatically; it's idempotent, so at most one email per booking per day).
 
+## Cron (recurring-series invoices)
+
+Add a **second daily** cron (same auth) hitting
+`GET https://alleyoncenter.com/api/cron/series-invoices`. It sends each recurring
+session's rental invoice `series_invoice_lead_days` (default 5, set in admin
+Settings) before that session. The first session is invoiced at approval, so the
+cron only covers sessions 2..N; idempotent (skips dates that already have an
+invoice). Daily timing is fine — `0 15 * * *` works.
+
 ---
 
 ## Backups
