@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getAvailableStartTimes, getDayAvailability, getDayFreeSlots, getDayBookings } from "@/lib/bookings.js";
-import { getClosureIntervals, isFullyClosed } from "@/lib/closures.js";
+import { getAvailableStartTimes, getDayAvailability, getDayFreeSlots, getDayBookings, isSlotAvailable, isStartTooSoon } from "@/lib/bookings.js";
+import { getClosureIntervals, isFullyClosed, isClosedForBooking } from "@/lib/closures.js";
 import { SPACE_BY_ID } from "@/lib/constants.js";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +26,36 @@ export function GET(request) {
 
   if (!space || !SPACE_BY_ID[space]) {
     return NextResponse.json({ error: "Unknown space" }, { status: 400 });
+  }
+
+  // Recurring series: check a list of dates against one start_time + duration.
+  //   ?space=&hours=&start_time=HH:MM&dates=YYYY-MM-DD,YYYY-MM-DD,...
+  //   → { results: { date: { available, reason } } }
+  const datesParam = searchParams.get("dates");
+  if (datesParam) {
+    const startTime = searchParams.get("start_time") || "";
+    if (!/^\d{2}:\d{2}$/.test(startTime)) {
+      return NextResponse.json({ error: "Invalid start_time" }, { status: 400 });
+    }
+    const [sh, sm] = startTime.split(":").map(Number);
+    const startHour = sh + (sm || 0) / 60;
+    const results = {};
+    for (const ds of datesParam.split(",").map((s) => s.trim()).filter(Boolean)) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(ds)) {
+        results[ds] = { available: false, reason: "Invalid date" };
+        continue;
+      }
+      if (isStartTooSoon(ds, startTime)) {
+        results[ds] = { available: false, reason: "Too soon" };
+      } else if (isClosedForBooking(space, ds, startHour, startHour + hours)) {
+        results[ds] = { available: false, reason: "Closed" };
+      } else if (!isSlotAvailable(space, ds, startTime, hours)) {
+        results[ds] = { available: false, reason: "Taken" };
+      } else {
+        results[ds] = { available: true, reason: null };
+      }
+    }
+    return NextResponse.json({ space, hours, start_time: startTime, results });
   }
 
   if (month) {

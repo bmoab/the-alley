@@ -8,7 +8,7 @@ import {
 } from "react";
 import { SPACES, EVENT_TYPES, GUEST_RANGES, formatTime } from "@/lib/constants.js";
 import { useBodyScrollLock } from "@/components/hooks.js";
-import { submitBooking } from "@/app/(site)/book/actions.js";
+import { submitBooking, submitBookingSeries } from "@/app/(site)/book/actions.js";
 import { Bolt } from "@/components/site/Primitives.js";
 import PhotoSlot from "@/components/site/PhotoSlot.js";
 
@@ -24,6 +24,16 @@ const parseYmd = (s) => {
 function fmtDateLong(s) {
   if (!s) return "";
   return parseYmd(s).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+}
+/** Add `days` to a YYYY-MM-DD date in local time (no UTC drift). */
+function addDaysYmd(s, days) {
+  const dt = parseYmd(s);
+  dt.setDate(dt.getDate() + days);
+  return ymd(dt.getFullYear(), dt.getMonth(), dt.getDate());
+}
+/** Long weekday name for a YYYY-MM-DD date (e.g. "Tuesday"). */
+function weekdayLong(s) {
+  return s ? parseYmd(s).toLocaleDateString("en-US", { weekday: "long" }) : "";
 }
 /** "HH:MM" + hours → end "HH:MM". */
 function addHours(hhmm, hours) {
@@ -376,7 +386,7 @@ function SmartTime({ config, bookings, closures, value, onChange, minStartFrac =
 }
 
 function BookModal({ initialRoom, config, onClose }) {
-  const { rate, minHours, deposit, openHour, closeHour, minLeadHours = 0, cancellationCutoffHours = 72 } = config;
+  const { rate, minHours, deposit, openHour, closeHour, minLeadHours = 0, cancellationCutoffHours = 72, seriesMaxOcc = 8 } = config;
   const [step, setStep] = useState(initialRoom ? 1 : 0);
   const [room, setRoom] = useState(initialRoom || null);
   const [form, setForm] = useState({
@@ -393,8 +403,26 @@ function BookModal({ initialRoom, config, onClose }) {
     agreed: false,
     is_public_event: false,
     cutoff_ack: false,
+    is_recurring: false,
+    recur_every: 1, // weeks between sessions
+    recur_count: 4, // total sessions, including the first
   });
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const [excludedDates, setExcludedDates] = useState([]); // sessions the client opted out of
+  const [recurAvail, setRecurAvail] = useState({}); // date -> { available, reason }
+
+  // Generated occurrence dates (first = the step-1 date).
+  const seriesDates =
+    form.is_recurring && form.date
+      ? Array.from(
+          { length: Math.max(2, Math.min(seriesMaxOcc, Number(form.recur_count) || 2)) },
+          (_, i) => addDaysYmd(form.date, i * 7 * (Number(form.recur_every) || 1))
+        )
+      : [];
+  const includedDates = seriesDates.filter(
+    (d) => !excludedDates.includes(d) && recurAvail[d]?.available !== false
+  );
 
   const today = new Date();
   const [monthCursor, setMonthCursor] = useState({ y: today.getFullYear(), m: today.getMonth() });
@@ -454,6 +482,23 @@ function BookModal({ initialRoom, config, onClose }) {
 
   const hours = Number(form.hours) || 0;
 
+  // Batch-check availability for every generated recurring-series date.
+  const seriesKey = seriesDates.join(",");
+  useEffect(() => {
+    if (!form.is_recurring || !room || !form.start || !hours || !seriesKey) {
+      setRecurAvail({});
+      return;
+    }
+    let active = true;
+    fetch(`/api/availability?space=${room}&hours=${hours}&start_time=${form.start}&dates=${seriesKey}`)
+      .then((r) => r.json())
+      .then((d) => active && setRecurAvail(d.results || {}))
+      .catch(() => active && setRecurAvail({}));
+    return () => {
+      active = false;
+    };
+  }, [form.is_recurring, room, form.start, hours, seriesKey]);
+
   // Earliest bookable start for the chosen day (past + advance-notice) — greys
   // too-soon start chips in SmartTime.
   const minStartFrac = earliestStartFracFor(form.date, minLeadHours);
@@ -474,22 +519,19 @@ function BookModal({ initialRoom, config, onClose }) {
       /.+@.+\..+/.test(form.email) &&
       form.phone.trim() &&
       form.agreed &&
-      (!withinCutoff || form.cutoff_ack));
+      (!withinCutoff || form.cutoff_ack) &&
+      (!form.is_recurring || includedDates.length >= 2));
 
   const next = () => setStep((s) => Math.min(3, s + 1));
   const back = () => setStep((s) => Math.max(0, s - 1));
   const roomObj = SPACES.find((r) => r.id === room);
   const rentalCost = rate * hours;
-  const estTotal = rentalCost + deposit;
 
   async function handleSend() {
     setSubmitting(true);
     setSubmitError("");
-    const res = await submitBooking({
+    const common = {
       space: room,
-      date: form.date,
-      start_time: form.start,
-      hours,
       client_name: form.name.trim(),
       client_email: form.email.trim(),
       client_phone: form.phone.trim(),
@@ -499,7 +541,26 @@ function BookModal({ initialRoom, config, onClose }) {
       alcohol: form.alcohol,
       agreed: form.agreed,
       is_public_event: form.is_public_event,
-    });
+    };
+
+    let res;
+    if (form.is_recurring) {
+      const recurring_schedule = `Every ${Number(form.recur_every) === 2 ? "other " : ""}${weekdayLong(form.date)} × ${includedDates.length}`;
+      res = await submitBookingSeries({
+        ...common,
+        start_time: form.start,
+        hours,
+        dates: includedDates,
+        recurring_schedule,
+      });
+    } else {
+      res = await submitBooking({
+        ...common,
+        date: form.date,
+        start_time: form.start,
+        hours,
+      });
+    }
     setSubmitting(false);
     if (res.ok) setStep(3);
     else setSubmitError(res.error || "Something went wrong — please try again.");
@@ -655,6 +716,59 @@ function BookModal({ initialRoom, config, onClose }) {
                     email you a link to add your details.)
                   </span>
                 </label>
+                <label style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13, color: "var(--ink-soft)", fontWeight: 300 }}>
+                  <input type="checkbox" checked={form.is_recurring} onChange={(e) => setForm((f) => ({ ...f, is_recurring: e.target.checked }))} style={{ marginTop: 3 }} />
+                  <span>This is a recurring booking (e.g. a weekly class) — same space, day &amp; time each session.</span>
+                </label>
+                {form.is_recurring ? (
+                  <div style={{ border: "1px solid var(--line-strong)", background: "var(--paper-dim)", padding: 16 }}>
+                    {!form.date || !form.start ? (
+                      <p className="bk-times-hint">Pick your first date &amp; time in the previous step — your sessions repeat from there.</p>
+                    ) : (
+                      <>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                          <label><span style={labStyle}>Repeats</span>
+                            <select value={form.recur_every} onChange={(e) => setForm((f) => ({ ...f, recur_every: Number(e.target.value) }))} style={fieldStyle}>
+                              <option value={1}>Every {weekdayLong(form.date)}</option>
+                              <option value={2}>Every other {weekdayLong(form.date)}</option>
+                            </select>
+                          </label>
+                          <label><span style={labStyle}>Sessions</span>
+                            <select value={form.recur_count} onChange={(e) => setForm((f) => ({ ...f, recur_count: Number(e.target.value) }))} style={fieldStyle}>
+                              {Array.from({ length: seriesMaxOcc - 1 }, (_, i) => i + 2).map((n) => <option key={n} value={n}>{n} sessions</option>)}
+                            </select>
+                          </label>
+                        </div>
+                        <ul style={{ listStyle: "none", padding: 0, margin: "14px 0 0", display: "grid", gap: 6 }}>
+                          {seriesDates.map((d) => {
+                            const avail = recurAvail[d];
+                            const unavailable = avail?.available === false;
+                            const excluded = excludedDates.includes(d);
+                            return (
+                              <li key={d} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, fontSize: 14 }}>
+                                <label style={{ display: "flex", gap: 8, alignItems: "center", color: unavailable || excluded ? "var(--ink-muted)" : "var(--ink)" }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={!excluded && !unavailable}
+                                    disabled={unavailable}
+                                    onChange={(e) => setExcludedDates((prev) => (e.target.checked ? prev.filter((x) => x !== d) : [...prev, d]))}
+                                  />
+                                  <span style={{ textDecoration: unavailable || excluded ? "line-through" : "none" }}>{fmtDateLong(d)}</span>
+                                </label>
+                                <span className="mono" style={{ fontSize: 11, color: unavailable ? "var(--rust, #9c4a2e)" : excluded ? "var(--ink-muted)" : "var(--ink-soft)" }}>
+                                  {unavailable ? avail.reason : excluded ? "Skipped" : "Available"}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                        <p className="bk-est-note mono" style={{ marginTop: 10 }}>
+                          Unavailable dates are skipped automatically. {includedDates.length} session{includedDates.length === 1 ? "" : "s"} selected · one ${deposit} deposit for the whole series.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                ) : null}
                 {withinCutoff ? (
                   <label style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13, color: "var(--ink-soft)", fontWeight: 300, padding: "12px 14px", border: "1px solid var(--ink)", background: "var(--paper-warm)" }}>
                     <input type="checkbox" checked={form.cutoff_ack} onChange={(e) => setForm((f) => ({ ...f, cutoff_ack: e.target.checked }))} style={{ marginTop: 3 }} />
@@ -674,10 +788,17 @@ function BookModal({ initialRoom, config, onClose }) {
                 </label>
               </div>
               <div className="bk-est">
-                <div className="bk-est-row"><span>Rental (${rate} × {hours}h)</span><span>${rentalCost}</span></div>
-                <div className="bk-est-row"><span>Refundable cleaning deposit</span><span>${deposit}</span></div>
-                <div className="bk-est-row bk-est-total"><span>Estimated total</span><span>${estTotal}</span></div>
-                <p className="bk-est-note mono">Estimate only — no charge happens now. If approved, you'll get a payment link.</p>
+                <div className="bk-est-row">
+                  <span>Rental (${rate} × {hours}h{form.is_recurring ? ` × ${includedDates.length}` : ""})</span>
+                  <span>${rentalCost * (form.is_recurring ? includedDates.length : 1)}</span>
+                </div>
+                <div className="bk-est-row"><span>Refundable cleaning deposit{form.is_recurring ? " (one for the series)" : ""}</span><span>${deposit}</span></div>
+                <div className="bk-est-row bk-est-total"><span>Estimated total</span><span>${rentalCost * (form.is_recurring ? includedDates.length : 1) + deposit}</span></div>
+                <p className="bk-est-note mono">
+                  {form.is_recurring
+                    ? "Estimate only — no charge now. If approved, you'll get a deposit invoice plus your first session's rental invoice; later sessions are invoiced a few days before each."
+                    : "Estimate only — no charge happens now. If approved, you'll get a payment link."}
+                </p>
               </div>
               {submitError ? <p style={{ color: "var(--rust, #9c4a2e)", fontSize: 14, marginTop: 12 }}>{submitError}</p> : null}
             </div>
@@ -692,9 +813,10 @@ function BookModal({ initialRoom, config, onClose }) {
               </p>
               <div className="bk-recap mono">
                 {roomObj ? <div><span>Space</span><b>{roomObj.name}</b></div> : null}
-                {form.date ? <div><span>Date</span><b>{fmtDateLong(form.date)}</b></div> : null}
+                {form.date ? <div><span>{form.is_recurring ? "First date" : "Date"}</span><b>{fmtDateLong(form.date)}</b></div> : null}
                 {form.start && form.hours ? <div><span>Time</span><b>{formatTime(form.start)} – {formatTime(addHours(form.start, hours))} · {hours} hrs</b></div> : null}
-                <div><span>Estimated total</span><b>${estTotal}</b></div>
+                {form.is_recurring ? <div><span>Sessions</span><b>{includedDates.length} · every {Number(form.recur_every) === 2 ? "other " : ""}{weekdayLong(form.date)}</b></div> : null}
+                <div><span>Estimated total</span><b>${rentalCost * (form.is_recurring ? includedDates.length : 1) + deposit}</b></div>
               </div>
             </div>
           ) : null}
