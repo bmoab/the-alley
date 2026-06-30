@@ -100,6 +100,10 @@ inbox isn't flooded. Force an email any time with `&email=1`, or skip one with
 `&email=0`. Emails go to `BACKUP_EMAIL` (falls back to `OWNER_EMAIL`) — delivery
 needs the Resend domain verified, or it only reaches the Resend account owner.
 
+Archives over `BACKUP_MAX_EMAIL_MB` (default 20) aren't attached (base64-encoding
+a large file could OOM a small instance) — a notice email is sent instead and the
+copy stays on the volume. Set `BACKUP_MAX_EMAIL_MB=0` for notice-only.
+
 ---
 
 ## DNS cutover (last step)
