@@ -90,10 +90,15 @@ invoice). Daily timing is fine — `0 15 * * *` works.
 
 ---
 
-## Backups
+## Cron (backups)
 
-The whole dataset is one file. Schedule a daily copy of `/data/alley.db`
-off the volume (Railway cron + `cp`, or download via a small admin export).
+Add a **daily** cron (same auth) hitting
+`GET https://alleyoncenter.com/api/cron/backup?key=<CRON_SECRET>`. Every run makes
+a consistent DB+uploads snapshot and keeps the last 14 on the volume; it **emails**
+the archive off-site only **once a week** (`BACKUP_EMAIL_DAYS`, default 7) so your
+inbox isn't flooded. Force an email any time with `&email=1`, or skip one with
+`&email=0`. Emails go to `BACKUP_EMAIL` (falls back to `OWNER_EMAIL`) — delivery
+needs the Resend domain verified, or it only reaches the Resend account owner.
 
 ---
 
