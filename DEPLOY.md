@@ -39,8 +39,9 @@ SQUARE_ENVIRONMENT=production
 # blocks outbound SMTP ports (25/465/587), so SMTP connections time out. Use an
 # HTTPS email API instead. The app prefers Resend whenever RESEND_API_KEY is set.
 RESEND_API_KEY=<re_... from resend.com>
-EMAIL_FROM=The Alley On Center <hello@alleyoncenter.com>   # domain verified in Resend
+EMAIL_FROM=The Alley On Center <bookings@alleyoncenter.com>   # any address @ a Resend-verified domain
 OWNER_EMAIL=thealleyoncenter@gmail.com
+EMAIL_REPLY_TO=thealleyoncenter@gmail.com   # customer replies land here (the monitored inbox)
 # (SMTP_* vars are ignored when RESEND_API_KEY is present.)
 
 UPLOAD_DIR=/data/uploads
