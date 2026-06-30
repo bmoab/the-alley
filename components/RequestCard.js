@@ -31,14 +31,116 @@ function SubmitButton({ formAction, variant, children, pendingLabel }) {
  * live) before approving, or deny. Both buttons submit the same form to
  * different server actions via formAction.
  */
-export default function RequestCard({ booking, approveAction, denyAction }) {
+export default function RequestCard({ booking, series, approveAction, denyAction, approveSeriesAction }) {
   const [rate, setRate] = useState(booking.rate ?? 75);
   const [hours, setHours] = useState(booking.hours ?? 2);
   const [sessions, setSessions] = useState(booking.sessions ?? 1);
-  const [deposit, setDeposit] = useState(booking.deposit ?? 150);
+  // Series deposit lives on the holder row; fall back to the standard default.
+  const [deposit, setDeposit] = useState(
+    (series ? series.find((r) => r.is_deposit_holder)?.deposit : booking.deposit) ?? 150
+  );
+  const [invoiceMode, setInvoiceMode] = useState("scheduled");
 
   const rental = (Number(rate) || 0) * (Number(hours) || 0) * Math.max(1, Number(sessions) || 1);
   const total = rental + (Number(deposit) || 0);
+
+  // ---- Recurring series card ----
+  if (series && series.length) {
+    const holder = series.find((r) => r.is_deposit_holder) || series[0];
+    const seriesRental = (Number(rate) || 0) * (Number(hours) || 0) * series.length;
+    const seriesTotal = seriesRental + (Number(deposit) || 0);
+    return (
+      <div className="card animate-fade-in-up p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-verde-deep">
+              {spaceName(holder.space)}
+              <span className="rounded-full border border-sky-300 bg-sky-100 px-2 py-0.5 text-[10px] normal-case tracking-normal text-sky-800">
+                Recurring · {series.length} sessions
+              </span>
+              {holder.is_public_event ? (
+                <span className="rounded-full border border-verde-deep/30 bg-verde-deep/15 px-2 py-0.5 text-[10px] normal-case tracking-normal text-verde-deep">
+                  Wants calendar listing
+                </span>
+              ) : null}
+            </div>
+            <h3 className="mt-1 text-xl font-semibold text-ink">{holder.client_name}</h3>
+            <p className="text-sm text-ink-muted">
+              {holder.recurring_schedule || `${series.length} sessions`} · {formatTime(holder.start_time)} · {holder.hours}h each
+            </p>
+            <Link
+              href={`/admin/requests?b=${holder.id}`}
+              scroll={false}
+              className="mt-1 inline-block text-xs font-medium text-verde-deep hover:underline"
+            >
+              View activity →
+            </Link>
+          </div>
+          <div className="text-right text-sm">
+            <a href={`mailto:${holder.client_email}`} className="block font-medium text-verde-deep hover:underline">
+              {holder.client_email}
+            </a>
+            <a href={`tel:${holder.client_phone}`} className="block text-ink-muted">
+              {holder.client_phone}
+            </a>
+          </div>
+        </div>
+
+        <ul className="mt-4 grid gap-1 text-sm text-ink-soft sm:grid-cols-2">
+          {series.map((r) => (
+            <li key={r.id} className="flex justify-between gap-3">
+              <span>Session {r.series_index}: {formatDate(r.date)}</span>
+              <span className="text-ink-muted">{formatTime(r.start_time)}</span>
+            </li>
+          ))}
+        </ul>
+        {holder.notes ? (
+          <div className="mt-3 rounded-lg bg-paper-warm p-3 text-sm text-ink-soft">
+            <span className="font-semibold text-ink">Notes: </span>
+            {holder.notes}
+          </div>
+        ) : null}
+
+        <form className="mt-5 border-t border-line pt-5">
+          <input type="hidden" name="series_id" value={holder.series_id} />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div>
+              <label className="label">Rate / hr</label>
+              <input name="rate" type="number" min="0" step="1" value={rate} onChange={(e) => setRate(e.target.value)} className="field" />
+            </div>
+            <div>
+              <label className="label">Hours / session</label>
+              <input name="hours" type="number" min="0" step="0.5" value={hours} onChange={(e) => setHours(e.target.value)} className="field" />
+            </div>
+            <div>
+              <label className="label">Deposit (series)</label>
+              <input name="deposit" type="number" min="0" step="1" value={deposit} onChange={(e) => setDeposit(e.target.value)} className="field" />
+            </div>
+            <div>
+              <label className="label">Invoicing</label>
+              <select name="invoice_mode" value={invoiceMode} onChange={(e) => setInvoiceMode(e.target.value)} className="field">
+                <option value="scheduled">First now, rest before each</option>
+                <option value="upfront">All up front</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="text-sm text-ink-soft">
+              Rental {formatMoney(rental)} × {series.length} + deposit {formatMoney(Number(deposit) || 0)} ={" "}
+              <span className="text-lg font-semibold text-ink">{formatMoney(seriesTotal)}</span>
+            </div>
+            <div className="flex gap-2">
+              <DenyDialog bookingId={holder.id} clientName={holder.client_name} denyAction={denyAction} />
+              <SubmitButton formAction={approveSeriesAction} pendingLabel="Approving…" variant="accent">
+                Approve series &amp; invoice
+              </SubmitButton>
+            </div>
+          </div>
+        </form>
+      </div>
+    );
+  }
 
   const detail = (label, value) =>
     value ? (
