@@ -94,15 +94,19 @@ invoice). Daily timing is fine — `0 15 * * *` works.
 
 Add a **daily** cron (same auth) hitting
 `GET https://alleyoncenter.com/api/cron/backup?key=<CRON_SECRET>`. Every run makes
-a consistent DB+uploads snapshot and keeps the last 14 on the volume; it **emails**
-the archive off-site only **once a week** (`BACKUP_EMAIL_DAYS`, default 7) so your
-inbox isn't flooded. Force an email any time with `&email=1`, or skip one with
-`&email=0`. Emails go to `BACKUP_EMAIL` (falls back to `OWNER_EMAIL`) — delivery
-needs the Resend domain verified, or it only reaches the Resend account owner.
+a consistent **database-only** snapshot (gzipped — a few KB/MB; holds all records:
+bookings, customers, invoices, suites/tenants, exhibitors, events, page content,
+settings, users) and keeps the last 14 on the volume; it **emails** the archive
+off-site only **once a week** (`BACKUP_EMAIL_DAYS`, default 7). Force an email any
+time with `&email=1`, or skip one with `&email=0`. Emails go to `BACKUP_EMAIL`
+(falls back to `OWNER_EMAIL`) — delivery needs the Resend domain verified, or it
+only reaches the Resend account owner.
 
-Archives over `BACKUP_MAX_EMAIL_MB` (default 20) aren't attached (base64-encoding
-a large file could OOM a small instance) — a notice email is sent instead and the
-copy stays on the volume. Set `BACKUP_MAX_EMAIL_MB=0` for notice-only.
+**Uploaded photos/PDFs are NOT in the backup** — they're large and re-uploadable,
+and the Railway volume is small. Back them up separately (object storage) if
+wanted. The on-volume copy is non-fatal: a full/unwritable volume logs a
+`volumeWarning` and still emails. `BACKUP_MAX_EMAIL_MB` (default 20) caps the
+attachment; over it, a notice is sent instead. `BACKUP_MAX_EMAIL_MB=0` = notice-only.
 
 ---
 
