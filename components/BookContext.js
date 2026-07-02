@@ -4,6 +4,7 @@ import {
   useContext,
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { SPACES, EVENT_TYPES, GUEST_RANGES, formatTime } from "@/lib/constants.js";
@@ -409,6 +410,14 @@ function BookModal({ initialRoom, config, onClose }) {
   });
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
+  // Scroll the modal back to the top whenever the step changes, so the first
+  // fields of the new step are visible (otherwise a long step leaves you scrolled
+  // to the bottom and the top fields / submit are out of view).
+  const modalScrollRef = useRef(null);
+  useEffect(() => {
+    modalScrollRef.current?.scrollTo({ top: 0 });
+  }, [step]);
+
   const [excludedDates, setExcludedDates] = useState([]); // sessions the client opted out of
   const [recurAvail, setRecurAvail] = useState({}); // date -> { available, reason }
 
@@ -585,6 +594,7 @@ function BookModal({ initialRoom, config, onClose }) {
       }}
     >
       <div
+        ref={modalScrollRef}
         onClick={(e) => e.stopPropagation()}
         className="bk-modal"
         style={{
