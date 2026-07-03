@@ -79,7 +79,7 @@ export async function GET() {
 
     lines.push(
       "BEGIN:VEVENT",
-      `UID:event-${e.id}@alleyoncenter.com`,
+      `UID:${e.uid || `event-${e.id}@alleyoncenter.com`}`,
       `DTSTAMP:${stamp}`,
       dtStart,
       dtEnd,

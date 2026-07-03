@@ -44,7 +44,7 @@ function CalList({ events }) {
       {events.map((e) => {
         const dt = parseYmd(e.date);
         return (
-          <Link key={e.id} href={`/events/${e.id}`} className="cal-item">
+          <Link key={e.key ?? e.id} href={`/events/${e.id}`} className="cal-item">
             <div className="cal-date">
               <div className="mo">{dt.toLocaleDateString("en-US", { month: "short" })}</div>
               <div className="dy">{dt.getDate()}</div>
@@ -104,7 +104,7 @@ function CalMonth({ events }) {
             <div key={i} className={"cal-cell" + (isToday ? " is-today" : "")}>
               <span className="cd">{d}</span>
               {evs.map((e) => (
-                <Link key={e.id} href={`/events/${e.id}`} className="cal-ev" title={e.title}>{e.title}</Link>
+                <Link key={e.key ?? e.id} href={`/events/${e.id}`} className="cal-ev" title={e.title}>{e.title}</Link>
               ))}
             </div>
           );

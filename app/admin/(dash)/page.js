@@ -73,7 +73,7 @@ export default function AdminDashboard() {
         />
         <StatCard
           label="Live events"
-          value={liveEvents.length}
+          value={new Set(liveEvents.map((e) => e.id)).size}
           href="/admin/events"
           hint="Public listings"
           icon={Megaphone}
