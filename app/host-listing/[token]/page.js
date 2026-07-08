@@ -12,7 +12,7 @@ export default function HostListingPage({ params }) {
 
   if (!event) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-paper-warm px-5">
+      <main className="brandpage flex min-h-screen items-center justify-center bg-paper-warm px-5">
         <div className="card max-w-md p-8 text-center">
           <h1 className="font-display text-2xl font-semibold text-ink">
             Link not found
@@ -57,7 +57,7 @@ export default function HostListingPage({ params }) {
   }
 
   return (
-    <main className="min-h-screen bg-paper-warm">
+    <main className="brandpage min-h-screen bg-paper-warm">
       <header className="border-b border-ink/10 bg-paper">
         <div className="container-content flex items-center justify-between py-4">
           <Link href="/" className="font-display text-xl font-semibold text-ink">

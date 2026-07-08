@@ -100,6 +100,51 @@ h1, h2, h3, .font-display {
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Public self-edit pages (.brandpage) — tenant, exhibitor, and event-host
+   token forms. These face tenants/artists, so they use the brand system per
+   the design handoff (Josefin in its three roles, sharp corners, uppercase
+   letterspaced accents) instead of the generic rounded look. Admin unaffected.
+   --------------------------------------------------------------------------- */
+.brandpage .label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-bottom: 6px;
+}
+.brandpage .card {
+  border-radius: 0;
+  border-color: var(--line-strong);
+  box-shadow: none;
+}
+.brandpage .field {
+  border-radius: 0;
+  border-color: var(--line);
+  font-weight: 300;
+}
+.brandpage .field:focus {
+  border-color: var(--ink);
+  --tw-ring-color: rgba(47, 47, 45, 0.14);
+}
+.brandpage .btn,
+.brandpage .btn-primary,
+.brandpage .btn-accent,
+.brandpage .btn-ghost {
+  border-radius: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  font-size: 13px;
+  font-weight: 600;
+}
+.brandpage .eyebrow {
+  color: var(--verde-deep);
+}
+.brandpage img {
+  border-radius: 0;
+}
+
 /* Native date/time pickers keep an intrinsic min-width on iOS Safari and
    overflow narrow mobile columns even with width:100%. Let them shrink to fit
    their container (fixes admin closures + event forms running off-screen). */
