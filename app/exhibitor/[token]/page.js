@@ -6,6 +6,7 @@ import {
   addExhibitorPhoto,
   deleteExhibitorPhoto,
   listExhibitorPhotos,
+  parseExhibitorLinks,
 } from "@/lib/catalog.js";
 import ExhibitorEditForm from "@/components/ExhibitorEditForm.js";
 
@@ -82,7 +83,7 @@ export default function ExhibitorTokenPage({ params }) {
 
         <div className="mt-8">
           <ExhibitorEditForm
-            exhibitor={exhibitor}
+            exhibitor={{ ...exhibitor, links: parseExhibitorLinks(exhibitor) }}
             saveAction={save}
             addPhotoAction={addPhoto}
             removePhotoAction={removePhoto}

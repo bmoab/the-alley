@@ -353,8 +353,21 @@
 /* directory page extras */
 .dir-card-link { display: block; }
 .dir-card .dir-go { margin: 12px 0 0; font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--verde-deep); display: inline-flex; gap: 7px; }
-.dir-cardtop { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.dir-suite { font-size: 11px; letter-spacing: .08em; color: var(--ink-muted); border: 1px solid var(--line-strong); padding: 3px 8px; }
+.dir-cardtop { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.dir-suite { font-size: 11px; letter-spacing: .08em; color: var(--ink-muted); border: 1px solid var(--line-strong); padding: 3px 8px; margin-left: auto; flex: none; }
+.dir-cardtop + .dir-name { margin-top: 0; }
+
+/* tenant landing page */
+.tenant-hero .pagehero-title { overflow-wrap: anywhere; }
+.tenant-grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: clamp(24px, 4vw, 56px); align-items: start; }
+.tenant-blurb { color: var(--ink-soft); font-weight: 300; font-size: 17px; line-height: 1.7; margin: 0 0 26px; white-space: pre-line; }
+.tenant-links { display: flex; flex-direction: column; align-items: stretch; gap: 10px; margin: 0 0 30px; }
+.tenant-links .btn { justify-content: space-between; }
+.tenant-back { display: inline-block; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-muted); }
+.tenant-back:hover { color: var(--ink); }
+@media (max-width: 860px) {
+  .tenant-grid { grid-template-columns: 1fr; }
+}
 
 /* interactive building directory */
 .bm { border: 1px solid var(--line-strong); background: var(--paper); margin-bottom: clamp(44px,5vw,72px); }
@@ -491,6 +504,9 @@
 .ex-discipline { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-muted); }
 .ex-blurb { font-size: 17px; font-weight: 300; line-height: 1.7; color: var(--ink-soft); margin: 18px 0 0; max-width: 52ch; }
 .ex-handle { font-size: 12px; letter-spacing: .08em; color: var(--ink); margin: 12px 0 0; }
+.ex-links { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+a.ex-handle { text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--line-strong); }
+a.ex-handle:hover { text-decoration-color: var(--ink); }
 .ex-works { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-top: clamp(20px,2.4vw,30px); }
 .ex-work { margin: 0; }
 .ex-work .photo { height: clamp(96px,11vw,132px); }

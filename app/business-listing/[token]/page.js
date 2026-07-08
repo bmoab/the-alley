@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
-import { getDirectoryByToken, saveDirectoryListing } from "@/lib/catalog.js";
+import {
+  getDirectoryByToken,
+  saveDirectoryListing,
+  parseDirectoryLinks,
+  parseDirectoryPhotos,
+  directorySlug,
+} from "@/lib/catalog.js";
 import DirectoryEditForm from "@/components/DirectoryEditForm.js";
 
 export const metadata = { title: "Set up your business listing" };
@@ -29,9 +35,10 @@ export default function BusinessListingPage({ params }) {
 
   async function save(data) {
     "use server";
-    saveDirectoryListing(params.token, data);
+    const saved = saveDirectoryListing(params.token, data);
     revalidatePath("/directory");
     revalidatePath("/admin/directory");
+    if (saved) revalidatePath(`/directory/${directorySlug(saved)}`);
     return { ok: true };
   }
 
@@ -52,13 +59,20 @@ export default function BusinessListingPage({ params }) {
           Set up your listing
         </h1>
         <p className="mt-2 text-ink-muted">
-          This is your spot in The Alley directory. Add your details and a photo —
-          your changes go live on our website right away. Bookmark this link to
-          edit anytime.
+          This is your spot in The Alley directory. Add your details, photos, and
+          links — your changes go live on our website right away. Bookmark this
+          link to edit anytime.
         </p>
 
         <div className="mt-8">
-          <DirectoryEditForm entry={entry} saveAction={save} />
+          <DirectoryEditForm
+            entry={{
+              ...entry,
+              links: parseDirectoryLinks(entry),
+              photos: parseDirectoryPhotos(entry),
+            }}
+            saveAction={save}
+          />
         </div>
       </div>
     </main>

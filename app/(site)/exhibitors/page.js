@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { listExhibitorsByPhase } from "@/lib/catalog.js";
+import { listExhibitorsByPhase, parseExhibitorLinks } from "@/lib/catalog.js";
+import { directoryLinkLabel } from "@/lib/link-label.js";
 import { getContentValue } from "@/lib/db.js";
 import { formatMonthRange } from "@/lib/constants.js";
 import PageHero from "@/components/site/PageHero.js";
@@ -19,6 +20,7 @@ function whenLabel(ex, { onView = false } = {}) {
 
 function CurrentExhibitor({ ex, i }) {
   const portraitVariant = i % 2 ? "soft" : "verde";
+  const links = parseExhibitorLinks(ex);
   return (
     <article className={"ex-feature reveal" + (i % 2 ? " is-rev" : "")}>
       <div className="ex-feature-portrait">
@@ -30,7 +32,17 @@ function CurrentExhibitor({ ex, i }) {
         <h2 className="ex-name">{ex.name}</h2>
         <p className="ex-discipline mono">{ex.discipline}</p>
         <p className="ex-blurb">{ex.blurb}</p>
-        {ex.site_handle ? <p className="ex-handle mono">{ex.site_handle}</p> : null}
+        {links.length ? (
+          <div className="ex-links">
+            {links.map((l, k) => (
+              <a key={k} className="ex-handle mono" href={l.url} target="_blank" rel="noreferrer">
+                {directoryLinkLabel(l)} →
+              </a>
+            ))}
+          </div>
+        ) : ex.site_handle ? (
+          <p className="ex-handle mono">{ex.site_handle}</p>
+        ) : null}
         {ex.works?.length ? (
           <div className="ex-works">
             {ex.works.map((w, k) => (

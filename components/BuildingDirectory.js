@@ -75,13 +75,6 @@ function BuildingFront({ onPick }) {
   );
 }
 
-function linkLabel(href) {
-  if (!href) return "Visit";
-  if (href.startsWith("/spaces")) return "Book this space";
-  if (href.startsWith("/gallery")) return "Visit the gallery";
-  return "Visit";
-}
-
 function FloorPlan({ floor, zones, active, setActive, phone }) {
   const F = getFloor(floor);
   if (!F) return null;
@@ -153,20 +146,23 @@ function FloorPlan({ floor, zones, active, setActive, phone }) {
             </>
           ) : card.data.tenant ? (
             <>
+              {card.data.tenant.photos?.[0] ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={card.data.tenant.photos[0]}
+                  alt={card.data.tenant.business_name}
+                  style={{ width: "100%", height: 110, objectFit: "cover", marginBottom: 10 }}
+                />
+              ) : null}
               <span className="bm-card-suite mono">
                 {card.geo.kind === "open" ? "Open to all" : `Suite ${card.data.name}`}
               </span>
               <h4 className="bm-card-name">{card.data.tenant.business_name}</h4>
               {card.data.tenant.category ? <span className="bm-card-cat mono">{card.data.tenant.category}</span> : null}
               {card.data.tenant.description ? <p className="bm-card-blurb">{card.data.tenant.description}</p> : null}
-              {card.data.tenant.contact_link ? (
-                <a
-                  className="bm-card-link"
-                  href={card.data.tenant.contact_link}
-                  target={card.data.tenant.contact_link.startsWith("http") ? "_blank" : undefined}
-                  rel={card.data.tenant.contact_link.startsWith("http") ? "noreferrer" : undefined}
-                >
-                  {linkLabel(card.data.tenant.contact_link)} <span className="arrow">→</span>
+              {card.data.tenant.href ? (
+                <a className="bm-card-link" href={card.data.tenant.href}>
+                  See their page <span className="arrow">→</span>
                 </a>
               ) : null}
             </>

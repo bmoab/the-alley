@@ -1,12 +1,14 @@
 "use client";
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import PhotoSlot from "@/components/site/PhotoSlot.js";
 import { Arrow } from "@/components/site/Primitives.js";
 
 /**
  * Category-filtered tenant card grid (used on the homepage preview and the
- * Directory page). `tenants` = directory rows; each card shows its suite tag
- * and links out to the tenant's contact link when present.
+ * Directory page). `tenants` = rows from listPublicDirectoryWithSuites; each
+ * card links to the tenant's landing page (`t.href`) where all their photos
+ * and links live.
  */
 export default function DirectoryGrid({ tenants = [], showSuite = false, showLink = false }) {
   const cats = useMemo(() => {
@@ -33,9 +35,10 @@ export default function DirectoryGrid({ tenants = [], showSuite = false, showLin
       </div>
       <div className="dir-grid">
         {shown.map((t) => {
+          const photo = t.photos?.[0] || t.photo_path || null;
           const Inner = (
             <>
-              <PhotoSlot src={t.photo_path || null} tag={t.category} variant={variantFor(t.category)} className="dir-photo" />
+              <PhotoSlot src={photo} tag={t.category} variant={variantFor(t.category)} className="dir-photo" />
               <div className="dir-info">
                 <div className="dir-cardtop">
                   <span className="dir-cat mono">{t.category}</span>
@@ -48,22 +51,16 @@ export default function DirectoryGrid({ tenants = [], showSuite = false, showLin
                 </div>
                 <h4 className="dir-name">{t.business_name}</h4>
                 <p className="dir-blurb">{t.description}</p>
-                {showLink && t.contact_link ? (
-                  <span className="dir-go mono">Visit <Arrow /></span>
+                {showLink ? (
+                  <span className="dir-go mono">See more <Arrow /></span>
                 ) : null}
               </div>
             </>
           );
-          return t.contact_link ? (
-            <a
-              key={t.id}
-              href={t.contact_link}
-              className="dir-card dir-card-link"
-              target={t.contact_link.startsWith("http") ? "_blank" : undefined}
-              rel={t.contact_link.startsWith("http") ? "noreferrer" : undefined}
-            >
+          return t.href ? (
+            <Link key={t.id} href={t.href} className="dir-card dir-card-link">
               {Inner}
-            </a>
+            </Link>
           ) : (
             <article key={t.id} className="dir-card">
               {Inner}

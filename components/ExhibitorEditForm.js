@@ -21,8 +21,10 @@ export default function ExhibitorEditForm({ exhibitor, saveAction, addPhotoActio
     name: exhibitor.name || "",
     discipline: exhibitor.discipline || "",
     blurb: exhibitor.blurb || "",
-    site_handle: exhibitor.site_handle || "",
   });
+  const [links, setLinks] = useState(
+    exhibitor.links?.length ? exhibitor.links : [{ label: "", url: "" }]
+  );
   const [profile, setProfile] = useState(exhibitor.profile_photo || "");
   const [works, setWorks] = useState(exhibitor.works || []);
   const [uploadingProfile, setUploadingProfile] = useState(false);
@@ -33,6 +35,11 @@ export default function ExhibitorEditForm({ exhibitor, saveAction, addPhotoActio
   const [done, setDone] = useState(false);
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
+
+  const setLink = (i, patch) =>
+    setLinks((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
+  const addLink = () => setLinks((ls) => [...ls, { label: "", url: "" }]);
+  const removeLink = (i) => setLinks((ls) => ls.filter((_, j) => j !== i));
 
   async function onProfile(e) {
     const file = e.target.files?.[0];
@@ -80,7 +87,11 @@ export default function ExhibitorEditForm({ exhibitor, saveAction, addPhotoActio
   async function handleSave() {
     setError("");
     setBusy(true);
-    const res = await saveAction({ ...form, profile_photo: profile || null });
+    const res = await saveAction({
+      ...form,
+      links: links.filter((l) => (l.url || "").trim()),
+      profile_photo: profile || null,
+    });
     setBusy(false);
     if (res?.ok) setDone(true);
     else setError(res?.error || "Something went wrong.");
@@ -108,10 +119,48 @@ export default function ExhibitorEditForm({ exhibitor, saveAction, addPhotoActio
           <label className="label">About your work</label>
           <textarea rows={5} className="field" value={form.blurb} onChange={(e) => set({ blurb: e.target.value })} placeholder="Tell visitors about your work and what you're showing." />
         </div>
-        <div className="mt-4">
-          <label className="label">Handle or website</label>
-          <input className="field" value={form.site_handle} onChange={(e) => set({ site_handle: e.target.value })} placeholder="@yourhandle or https://…" />
+      </div>
+
+      <div className="card p-5">
+        <h3 className="font-display text-lg font-semibold text-ink">Links</h3>
+        <p className="mt-1 text-xs text-ink-muted">
+          Your website, Instagram, shop — add as many as you like. The button label is what visitors see.
+        </p>
+        <div className="mt-4 space-y-3">
+          {links.map((l, i) => (
+            <div key={i} className="flex flex-wrap items-end gap-2 sm:flex-nowrap">
+              <div className="w-full sm:w-2/5">
+                <label className="label">Button label</label>
+                <input
+                  className="field"
+                  value={l.label}
+                  onChange={(e) => setLink(i, { label: e.target.value })}
+                  placeholder="Instagram"
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <label className="label">Link</label>
+                <input
+                  className="field"
+                  value={l.url}
+                  onChange={(e) => setLink(i, { url: e.target.value })}
+                  placeholder="https://instagram.com/yourhandle"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => removeLink(i)}
+                className="mb-1 shrink-0 rounded-lg border border-ink/15 px-3 py-2 text-sm text-ink-muted hover:border-rust hover:text-rust"
+                aria-label="Remove this link"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
         </div>
+        <button type="button" onClick={addLink} className="btn-ghost mt-4">
+          + Add another link
+        </button>
       </div>
 
       <div className="card p-5">

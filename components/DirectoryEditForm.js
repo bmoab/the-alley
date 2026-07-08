@@ -11,14 +11,22 @@ async function uploadFile(file, kind) {
   return data.path;
 }
 
+/**
+ * Tenant self-edit form. `entry` arrives with `links` ([{label, url}]) and
+ * `photos` ([path, …]) already parsed by the server page. Tenants can add as
+ * many links (each with its own button label) and photos as they like; the
+ * first photo is the lead image on their directory card.
+ */
 export default function DirectoryEditForm({ entry, saveAction }) {
   const [form, setForm] = useState({
     business_name: entry.business_name || "",
     category: entry.category || "",
     description: entry.description || "",
-    contact_link: entry.contact_link || "",
   });
-  const [photo, setPhoto] = useState(entry.photo_path || "");
+  const [links, setLinks] = useState(
+    entry.links?.length ? entry.links : [{ label: "", url: "" }]
+  );
+  const [photos, setPhotos] = useState(entry.photos || []);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
@@ -26,24 +34,41 @@ export default function DirectoryEditForm({ entry, saveAction }) {
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
 
-  async function onPhoto(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const setLink = (i, patch) =>
+    setLinks((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
+  const addLink = () => setLinks((ls) => [...ls, { label: "", url: "" }]);
+  const removeLink = (i) => setLinks((ls) => ls.filter((_, j) => j !== i));
+
+  async function onPhotos(e) {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
     setError("");
     setUploading(true);
     try {
-      setPhoto(await uploadFile(file, "image"));
+      for (const file of files) {
+        const path = await uploadFile(file, "image");
+        setPhotos((ps) => [...ps, path]);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
       setUploading(false);
+      e.target.value = "";
     }
   }
+
+  const removePhoto = (i) => setPhotos((ps) => ps.filter((_, j) => j !== i));
+  const makeLead = (i) =>
+    setPhotos((ps) => [ps[i], ...ps.filter((_, j) => j !== i)]);
 
   async function handleSave() {
     setError("");
     setBusy(true);
-    const res = await saveAction({ ...form, photo_path: photo || null });
+    const res = await saveAction({
+      ...form,
+      links: links.filter((l) => (l.url || "").trim()),
+      photos,
+    });
     setBusy(false);
     if (res?.ok) setDone(true);
     else setError(res?.error || "Something went wrong.");
@@ -104,30 +129,102 @@ export default function DirectoryEditForm({ entry, saveAction }) {
             placeholder="Tell visitors who you are and what you offer."
           />
         </div>
-        <div className="mt-4">
-          <label className="label">Website or social link</label>
-          <input
-            className="field"
-            value={form.contact_link}
-            onChange={(e) => set({ contact_link: e.target.value })}
-            placeholder="https://instagram.com/yourshop"
-          />
-        </div>
       </div>
 
       <div className="card p-5">
-        <h3 className="font-display text-lg font-semibold text-ink">Photo</h3>
+        <h3 className="font-display text-lg font-semibold text-ink">Links</h3>
+        <p className="mt-1 text-sm text-ink-muted">
+          Add your website, socials, booking page — as many as you like. The
+          button label is what visitors see, e.g. &ldquo;Book an appointment&rdquo;
+          or &ldquo;Instagram&rdquo;.
+        </p>
+        <div className="mt-4 space-y-3">
+          {links.map((l, i) => (
+            <div key={i} className="flex flex-wrap items-end gap-2 sm:flex-nowrap">
+              <div className="w-full sm:w-2/5">
+                <label className="label">Button label</label>
+                <input
+                  className="field"
+                  value={l.label}
+                  onChange={(e) => setLink(i, { label: e.target.value })}
+                  placeholder="Instagram"
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <label className="label">Link</label>
+                <input
+                  className="field"
+                  value={l.url}
+                  onChange={(e) => setLink(i, { url: e.target.value })}
+                  placeholder="https://instagram.com/yourshop"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => removeLink(i)}
+                className="mb-1 shrink-0 rounded-lg border border-ink/15 px-3 py-2 text-sm text-ink-muted hover:border-rust hover:text-rust"
+                aria-label="Remove this link"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+        <button type="button" onClick={addLink} className="btn-ghost mt-4">
+          + Add another link
+        </button>
+      </div>
+
+      <div className="card p-5">
+        <h3 className="font-display text-lg font-semibold text-ink">Photos</h3>
+        <p className="mt-1 text-sm text-ink-muted">
+          Add photos of your space and work. The first photo is your cover — it
+          shows on your directory card; the rest appear on your page.
+        </p>
+        {photos.length ? (
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {photos.map((p, i) => (
+              <div key={p + i} className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={p}
+                  alt={`Photo ${i + 1}`}
+                  className="h-28 w-full rounded-lg object-cover"
+                />
+                {i === 0 ? (
+                  <span className="absolute left-1.5 top-1.5 rounded bg-ink/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-paper">
+                    Cover
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => makeLead(i)}
+                    className="absolute left-1.5 top-1.5 rounded bg-paper/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-ink hover:bg-paper"
+                  >
+                    Make cover
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => removePhoto(i)}
+                  className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-ink/80 text-xs text-paper hover:bg-rust"
+                  aria-label={`Remove photo ${i + 1}`}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : null}
         <div className="mt-4">
-          <label className="label">Logo or storefront photo</label>
-          {photo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={photo}
-              alt="Photo preview"
-              className="mb-2 h-40 w-full rounded-lg object-cover"
-            />
-          ) : null}
-          <input type="file" accept="image/*" onChange={onPhoto} className="block text-sm" />
+          <label className="label">Add photos</label>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={onPhotos}
+            className="block text-sm"
+          />
           {uploading ? (
             <p className="mt-1 text-xs text-ink-muted">Uploading…</p>
           ) : null}
