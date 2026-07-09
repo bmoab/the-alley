@@ -139,6 +139,8 @@
   /* .dir-b img { display:block } outranks a bare class selector, so the hide
      needs the same prefix or the wordmark never disappears on phones. */
   .dir-b .pagehero-vert { display: none; }
+  /* The stripes motif crowds the eyebrow text on narrow hero layouts. */
+  .dir-b .pagehero-stripes { display: none; }
   .hero-b-foot { grid-template-columns: 1fr; max-width: none; margin-left: 0; }
 }
 
