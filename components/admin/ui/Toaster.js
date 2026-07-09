@@ -29,26 +29,12 @@ function paramsToToast(sp) {
     if (r === "error") return { message: "Couldn't reach Square to check payment.", tone: "error" };
     return { message: "Checked invoice status.", tone: "neutral" };
   }
-  if (sp.has("test")) {
-    const ok = sp.get("test") === "ok";
-    const mode = sp.get("mode");
-    if (ok) {
-      return {
-        message:
-          mode === "smtp" || mode === "resend"
-            ? `Test email sent via ${mode}. Check the inbox.`
-            : `Reported success but used "${mode}" mode (no live provider).`,
-        tone: mode === "smtp" || mode === "resend" ? "success" : "neutral",
-      };
-    }
-    return { message: `Test email failed (mode: ${mode}).`, tone: "error" };
-  }
   if (sp.has("saved")) return { message: "Changes saved.", tone: "success" };
   if (sp.has("error")) return { message: sp.get("error") || "Something went wrong.", tone: "error" };
   return null;
 }
 
-const CONSUMED = ["toast", "toastType", "paid", "checked", "r", "test", "mode", "saved", "error"];
+const CONSUMED = ["toast", "toastType", "paid", "checked", "r", "saved", "error"];
 
 export default function Toaster() {
   const [items, setItems] = useState([]);
