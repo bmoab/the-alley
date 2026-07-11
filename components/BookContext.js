@@ -522,14 +522,17 @@ function BookModal({ initialRoom, config, onClose }) {
 
   const canNext =
     (step === 0 && room) ||
-    (step === 1 && form.date && form.start && form.hours) ||
+    (step === 1 &&
+      form.date &&
+      form.start &&
+      form.hours &&
+      (!form.is_recurring || includedDates.length >= 2)) ||
     (step === 2 &&
       form.name &&
       /.+@.+\..+/.test(form.email) &&
       form.phone.trim() &&
       form.agreed &&
-      (!withinCutoff || form.cutoff_ack) &&
-      (!form.is_recurring || includedDates.length >= 2));
+      (!withinCutoff || form.cutoff_ack));
 
   const next = () => setStep((s) => Math.min(3, s + 1));
   const back = () => setStep((s) => Math.max(0, s - 1));
@@ -686,6 +689,59 @@ function BookModal({ initialRoom, config, onClose }) {
                   )}
                 </div>
               </div>
+              <label style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13, color: "var(--ink-soft)", fontWeight: 300, marginTop: 20 }}>
+                <input type="checkbox" checked={form.is_recurring} onChange={(e) => setForm((f) => ({ ...f, is_recurring: e.target.checked }))} style={{ marginTop: 3 }} />
+                <span>This is a recurring booking (e.g. a weekly class) — same space, day &amp; time each session.</span>
+              </label>
+              {form.is_recurring ? (
+                <div style={{ border: "1px solid var(--line-strong)", background: "var(--paper-dim)", padding: 16, marginTop: 12 }}>
+                  {!form.date || !form.start ? (
+                    <p className="bk-times-hint">Pick your first date &amp; time above — your sessions repeat from there.</p>
+                  ) : (
+                    <>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                        <label><span style={labStyle}>Repeats</span>
+                          <select value={form.recur_every} onChange={(e) => setForm((f) => ({ ...f, recur_every: Number(e.target.value) }))} style={fieldStyle}>
+                            <option value={1}>Every {weekdayLong(form.date)}</option>
+                            <option value={2}>Every other {weekdayLong(form.date)}</option>
+                          </select>
+                        </label>
+                        <label><span style={labStyle}>Sessions</span>
+                          <select value={form.recur_count} onChange={(e) => setForm((f) => ({ ...f, recur_count: Number(e.target.value) }))} style={fieldStyle}>
+                            {Array.from({ length: seriesMaxOcc - 1 }, (_, i) => i + 2).map((n) => <option key={n} value={n}>{n} sessions</option>)}
+                          </select>
+                        </label>
+                      </div>
+                      <ul style={{ listStyle: "none", padding: 0, margin: "14px 0 0", display: "grid", gap: 6 }}>
+                        {seriesDates.map((d) => {
+                          const avail = recurAvail[d];
+                          const unavailable = avail?.available === false;
+                          const excluded = excludedDates.includes(d);
+                          return (
+                            <li key={d} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, fontSize: 14 }}>
+                              <label style={{ display: "flex", gap: 8, alignItems: "center", color: unavailable || excluded ? "var(--ink-muted)" : "var(--ink)" }}>
+                                <input
+                                  type="checkbox"
+                                  checked={!excluded && !unavailable}
+                                  disabled={unavailable}
+                                  onChange={(e) => setExcludedDates((prev) => (e.target.checked ? prev.filter((x) => x !== d) : [...prev, d]))}
+                                />
+                                <span style={{ textDecoration: unavailable || excluded ? "line-through" : "none" }}>{fmtDateLong(d)}</span>
+                              </label>
+                              <span className="mono" style={{ fontSize: 11, color: unavailable ? "var(--rust, #9c4a2e)" : excluded ? "var(--ink-muted)" : "var(--ink-soft)" }}>
+                                {unavailable ? avail.reason : excluded ? "Skipped" : "Available"}
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      <p className="bk-est-note mono" style={{ marginTop: 10 }}>
+                        Unavailable dates are skipped automatically. {includedDates.length} session{includedDates.length === 1 ? "" : "s"} selected · one ${deposit} deposit for the whole series.
+                      </p>
+                    </>
+                  )}
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -726,59 +782,6 @@ function BookModal({ initialRoom, config, onClose }) {
                     email you a link to add your details.)
                   </span>
                 </label>
-                <label style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13, color: "var(--ink-soft)", fontWeight: 300 }}>
-                  <input type="checkbox" checked={form.is_recurring} onChange={(e) => setForm((f) => ({ ...f, is_recurring: e.target.checked }))} style={{ marginTop: 3 }} />
-                  <span>This is a recurring booking (e.g. a weekly class) — same space, day &amp; time each session.</span>
-                </label>
-                {form.is_recurring ? (
-                  <div style={{ border: "1px solid var(--line-strong)", background: "var(--paper-dim)", padding: 16 }}>
-                    {!form.date || !form.start ? (
-                      <p className="bk-times-hint">Pick your first date &amp; time in the previous step — your sessions repeat from there.</p>
-                    ) : (
-                      <>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                          <label><span style={labStyle}>Repeats</span>
-                            <select value={form.recur_every} onChange={(e) => setForm((f) => ({ ...f, recur_every: Number(e.target.value) }))} style={fieldStyle}>
-                              <option value={1}>Every {weekdayLong(form.date)}</option>
-                              <option value={2}>Every other {weekdayLong(form.date)}</option>
-                            </select>
-                          </label>
-                          <label><span style={labStyle}>Sessions</span>
-                            <select value={form.recur_count} onChange={(e) => setForm((f) => ({ ...f, recur_count: Number(e.target.value) }))} style={fieldStyle}>
-                              {Array.from({ length: seriesMaxOcc - 1 }, (_, i) => i + 2).map((n) => <option key={n} value={n}>{n} sessions</option>)}
-                            </select>
-                          </label>
-                        </div>
-                        <ul style={{ listStyle: "none", padding: 0, margin: "14px 0 0", display: "grid", gap: 6 }}>
-                          {seriesDates.map((d) => {
-                            const avail = recurAvail[d];
-                            const unavailable = avail?.available === false;
-                            const excluded = excludedDates.includes(d);
-                            return (
-                              <li key={d} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, fontSize: 14 }}>
-                                <label style={{ display: "flex", gap: 8, alignItems: "center", color: unavailable || excluded ? "var(--ink-muted)" : "var(--ink)" }}>
-                                  <input
-                                    type="checkbox"
-                                    checked={!excluded && !unavailable}
-                                    disabled={unavailable}
-                                    onChange={(e) => setExcludedDates((prev) => (e.target.checked ? prev.filter((x) => x !== d) : [...prev, d]))}
-                                  />
-                                  <span style={{ textDecoration: unavailable || excluded ? "line-through" : "none" }}>{fmtDateLong(d)}</span>
-                                </label>
-                                <span className="mono" style={{ fontSize: 11, color: unavailable ? "var(--rust, #9c4a2e)" : excluded ? "var(--ink-muted)" : "var(--ink-soft)" }}>
-                                  {unavailable ? avail.reason : excluded ? "Skipped" : "Available"}
-                                </span>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                        <p className="bk-est-note mono" style={{ marginTop: 10 }}>
-                          Unavailable dates are skipped automatically. {includedDates.length} session{includedDates.length === 1 ? "" : "s"} selected · one ${deposit} deposit for the whole series.
-                        </p>
-                      </>
-                    )}
-                  </div>
-                ) : null}
                 {withinCutoff ? (
                   <label style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13, color: "var(--ink-soft)", fontWeight: 300, padding: "12px 14px", border: "1px solid var(--ink)", background: "var(--paper-warm)" }}>
                     <input type="checkbox" checked={form.cutoff_ack} onChange={(e) => setForm((f) => ({ ...f, cutoff_ack: e.target.checked }))} style={{ marginTop: 3 }} />

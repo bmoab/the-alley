@@ -10,6 +10,8 @@ import {
   listSuites,
   setTenantSuites,
   updateSuiteInfo,
+  suitesForTenant,
+  tenantsForSuite,
 } from "@/lib/catalog.js";
 import { emailTenantInvite } from "@/lib/email.js";
 import { zoneSpace } from "@/lib/building-map.js";
@@ -117,7 +119,7 @@ async function saveSuite(formData) {
   redirect("/admin/directory#suite-" + formData.get("id"));
 }
 
-function TenantFields({ entry = {}, suites = [] }) {
+function TenantFields({ entry = {}, suites = [], occupiedIds = [], suiteTenants = {} }) {
   const isNew = !entry.id;
   return (
     <>
@@ -151,21 +153,27 @@ function TenantFields({ entry = {}, suites = [] }) {
         <label className="label">Suites occupied (select one or more)</label>
         <div className="flex flex-wrap gap-x-5 gap-y-2 rounded-lg border border-ink/10 bg-paper-warm p-3">
           {suites.map((s) => {
-            const mine = !isNew && s.tenant_id === entry.id;
-            const takenByOther = s.tenant_id && !mine;
+            const mine = occupiedIds.includes(s.id);
+            const others = (suiteTenants[s.id] || []).filter((t) => t.id !== entry.id);
             return (
-              <label key={s.id} className={`flex items-center gap-2 text-sm ${takenByOther ? "text-ink-muted/60" : "text-ink-soft"}`}>
-                <input type="checkbox" name="suite_ids" value={s.id} defaultChecked={mine} disabled={takenByOther} />
+              <label key={s.id} className="flex items-center gap-2 text-sm text-ink-soft">
+                <input type="checkbox" name="suite_ids" value={s.id} defaultChecked={mine} />
                 <span>
                   {s.name || s.zone}
                   <span className="ml-1 text-xs text-ink-muted">· {s.floor}</span>
-                  {takenByOther ? <span className="ml-1 text-xs">(taken)</span> : null}
+                  {others.length ? (
+                    <span className="ml-1 text-xs text-ink-muted">
+                      · shared with {others.map((t) => t.business_name).join(", ")}
+                    </span>
+                  ) : null}
                 </span>
               </label>
             );
           })}
         </div>
-        <p className="mt-1 text-xs text-ink-muted">A suite already held by another tenant is greyed out — free it from that tenant first.</p>
+        <p className="mt-1 text-xs text-ink-muted">
+          Two businesses can share one suite — just check the same suite for both. Each keeps its own directory page.
+        </p>
       </div>
 
       <p className="mt-4 text-xs text-ink-muted">
@@ -204,14 +212,15 @@ function SelfEditLink({ entry }) {
   );
 }
 
-function SuiteRow({ suite, tenant }) {
+function SuiteRow({ suite, tenants = [] }) {
+  const occupantNames = tenants.map((t) => t.business_name).join(" & ");
   return (
     <details id={`suite-${suite.id}`} className="card p-4">
       <summary className="flex cursor-pointer items-center justify-between gap-3">
         <span className="font-semibold text-ink">
           {suite.name || suite.zone}
           <span className="ml-2 text-xs font-normal text-ink-muted">
-            {tenant ? tenant.business_name : suite.available ? "Available" : "Vacant"}
+            {tenants.length ? occupantNames : suite.available ? "Available" : "Vacant"}
           </span>
         </span>
         <span className="shrink-0 text-xs text-ink-muted">zone {suite.zone} · edit ▾</span>
@@ -222,9 +231,9 @@ function SuiteRow({ suite, tenant }) {
           <label className="label">Suite name / number</label>
           <input name="name" defaultValue={suite.name || ""} placeholder={suite.zone} className="field" />
         </div>
-        {tenant ? (
+        {tenants.length ? (
           <p className="text-xs text-ink-muted">
-            Occupied by <strong>{tenant.business_name}</strong>. Change this from the tenant&apos;s suite checkboxes above.
+            Occupied by <strong>{occupantNames}</strong>. Change this from the tenant&apos;s suite checkboxes above.
           </p>
         ) : (
           <div className="rounded-xl border border-line bg-paper-warm p-4">
@@ -253,7 +262,13 @@ export default function DirectoryAdminPage() {
   // Exclude the two rentable spaces (gallery = Main Floor, 200 = Loft) — those
   // are managed under Spaces, not assigned to tenants.
   const suites = listSuites().filter((s) => !zoneSpace(s.zone));
-  const byId = Object.fromEntries(tenants.map((t) => [t.id, t]));
+  // Junction-backed occupancy maps: which tenants share each suite, and which
+  // suite ids each tenant holds (a suite may have several tenants, and vice versa).
+  const suiteTenants = Object.fromEntries(suites.map((s) => [s.id, tenantsForSuite(s.id)]));
+  const occupiedByTenant = Object.fromEntries(
+    tenants.map((t) => [t.id, suitesForTenant(t.id).map((s) => s.id)])
+  );
+  const suiteById = Object.fromEntries(suites.map((s) => [s.id, s]));
 
   const lower = suites.filter((s) => s.floor === "lower");
   const upper = suites.filter((s) => s.floor !== "lower");
@@ -270,14 +285,17 @@ export default function DirectoryAdminPage() {
       <details className="mt-3 card p-5" open={tenants.length === 0}>
         <summary className="cursor-pointer font-semibold text-ink">+ Add a tenant</summary>
         <form action={addTenant} className="mt-4">
-          <TenantFields suites={suites} />
+          <TenantFields suites={suites} suiteTenants={suiteTenants} />
           <Button type="submit" className="mt-4">Add tenant</Button>
         </form>
       </details>
 
       <div className="mt-4 space-y-4">
         {tenants.map((e) => {
-          const theirSuites = suites.filter((s) => s.tenant_id === e.id).map((s) => s.name || s.zone);
+          const theirSuites = (occupiedByTenant[e.id] || [])
+            .map((id) => suiteById[id])
+            .filter(Boolean)
+            .map((s) => s.name || s.zone);
           return (
             <details key={e.id} id={`biz-${e.id}`} className="card p-5">
               <summary className="flex cursor-pointer items-center justify-between">
@@ -288,7 +306,7 @@ export default function DirectoryAdminPage() {
               </summary>
               <form action={saveTenant} className="mt-4">
                 <input type="hidden" name="id" value={e.id} />
-                <TenantFields entry={e} suites={suites} />
+                <TenantFields entry={e} suites={suites} occupiedIds={occupiedByTenant[e.id] || []} suiteTenants={suiteTenants} />
                 <Button type="submit" className="mt-4">Save</Button>
               </form>
               <SelfEditLink entry={e} />
@@ -315,7 +333,7 @@ export default function DirectoryAdminPage() {
             <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-ink-muted">{f.title}</h3>
             <div className="space-y-3">
               {f.list.map((s) => (
-                <SuiteRow key={s.id} suite={s} tenant={s.tenant_id ? byId[s.tenant_id] : null} />
+                <SuiteRow key={s.id} suite={s} tenants={suiteTenants[s.id] || []} />
               ))}
             </div>
           </div>

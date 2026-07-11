@@ -8,9 +8,10 @@ import { BUILDING_MAP, getFloor } from "@/lib/building-map.js";
  * tappable suite zones and a floating info card.
  *
  * `zones` is a map keyed by suite zone code (from getDirectoryMapData):
- *   { name, floor, tenant (directory row|null), available, vacant_photo, vacant_blurb }
- * Occupied suites show the tenant's own content; vacant suites show the owner's
- * available-space photo + blurb.
+ *   { name, floor, tenants ([directory row, …]), available, vacant_photo, vacant_blurb }
+ * Occupied suites show the tenant's own content (or a shared-suite list if
+ * two+ tenants split it); vacant suites show the owner's available-space
+ * photo + blurb.
  */
 export default function BuildingDirectory({ zones = {}, phone = "4355124608" }) {
   const [view, setView] = useState("entry"); // entry | lower | upper
@@ -96,10 +97,13 @@ function FloorPlan({ floor, zones, active, setActive, phone }) {
         <image href={F.img} x="0" y="0" width={F.w} height={F.h} preserveAspectRatio="xMidYMid meet" />
         {F.suites.map((s) => {
           const data = zones[s.code];
-          const tenant = data?.tenant;
+          const tenants = data?.tenants || [];
           const isActive = active === s.code;
-          const state = s.kind === "open" || s.kind === "loft" ? "special" : tenant ? "filled" : "open";
+          const state = s.kind === "open" || s.kind === "loft" ? "special" : tenants.length ? "filled" : "open";
           const label = data?.name || s.code;
+          const tenantLabel = tenants.length
+            ? tenants.map((t) => t.business_name).join(" & ")
+            : null;
           return (
             <rect
               key={s.code}
@@ -111,7 +115,7 @@ function FloorPlan({ floor, zones, active, setActive, phone }) {
               className={"bm-zone bm-zone--" + state + (isActive ? " is-active" : "")}
               tabIndex={0}
               role="button"
-              aria-label={tenant ? `${label} — ${tenant.business_name}` : `Suite ${label} — available`}
+              aria-label={tenantLabel ? `${label} — ${tenantLabel}` : `Suite ${label} — available`}
               onMouseEnter={() => setActive(s.code)}
               onFocus={() => setActive(s.code)}
               onClick={() => setActive(s.code)}
@@ -144,27 +148,68 @@ function FloorPlan({ floor, zones, active, setActive, phone }) {
               {card.data.space.blurb ? <p className="bm-card-blurb">{card.data.space.blurb}</p> : null}
               <a className="bm-card-link" href={card.data.space.href}>Book this space <span className="arrow">→</span></a>
             </>
-          ) : card.data.tenant ? (
+          ) : card.data.tenants?.length === 1 ? (
+            (() => {
+              const t = card.data.tenants[0];
+              return (
+                <>
+                  {t.photos?.[0] ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={t.photos[0]}
+                      alt={t.business_name}
+                      style={{ width: "100%", height: 110, objectFit: "cover", marginBottom: 10 }}
+                    />
+                  ) : null}
+                  <span className="bm-card-suite mono">
+                    {card.geo.kind === "open" ? "Open to all" : `Suite ${card.data.name}`}
+                  </span>
+                  <h4 className="bm-card-name">{t.business_name}</h4>
+                  {t.category ? <span className="bm-card-cat mono">{t.category}</span> : null}
+                  {t.description ? <p className="bm-card-blurb">{t.description}</p> : null}
+                  {t.href ? (
+                    <a className="bm-card-link" href={t.href}>
+                      See their page <span className="arrow">→</span>
+                    </a>
+                  ) : null}
+                </>
+              );
+            })()
+          ) : card.data.tenants?.length >= 2 ? (
             <>
-              {card.data.tenant.photos?.[0] ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={card.data.tenant.photos[0]}
-                  alt={card.data.tenant.business_name}
-                  style={{ width: "100%", height: 110, objectFit: "cover", marginBottom: 10 }}
-                />
-              ) : null}
               <span className="bm-card-suite mono">
-                {card.geo.kind === "open" ? "Open to all" : `Suite ${card.data.name}`}
+                Shared suite · {card.geo.kind === "open" ? "Open to all" : `Suite ${card.data.name}`}
               </span>
-              <h4 className="bm-card-name">{card.data.tenant.business_name}</h4>
-              {card.data.tenant.category ? <span className="bm-card-cat mono">{card.data.tenant.category}</span> : null}
-              {card.data.tenant.description ? <p className="bm-card-blurb">{card.data.tenant.description}</p> : null}
-              {card.data.tenant.href ? (
-                <a className="bm-card-link" href={card.data.tenant.href}>
-                  See their page <span className="arrow">→</span>
-                </a>
-              ) : null}
+              <h4 className="bm-card-name">{card.data.tenants.length} businesses</h4>
+              <ul style={{ listStyle: "none", padding: 0, margin: "10px 0 0", display: "grid", gap: 10 }}>
+                {card.data.tenants.map((t) => (
+                  <li key={t.id} style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    {t.photos?.[0] ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={t.photos[0]}
+                        alt={t.business_name}
+                        style={{ width: 44, height: 44, objectFit: "cover", flexShrink: 0 }}
+                      />
+                    ) : (
+                      <span style={{ width: 44, height: 44, background: "var(--paper-warm)", flexShrink: 0 }} aria-hidden="true" />
+                    )}
+                    <span style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
+                      <strong style={{ fontSize: 14, lineHeight: 1.2 }}>{t.business_name}</strong>
+                      {t.category ? (
+                        <span className="mono" style={{ fontSize: 10, color: "var(--ink-muted)", letterSpacing: ".06em" }}>
+                          {t.category}
+                        </span>
+                      ) : null}
+                      {t.href ? (
+                        <a className="bm-card-link" href={t.href} style={{ fontSize: 12, marginTop: 2 }}>
+                          See their page <span className="arrow">→</span>
+                        </a>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </>
           ) : (
             <>
