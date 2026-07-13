@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getEvent } from "@/lib/catalog.js";
+import { getEvent, normalizeLinkUrl } from "@/lib/catalog.js";
 import { formatDate, formatTime, spaceName } from "@/lib/constants.js";
 import PhotoSlot from "@/components/site/PhotoSlot.js";
 
@@ -48,7 +48,7 @@ export default function EventDetailPage({ params }) {
               <p className="eyebrow" style={{ color: "var(--verde-deep)" }}>How to reserve your spot</p>
               {e.payment_instructions ? <p style={{ marginTop: 8, color: "var(--ink-soft)", fontWeight: 300 }}>{e.payment_instructions}</p> : null}
               {e.payment_link ? (
-                <a href={e.payment_link} target="_blank" rel="noreferrer" className="btn btn--solid" style={{ marginTop: 14 }}>
+                <a href={normalizeLinkUrl(e.payment_link)} target="_blank" rel="noreferrer" className="btn btn--solid" style={{ marginTop: 14 }}>
                   Pay the host →
                 </a>
               ) : null}

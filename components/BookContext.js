@@ -398,6 +398,7 @@ function BookModal({ initialRoom, config, onClose }) {
     name: "",
     email: "",
     phone: "",
+    event_title: "",
     type: "",
     notes: "",
     alcohol: false,
@@ -547,6 +548,7 @@ function BookModal({ initialRoom, config, onClose }) {
       client_name: form.name.trim(),
       client_email: form.email.trim(),
       client_phone: form.phone.trim(),
+      event_title: form.event_title.trim() || null,
       event_type: form.type || null,
       guests: form.guests || null,
       notes: form.notes.trim() || null,
@@ -749,6 +751,12 @@ function BookModal({ initialRoom, config, onClose }) {
             <div>
               <h3 style={{ fontSize: 26, marginBottom: 18 }}>Tell us about it.</h3>
               <div style={{ display: "grid", gap: 16 }}>
+                <label><span style={labStyle}>Event title</span>
+                  <input name="event_title" value={form.event_title} onChange={set("event_title")} placeholder="e.g. Priya's Pottery Night" style={fieldStyle} />
+                  <span style={{ display: "block", marginTop: 6, fontSize: 12, color: "var(--ink-muted)", fontWeight: 300 }}>
+                    The name we&apos;ll show for your event — you can always change it later.
+                  </span>
+                </label>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                   <label><span style={labStyle}>Your name</span><input name="name" autoComplete="name" value={form.name} onChange={set("name")} placeholder="Jane Maker" style={fieldStyle} /></label>
                   <label><span style={labStyle}>Email</span><input name="email" type="email" autoComplete="email" inputMode="email" value={form.email} onChange={set("email")} placeholder="you@email.com" style={fieldStyle} /></label>
