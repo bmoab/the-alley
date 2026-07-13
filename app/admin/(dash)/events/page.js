@@ -179,6 +179,22 @@ function EventCard({ ev, children }) {
         <span className="shrink-0 text-xs text-ink-muted">edit ▾</span>
       </summary>
       <EventEditor ev={ev} />
+      {ev.host_token ? (
+        <div className="mt-3 border-t border-line pt-3">
+          <p className="text-xs font-semibold text-ink">Host self-edit link</p>
+          <p className="mt-1 text-xs text-ink-muted">
+            The host&apos;s private link to manage their own listing (title, description, photo, payment). Open it to
+            edit on their behalf, or re-send it.
+          </p>
+          <input readOnly value={`${APP_URL}/host-listing/${ev.host_token}`} className="field mt-2 text-xs" />
+          <form action={emailHostLink} className="mt-2">
+            <input type="hidden" name="id" value={ev.id} />
+            <Button type="submit" variant="ghost" size="sm">
+              {ev.host_email ? `Email link to ${ev.host_email}` : "No host email on file"}
+            </Button>
+          </form>
+        </div>
+      ) : null}
       <div className="mt-3 flex flex-wrap gap-3 border-t border-line pt-3">{children}</div>
     </details>
   );
