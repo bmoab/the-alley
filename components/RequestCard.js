@@ -26,12 +26,109 @@ function SubmitButton({ formAction, variant, children, pendingLabel }) {
 }
 
 /**
+ * Tenant attribution for a request: a checkbox that reveals the tenant list,
+ * plus a live tally of that tenant's free bookings for the event's year. The
+ * tag records WHO; the price decides whether it's free, so the two can't
+ * disagree. Over-allowance warns but never blocks — the owner decides.
+ */
+function TenantPicker({
+  tenants,
+  isTenant,
+  setIsTenant,
+  tenantId,
+  setTenantId,
+  used,
+  allowance,
+  allowanceGone,
+  isFree,
+  eventYear,
+  suggested,
+}) {
+  return (
+    <div className="mt-4 rounded-lg border border-line bg-paper-warm p-3">
+      <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-ink">
+        <input
+          type="checkbox"
+          checked={isTenant}
+          onChange={(e) => {
+            setIsTenant(e.target.checked);
+            if (!e.target.checked) setTenantId("");
+          }}
+          className="h-4 w-4 accent-verde-deep"
+        />
+        This is a tenant booking
+      </label>
+
+      {/* Always submitted: empty string clears the tag. */}
+      <input type="hidden" name="tenant_id" value={isTenant ? tenantId : ""} />
+
+      {isTenant ? (
+        <div className="mt-3">
+          <label className="label" htmlFor={`tenant-${eventYear}-${allowance}`}>
+            Tenant
+          </label>
+          <select
+            value={tenantId}
+            onChange={(e) => setTenantId(e.target.value)}
+            className="field"
+          >
+            <option value="">Select a tenant…</option>
+            {tenants.map((t) => (
+              <option key={t.id} value={String(t.id)}>
+                {t.business_name}
+              </option>
+            ))}
+          </select>
+
+          {tenants.length === 0 ? (
+            <p className="mt-2 text-xs text-ink-muted">
+              No tenants in the Directory yet — add one there first.
+            </p>
+          ) : null}
+
+          {suggested ? (
+            <p className="mt-2 text-xs text-ink-muted">
+              Matched automatically from the client&rsquo;s email — change it if that&rsquo;s wrong.
+            </p>
+          ) : null}
+
+          {tenantId ? (
+            <p
+              className={
+                "mt-2 text-xs font-medium " +
+                (allowanceGone && isFree ? "text-rust" : "text-ink-soft")
+              }
+            >
+              {allowanceGone
+                ? `All ${allowance} free bookings used in ${eventYear}.` +
+                  (isFree ? " Approving this at $0 goes over the allowance." : "")
+                : `${used} of ${allowance} free bookings used in ${eventYear}.` +
+                  (isFree ? ` This one makes ${used + 1}.` : "")}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
  * One pending booking request in the admin Requests view.
  * The owner can adjust rate / hours / sessions / deposit (total recalculates
  * live) before approving, or deny. Both buttons submit the same form to
  * different server actions via formAction.
  */
-export default function RequestCard({ booking, series, approveAction, denyAction, approveSeriesAction }) {
+export default function RequestCard({
+  booking,
+  series,
+  approveAction,
+  denyAction,
+  approveSeriesAction,
+  tenants = [],
+  tenantUsage = {},
+  tenantAllowance = 2,
+  suggestedTenantId = null,
+}) {
   const [rate, setRate] = useState(booking.rate ?? 75);
   const [hours, setHours] = useState(booking.hours ?? 2);
   const [sessions, setSessions] = useState(booking.sessions ?? 1);
@@ -40,9 +137,37 @@ export default function RequestCard({ booking, series, approveAction, denyAction
     (series ? series.find((r) => r.is_deposit_holder)?.deposit : booking.deposit) ?? 150
   );
   const [invoiceMode, setInvoiceMode] = useState("scheduled");
+  // Pre-tick when the client's email matches a tenant's listed contact — the
+  // common case is confirming a guess, not hunting through the dropdown.
+  const [isTenant, setIsTenant] = useState(Boolean(booking.tenant_id || suggestedTenantId));
+  const [tenantId, setTenantId] = useState(
+    String(booking.tenant_id || suggestedTenantId || "")
+  );
 
   const rental = (Number(rate) || 0) * (Number(hours) || 0) * Math.max(1, Number(sessions) || 1);
   const total = rental + (Number(deposit) || 0);
+
+  // Free-booking tally for the picked tenant, in the year this event falls in.
+  // `free` differs per card (a series totals across its sessions), so the picker
+  // is rendered per-branch rather than precomputed.
+  const eventYear = String(booking.date || "").slice(0, 4);
+  const used = tenantId ? tenantUsage[tenantId] || 0 : 0;
+  const isFree = total === 0;
+  const renderTenantPicker = (free) => (
+    <TenantPicker
+      tenants={tenants}
+      isTenant={isTenant}
+      setIsTenant={setIsTenant}
+      tenantId={tenantId}
+      setTenantId={setTenantId}
+      used={used}
+      allowance={tenantAllowance}
+      allowanceGone={used >= tenantAllowance}
+      isFree={free}
+      eventYear={eventYear}
+      suggested={Boolean(suggestedTenantId) && String(suggestedTenantId) === tenantId}
+    />
+  );
 
   // ---- Recurring series card ----
   if (series && series.length) {
@@ -125,15 +250,22 @@ export default function RequestCard({ booking, series, approveAction, denyAction
             </div>
           </div>
 
+          {renderTenantPicker(seriesTotal === 0)}
+
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <div className="text-sm text-ink-soft">
               Rental {formatMoney(rental)} × {series.length} + deposit {formatMoney(Number(deposit) || 0)} ={" "}
               <span className="text-lg font-semibold text-ink">{formatMoney(seriesTotal)}</span>
+              {seriesTotal === 0 ? (
+                <span className="ml-2 rounded-full border border-verde-deep/40 bg-verde/40 px-2 py-0.5 text-xs font-semibold text-verde-deep">
+                  Free — no invoices
+                </span>
+              ) : null}
             </div>
             <div className="flex gap-2">
               <DenyDialog bookingId={holder.id} clientName={holder.client_name} denyAction={denyAction} />
               <SubmitButton formAction={approveSeriesAction} pendingLabel="Approving…" variant="accent">
-                Approve series &amp; invoice
+                {seriesTotal === 0 ? "Approve series as free" : "Approve series & invoice"}
               </SubmitButton>
             </div>
           </div>
@@ -226,6 +358,8 @@ export default function RequestCard({ booking, series, approveAction, denyAction
           </div>
         </div>
 
+        {renderTenantPicker(isFree)}
+
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm text-ink-soft">
             Rental {formatMoney(rental)}
@@ -234,6 +368,11 @@ export default function RequestCard({ booking, series, approveAction, denyAction
             <span className="text-lg font-semibold text-ink">
               {formatMoney(total)}
             </span>
+            {isFree ? (
+              <span className="ml-2 rounded-full border border-verde-deep/40 bg-verde/40 px-2 py-0.5 text-xs font-semibold text-verde-deep">
+                Free — no invoice
+              </span>
+            ) : null}
           </div>
           <div className="flex gap-2">
             {/* Deny opens a dialog (its own form) to capture the reason. */}
@@ -247,7 +386,7 @@ export default function RequestCard({ booking, series, approveAction, denyAction
               pendingLabel="Approving…"
               variant="accent"
             >
-              Approve &amp; send payment link
+              {isFree ? "Approve as free booking" : "Approve & send payment link"}
             </SubmitButton>
           </div>
         </div>

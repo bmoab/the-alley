@@ -11,7 +11,11 @@ import {
   denySeries,
   setDepositInvoiceInfo,
   rentalAmount,
+  setBookingTenant,
+  tenantFreeBookingUsage,
+  tenantFreeAllowance,
 } from "@/lib/bookings.js";
+import { listDirectory } from "@/lib/catalog.js";
 import { createBookingInvoice, createDepositInvoice } from "@/lib/square.js";
 import { confirmBookingPaid } from "@/lib/payments.js";
 import { emailClientApproved, emailClientDenied, emailClientSeriesApproved } from "@/lib/email.js";
@@ -47,6 +51,9 @@ async function approve(formData) {
     sessions: formData.get("sessions"),
     deposit: formData.get("deposit"),
   });
+  // Tenant attribution (blank clears it). A $0 booking tagged to a tenant is
+  // what counts against their yearly free-booking allowance.
+  booking = setBookingTenant(id, formData.get("tenant_id")) || booking;
 
   // A $0 booking (e.g. a tenant's free booking) has nothing to invoice — Square
   // rejects any total under $0.01. Skip the payment step entirely and confirm it
@@ -122,6 +129,8 @@ async function approveSeries(formData) {
   // Apply pricing across the series + place every date on the calendar (reserved).
   let rows = reserveSeries(seriesId, pricing);
   const holder = rows.find((r) => r.is_deposit_holder) || rows[0];
+  // Tenant attribution applies across the whole series (blank clears it).
+  setBookingTenant(holder.id, formData.get("tenant_id"));
   // Every session free and the deposit waived — nothing to invoice at any point.
   // (A holder's total includes the series deposit; other rows carry deposit 0.)
   const comped = rows.every((r) => Number(r.total) === 0);
@@ -272,9 +281,34 @@ async function deny(formData) {
   toastRedirect(`Request declined — the client has been notified.`, "neutral");
 }
 
+/**
+ * Guess the tenant behind a request by matching the client's email to a
+ * directory listing's contact email. Only a suggestion — the owner confirms it
+ * with the checkbox, and can pick a different tenant or clear it.
+ */
+function suggestTenant(booking, tenants) {
+  const email = String(booking.client_email || "").trim().toLowerCase();
+  if (!email) return null;
+  const hit = tenants.find(
+    (t) => String(t.contact_email || "").trim().toLowerCase() === email
+  );
+  return hit?.id ?? null;
+}
+
 export default function RequestsPage() {
   // Oldest submitted at the top (FIFO) so requests are worked in arrival order.
   const pending = listBookings({ status: "pending", sort: "created_asc" });
+
+  // Tenant attribution inputs. The allowance is per calendar year, so each card
+  // is given the tally for ITS event's year (a December request being approved
+  // for January counts against January's year, not today's).
+  const tenants = listDirectory();
+  const allowance = tenantFreeAllowance();
+  const usageByYear = {};
+  const usageFor = (year) => {
+    if (!usageByYear[year]) usageByYear[year] = tenantFreeBookingUsage(year);
+    return usageByYear[year];
+  };
 
   // Collapse each recurring series into a single card (anchored at the holder).
   const seenSeries = new Set();
@@ -306,14 +340,22 @@ export default function RequestsPage() {
         </Card>
       ) : (
         <div className="space-y-5">
-          {items.map((it) =>
-            it.type === "series" ? (
+          {items.map((it) => {
+            const anchor = it.type === "series" ? it.holder : it.booking;
+            const tenantProps = {
+              tenants,
+              tenantAllowance: allowance,
+              tenantUsage: usageFor(String(anchor.date || "").slice(0, 4)),
+              suggestedTenantId: suggestTenant(anchor, tenants),
+            };
+            return it.type === "series" ? (
               <RequestCard
                 key={`s${it.holder.series_id}`}
                 booking={it.holder}
                 series={it.rows}
                 approveSeriesAction={approveSeries}
                 denyAction={denySeriesAction}
+                {...tenantProps}
               />
             ) : (
               <RequestCard
@@ -321,9 +363,10 @@ export default function RequestsPage() {
                 booking={it.booking}
                 approveAction={approve}
                 denyAction={deny}
+                {...tenantProps}
               />
-            )
-          )}
+            );
+          })}
         </div>
       )}
     </div>

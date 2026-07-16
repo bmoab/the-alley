@@ -10,6 +10,7 @@ import {
   unarchiveBooking,
 } from "@/lib/bookings.js";
 import { confirmBookingPaid, releaseExpiredHolds } from "@/lib/payments.js";
+import { listDirectory } from "@/lib/catalog.js";
 import { getInvoiceStatus } from "@/lib/square.js";
 import { logActivity } from "@/lib/activity.js";
 import { getActor } from "@/lib/auth.js";
@@ -224,6 +225,9 @@ export default async function BookingsPage({ searchParams }) {
     return "/admin/bookings" + (s ? `?${s}` : "");
   };
 
+  // Tenant names for the attribution tag (the directory is small — one read).
+  const tenantName = Object.fromEntries(listDirectory().map((t) => [t.id, t.business_name]));
+
   const otherSort = sort === "date_asc" ? "date_desc" : "date_asc";
   const presetLabel = DATE_PRESETS.find((p) => p.key === preset)?.label || "Upcoming";
   const isFiltered = q || space || (explicitPreset && explicitPreset !== defaultPreset);
@@ -358,6 +362,11 @@ export default async function BookingsPage({ searchParams }) {
                       {b.client_name}
                     </div>
                     <div className="text-xs text-ink-muted">{b.client_email}</div>
+                    {b.tenant_id && tenantName[b.tenant_id] ? (
+                      <div className="text-xs font-medium text-verde-deep">
+                        Tenant · {tenantName[b.tenant_id]}
+                      </div>
+                    ) : null}
                     {b.series_id ? (
                       <div className="text-xs font-medium text-sky-700">
                         Recurring · session {b.series_index}/{b.series_total}
