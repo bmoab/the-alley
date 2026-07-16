@@ -29,6 +29,7 @@ import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
 import Badge from "@/components/admin/ui/Badge.js";
 import Button from "@/components/admin/ui/Button.js";
+import BookingActionsMenu from "@/components/admin/BookingActionsMenu.js";
 import { DataTable, Tr, Td } from "@/components/admin/ui/DataTable.js";
 import { cx } from "@/components/admin/ui/cx.js";
 
@@ -232,18 +233,17 @@ export default async function BookingsPage({ searchParams }) {
   const presetLabel = DATE_PRESETS.find((p) => p.key === preset)?.label || "Upcoming";
   const isFiltered = q || space || (explicitPreset && explicitPreset !== defaultPreset);
 
-  // Hidden inputs that carry the current filters through every row action.
-  const filterInputs = (
-    <>
-      <input type="hidden" name="status" value={status} />
-      <input type="hidden" name="sort" value={sort} />
-      <input type="hidden" name="q" value={q} />
-      <input type="hidden" name="space" value={space} />
-      <input type="hidden" name="preset" value={preset} />
-      <input type="hidden" name="from" value={customFrom} />
-      <input type="hidden" name="to" value={customTo} />
-    </>
-  );
+  // Carried through every row action so acting on a booking returns you to the
+  // same filtered view.
+  const filterValues = {
+    status,
+    sort,
+    q,
+    space,
+    preset,
+    from: customFrom,
+    to: customTo,
+  };
 
   return (
     <div>
@@ -252,8 +252,11 @@ export default async function BookingsPage({ searchParams }) {
         subtitle="Every booking — pending, on the calendar, and past. Nothing is ever deleted; archive what you don't want to see."
       />
 
-      {/* Status filter */}
-      <div className="mb-5 flex flex-wrap gap-1 rounded-full border border-line bg-paper p-1">
+      {/* Status filter. Ten filters can't sit on one row on a phone, so the
+          container is a rounded block rather than a full-radius pill — a pill
+          radius wrapped around three rows reads as a mistake. The filters
+          themselves stay pills. */}
+      <div className="mb-5 flex flex-wrap gap-1 rounded-2xl border border-line bg-paper p-1">
         {FILTERS.map((f) => (
           <Link
             key={f.key}
@@ -342,9 +345,12 @@ export default async function BookingsPage({ searchParams }) {
               "Status",
               "Payment",
               "Total",
-              "Action",
+              "",
             ]}
-            minWidth={760}
+            minWidth={620}
+            // Pin the ⋯ column to the right edge. The table scrolls sideways on
+            // a phone, which otherwise parks every row action off-screen.
+            className="[&_tr>*:last-child]:sticky [&_tr>*:last-child]:right-0 [&_tr>*:last-child]:z-10 [&_tr>*:last-child]:bg-paper [&_tr>*:last-child]:shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.08)]"
           >
             {rows.map((b) => {
               const dim = b.status === "cancelled" || b.archived;
@@ -403,110 +409,14 @@ export default async function BookingsPage({ searchParams }) {
                   </Td>
                   <Td className="text-right font-medium text-ink">{formatMoney(b.total)}</Td>
                   <Td className="text-right">
-                    <div className="ml-auto flex w-[150px] flex-col gap-1.5">
-                      {b.archived ? (
-                        <form action={archive}>
-                          {filterInputs}
-                          <input type="hidden" name="id" value={b.id} />
-                          <input type="hidden" name="on" value="0" />
-                          <Button type="submit" variant="ghost" size="sm" full className="whitespace-nowrap">
-                            Unarchive
-                          </Button>
-                        </form>
-                      ) : (
-                        <>
-                          {b.status === "pending" ? (
-                            <Button href="/admin/requests" variant="accent" size="sm" full className="whitespace-nowrap">
-                              Review request
-                            </Button>
-                          ) : null}
-
-                          {b.status === "held" || b.status === "reserved" ? (
-                            <>
-                              {b.square_invoice_id ? (
-                                <form action={checkPayment}>
-                                  {filterInputs}
-                                  <input type="hidden" name="id" value={b.id} />
-                                  <Button type="submit" variant="ghost" size="sm" full className="whitespace-nowrap">
-                                    Check for payment
-                                  </Button>
-                                </form>
-                              ) : null}
-                              <form action={markPaid}>
-                                {filterInputs}
-                                <input type="hidden" name="id" value={b.id} />
-                                <Button type="submit" variant="accent" size="sm" full className="whitespace-nowrap">
-                                  Mark as paid
-                                </Button>
-                              </form>
-                            </>
-                          ) : null}
-
-                          {b.status === "denied" ? (
-                            <>
-                              <form action={restore}>
-                                {filterInputs}
-                                <input type="hidden" name="id" value={b.id} />
-                                <input type="hidden" name="to" value="pending" />
-                                <Button type="submit" variant="ghost" size="sm" full className="whitespace-nowrap">
-                                  Restore → Pending
-                                </Button>
-                              </form>
-                              <form action={restore}>
-                                {filterInputs}
-                                <input type="hidden" name="id" value={b.id} />
-                                <input type="hidden" name="to" value="held" />
-                                <Button type="submit" variant="subtle" size="sm" full className="whitespace-nowrap">
-                                  Restore → Held
-                                </Button>
-                              </form>
-                            </>
-                          ) : null}
-
-                          <div className="flex items-center justify-between gap-2 px-0.5 text-xs">
-                            {b.payment_link ? (
-                              <a
-                                href={b.payment_link}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="whitespace-nowrap font-medium text-verde-deep hover:underline"
-                              >
-                                Invoice ↗
-                              </a>
-                            ) : <span />}
-                            {b.status === "held" || b.status === "reserved" || b.status === "confirmed" ? (
-                              <Link
-                                href={`/admin/bookings/${b.id}/cancel`}
-                                className="whitespace-nowrap font-medium text-rust hover:underline"
-                              >
-                                Cancel
-                              </Link>
-                            ) : null}
-                          </div>
-
-                          {b.series_id && (b.status === "held" || b.status === "reserved" || b.status === "confirmed") ? (
-                            <Link
-                              href={`/admin/bookings/series/${b.series_id}/cancel`}
-                              className="px-0.5 text-xs font-medium text-rust hover:underline"
-                            >
-                              Cancel whole series
-                            </Link>
-                          ) : null}
-
-                          <form action={archive}>
-                            {filterInputs}
-                            <input type="hidden" name="id" value={b.id} />
-                            <input type="hidden" name="on" value="1" />
-                            <button
-                              type="submit"
-                              className="px-0.5 text-left text-xs font-medium text-ink-muted hover:text-ink hover:underline"
-                            >
-                              Archive
-                            </button>
-                          </form>
-                        </>
-                      )}
-                    </div>
+                    <BookingActionsMenu
+                      booking={b}
+                      filters={filterValues}
+                      markPaidAction={markPaid}
+                      checkPaymentAction={checkPayment}
+                      restoreAction={restore}
+                      archiveAction={archive}
+                    />
                   </Td>
                 </Tr>
               );
