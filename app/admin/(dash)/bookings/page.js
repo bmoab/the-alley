@@ -1,12 +1,23 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { listBookings, getBooking } from "@/lib/bookings.js";
+import {
+  listBookings,
+  getBooking,
+  findRestoreConflict,
+  restoreBooking,
+  archiveBooking,
+  unarchiveBooking,
+} from "@/lib/bookings.js";
 import { confirmBookingPaid, releaseExpiredHolds } from "@/lib/payments.js";
 import { getInvoiceStatus } from "@/lib/square.js";
+import { logActivity } from "@/lib/activity.js";
 import { getActor } from "@/lib/auth.js";
 import {
   SPACES,
+  DATE_PRESETS,
+  DEFAULT_DATE_PRESET,
+  resolveDateRange,
   spaceName,
   formatDate,
   formatDateShort,
@@ -22,14 +33,57 @@ import { cx } from "@/components/admin/ui/cx.js";
 
 export const metadata = { title: "Bookings" };
 
+// Status filters. "archived" is not a status — it's the junk drawer, showing
+// archived rows of every status (they're hidden from all the other filters).
+const FILTERS = [
+  { key: "all", label: "All" },
+  { key: "pending", label: "Pending" },
+  { key: "held", label: "Held" },
+  { key: "reserved", label: "Reserved" },
+  { key: "confirmed", label: "Confirmed" },
+  { key: "completed", label: "Completed" },
+  { key: "denied", label: "Denied" },
+  { key: "cancelled", label: "Cancelled" },
+  { key: "expired", label: "Expired" },
+  { key: "archived", label: "Archived" },
+];
+
+// Filters that are inherently about the past — these default to "All time"
+// rather than "Upcoming", which would leave them looking empty.
+const HISTORICAL_STATUSES = new Set([
+  "archived",
+  "cancelled",
+  "denied",
+  "expired",
+  "completed",
+]);
+
+function refresh() {
+  revalidatePath("/admin/bookings");
+  revalidatePath("/admin/requests");
+  revalidatePath("/admin");
+  revalidatePath("/admin/events");
+}
+
+// Preserve the caller's filters across a server action, so acting on a row
+// doesn't dump the owner back to an unfiltered list.
+function backTo(formData, extra = {}) {
+  const p = new URLSearchParams();
+  for (const k of ["status", "sort", "q", "space", "preset", "from", "to"]) {
+    const v = formData.get(k);
+    if (v) p.set(k, String(v));
+  }
+  for (const [k, v] of Object.entries(extra)) if (v) p.set(k, String(v));
+  const s = p.toString();
+  return "/admin/bookings" + (s ? `?${s}` : "");
+}
+
 async function markPaid(formData) {
   "use server";
   const id = Number(formData.get("id"));
   await confirmBookingPaid(id, await getActor());
-  revalidatePath("/admin/bookings");
-  revalidatePath("/admin");
-  revalidatePath("/admin/events");
-  redirect("/admin/bookings?paid=" + id);
+  refresh();
+  redirect(backTo(formData, { toast: `Booking #${id} marked as paid.`, toastType: "success" }));
 }
 
 // Ask Square whether the invoice has been paid; if so, confirm the booking.
@@ -37,185 +91,420 @@ async function checkPayment(formData) {
   "use server";
   const id = Number(formData.get("id"));
   const b = getBooking(id);
-  let result = "nopay";
+  let toast = "No payment recorded yet.";
+  let toastType = "neutral";
   if (b?.square_invoice_id) {
     try {
       const status = await getInvoiceStatus(b.square_invoice_id);
       if (status === "paid") {
         await confirmBookingPaid(id, await getActor());
-        result = "paid";
+        toast = `Payment found — booking #${id} is confirmed.`;
+        toastType = "success";
       }
     } catch (err) {
       console.error("[bookings] check payment error:", err.message);
-      result = "error";
+      toast = `Couldn't reach Square: ${err.message}`;
+      toastType = "error";
     }
   }
-  revalidatePath("/admin/bookings");
-  revalidatePath("/admin");
-  revalidatePath("/admin/events");
-  redirect("/admin/bookings?" + (result === "paid" ? "paid=" + id : "checked=" + id + "&r=" + result) + "#b-" + id);
+  refresh();
+  redirect(backTo(formData, { toast, toastType }));
+}
+
+// Restore a denied booking. Blocks (with a toast) if its buffered slot now
+// conflicts with another held/confirmed booking; never silently double-books.
+async function restore(formData) {
+  "use server";
+  const id = Number(formData.get("id"));
+  const to = formData.get("to") === "held" ? "held" : "pending";
+  const booking = getBooking(id);
+  if (!booking) redirect("/admin/bookings");
+
+  const conflict = findRestoreConflict(booking);
+  if (conflict) {
+    redirect(
+      backTo(formData, {
+        toast: `Can't restore — that slot now conflicts with ${conflict.client_name} on ${formatDate(conflict.date)} at ${formatTime(conflict.start_time)} (${spaceName(conflict.space)}). Resolve that booking first.`,
+        toastType: "error",
+      })
+    );
+  }
+
+  restoreBooking(id, to);
+  logActivity({
+    bookingId: id,
+    eventType: "restored",
+    description: `Restored from denied → ${to === "held" ? "held (approved)" : "pending"}`,
+    metadata: { to },
+    ...(await getActor()),
+  });
+  refresh();
+  redirect(
+    backTo(formData, {
+      toast: `Booking #${id} restored to ${to === "held" ? "held (approved)" : "pending"}.`,
+      toastType: "success",
+    })
+  );
+}
+
+async function archive(formData) {
+  "use server";
+  const id = Number(formData.get("id"));
+  const on = formData.get("on") !== "0";
+  const actor = await getActor();
+  if (on) archiveBooking(id);
+  else unarchiveBooking(id);
+  logActivity({
+    bookingId: id,
+    eventType: on ? "archived" : "unarchived",
+    description: on ? "Archived — hidden from the bookings list" : "Restored from archive",
+    ...actor,
+  });
+  refresh();
+  redirect(
+    backTo(formData, {
+      toast: on
+        ? `Booking #${id} archived. Find it under the Archived filter.`
+        : `Booking #${id} is back in the list.`,
+      toastType: "success",
+    })
+  );
 }
 
 export default async function BookingsPage({ searchParams }) {
-  // Lazy sweep: release any holds whose 3-day window has lapsed (a cron would do
-  // this in production). Notifies affected clients.
+  // Lazy sweep: release any holds whose payment window has lapsed (a cron does
+  // this in production too). Notifies affected clients.
   await releaseExpiredHolds();
 
-  const spaceFilter = searchParams?.space || "";
-  const focus = Number(searchParams?.focus) || 0;
-  // Everything that lives on the calendar / has moved past the request stage.
-  const all = listBookings(spaceFilter ? { space: spaceFilter } : {}).filter(
-    (b) => b.status !== "pending" && b.status !== "denied"
+  const status = searchParams?.status || "all";
+  const sort = searchParams?.sort === "date_desc" ? "date_desc" : "date_asc";
+  const q = (searchParams?.q || "").toString();
+  const space = (searchParams?.space || "").toString();
+  const customFrom = (searchParams?.from || "").toString();
+  const customTo = (searchParams?.to || "").toString();
+
+  // The date filter defaults to "upcoming" so finished events stay out of the
+  // way — but the retrospective filters are about the past by definition, and
+  // pairing them with "upcoming" would show a permanently empty list. Only an
+  // explicit ?preset overrides this, so switching filters doesn't carry an
+  // implied range along with it.
+  const explicitPreset = (searchParams?.preset || "").toString();
+  const defaultPreset = HISTORICAL_STATUSES.has(status) ? "all" : DEFAULT_DATE_PRESET;
+  const preset = explicitPreset || defaultPreset;
+
+  const { from, to } = resolveDateRange(preset, { from: customFrom, to: customTo });
+  const archived = status === "archived";
+
+  const rows = listBookings({
+    status: archived || status === "all" ? undefined : status,
+    sort,
+    q,
+    space: space || undefined,
+    from: from || undefined,
+    to: to || undefined,
+    archived,
+  });
+
+  // `preset` here is the EXPLICIT one: links carry a range only when the owner
+  // actually chose it, so each status keeps its own sensible default.
+  const current = { status, sort, q, space, preset: explicitPreset, from: customFrom, to: customTo };
+  const qs = (next = {}) => {
+    const m = { ...current, ...next };
+    const p = new URLSearchParams();
+    if (m.status && m.status !== "all") p.set("status", m.status);
+    if (m.sort && m.sort !== "date_asc") p.set("sort", m.sort);
+    if (m.q) p.set("q", m.q);
+    if (m.space) p.set("space", m.space);
+    if (m.preset) p.set("preset", m.preset);
+    if (m.preset === "custom") {
+      if (m.from) p.set("from", m.from);
+      if (m.to) p.set("to", m.to);
+    }
+    const s = p.toString();
+    return "/admin/bookings" + (s ? `?${s}` : "");
+  };
+
+  const otherSort = sort === "date_asc" ? "date_desc" : "date_asc";
+  const presetLabel = DATE_PRESETS.find((p) => p.key === preset)?.label || "Upcoming";
+  const isFiltered = q || space || (explicitPreset && explicitPreset !== defaultPreset);
+
+  // Hidden inputs that carry the current filters through every row action.
+  const filterInputs = (
+    <>
+      <input type="hidden" name="status" value={status} />
+      <input type="hidden" name="sort" value={sort} />
+      <input type="hidden" name="q" value={q} />
+      <input type="hidden" name="space" value={space} />
+      <input type="hidden" name="preset" value={preset} />
+      <input type="hidden" name="from" value={customFrom} />
+      <input type="hidden" name="to" value={customTo} />
+    </>
   );
 
   return (
     <div>
-      <PageHeader title="Bookings" subtitle="Held, reserved (recurring), confirmed, and past bookings." />
+      <PageHeader
+        title="Bookings"
+        subtitle="Every booking — pending, on the calendar, and past. Nothing is ever deleted; archive what you don't want to see."
+      />
 
-      {/* Space filter */}
-      <div className="mb-6 inline-flex flex-wrap gap-1 rounded-full border border-line bg-paper p-1">
-        <FilterPill href="/admin/bookings" active={!spaceFilter}>
-          All spaces
-        </FilterPill>
-        {SPACES.map((s) => (
-          <FilterPill
-            key={s.id}
-            href={`/admin/bookings?space=${s.id}`}
-            active={spaceFilter === s.id}
+      {/* Status filter */}
+      <div className="mb-5 flex flex-wrap gap-1 rounded-full border border-line bg-paper p-1">
+        {FILTERS.map((f) => (
+          <Link
+            key={f.key}
+            href={qs({ status: f.key })}
+            className={cx(
+              "rounded-full px-3.5 py-1.5 text-sm font-semibold transition",
+              status === f.key
+                ? "bg-ink text-paper"
+                : "text-ink-soft hover:bg-paper-dim hover:text-ink"
+            )}
           >
-            {s.name}
-          </FilterPill>
+            {f.label}
+          </Link>
         ))}
       </div>
 
-      {all.length === 0 ? (
+      {/* Search + space + date range (GET; status/sort preserved via hidden inputs) */}
+      <form method="get" className="mb-5 flex flex-wrap items-end gap-3">
+        {status !== "all" ? <input type="hidden" name="status" value={status} /> : null}
+        {sort !== "date_asc" ? <input type="hidden" name="sort" value={sort} /> : null}
+        <div className="min-w-[12rem] flex-1">
+          <label className="label" htmlFor="q">Search client</label>
+          <input id="q" name="q" defaultValue={q} className="field" placeholder="Name or email" />
+        </div>
+        <div>
+          <label className="label" htmlFor="space">Space</label>
+          <select id="space" name="space" defaultValue={space} className="field">
+            <option value="">All spaces</option>
+            {SPACES.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="label" htmlFor="preset">Dates</label>
+          <select id="preset" name="preset" defaultValue={preset} className="field">
+            {DATE_PRESETS.map((p) => (
+              <option key={p.key} value={p.key}>{p.label}</option>
+            ))}
+          </select>
+        </div>
+        {/* Only rendered for "Custom…" — otherwise the preset supplies the range
+            and these would look editable while doing nothing. */}
+        {preset === "custom" ? (
+          <>
+            <div>
+              <label className="label" htmlFor="from">From</label>
+              <input id="from" name="from" type="date" defaultValue={customFrom} className="field" />
+            </div>
+            <div>
+              <label className="label" htmlFor="to">To</label>
+              <input id="to" name="to" type="date" defaultValue={customTo} className="field" />
+            </div>
+          </>
+        ) : null}
+        <Button type="submit" variant="ghost">Filter</Button>
+        {isFiltered ? (
+          <Button href={qs({ q: "", space: "", preset: "", from: "", to: "" })} variant="subtle">
+            Clear
+          </Button>
+        ) : null}
+      </form>
+
+      {rows.length === 0 ? (
         <Card pad="lg" className="py-12 text-center text-ink-muted">
-          No bookings yet. Approve a request to place a hold on the calendar.
+          {archived
+            ? "Nothing archived."
+            : `No bookings match this filter${preset !== "all" ? ` in “${presetLabel}”` : ""}.`}
+          {preset !== "all" && !archived ? (
+            <div className="mt-2 text-sm">
+              <Link href={qs({ preset: "all" })} className="font-medium text-verde-deep hover:underline">
+                Search all time instead →
+              </Link>
+            </div>
+          ) : null}
         </Card>
       ) : (
         <Card pad="sm">
           <DataTable
-            columns={["Date", "Space", "Client", "Status", "Payment", "Total", "Action"]}
-            minWidth={680}
+            columns={[
+              <Link key="d" href={qs({ sort: otherSort })} className="inline-flex items-center gap-1 hover:text-ink">
+                Date {sort === "date_asc" ? "↑" : "↓"}
+              </Link>,
+              "Client",
+              "Space",
+              "Status",
+              "Payment",
+              "Total",
+              "Action",
+            ]}
+            minWidth={760}
           >
-            {all.map((b) => (
-              <Tr key={b.id} id={`b-${b.id}`} className={focus === b.id ? "bg-verde/40" : ""}>
-                <Td>
-                  <div className="whitespace-nowrap font-medium text-ink">{formatDateShort(b.date)}</div>
-                  <div className="text-xs text-ink-muted">
-                    {formatTime(b.start_time)} · {b.hours}h
-                  </div>
-                </Td>
-                <Td className="whitespace-nowrap">{spaceName(b.space).replace("The Alley ", "")}</Td>
-                <Td>
-                  <div className="font-medium text-ink">{b.client_name}</div>
-                  <div className="text-xs text-ink-muted">{b.client_email}</div>
-                  {b.series_id ? (
-                    <div className="text-xs font-medium text-sky-700">
-                      Recurring · session {b.series_index}/{b.series_total}
-                    </div>
-                  ) : null}
-                  <Link
-                    href={`/admin/bookings?${spaceFilter ? `space=${spaceFilter}&` : ""}b=${b.id}`}
-                    className="mt-0.5 inline-block whitespace-nowrap text-xs font-medium text-verde-deep hover:underline"
-                    scroll={false}
-                  >
-                    View activity →
-                  </Link>
-                </Td>
-                <Td>
-                  <Badge status={b.status} />
-                </Td>
-                <Td className="capitalize">
-                  {b.payment_status || "unpaid"}
-                  {b.status === "held" && b.hold_expires_at ? (
+            {rows.map((b) => {
+              const dim = b.status === "cancelled" || b.archived;
+              const comped = Number(b.total) === 0;
+              return (
+                <Tr key={b.id} id={`b-${b.id}`} className={dim ? "opacity-55" : ""}>
+                  <Td>
+                    <div className="whitespace-nowrap font-medium text-ink">{formatDateShort(b.date)}</div>
                     <div className="text-xs text-ink-muted">
-                      holds until {formatDate(b.hold_expires_at.slice(0, 10))}
+                      {formatTime(b.start_time)} · {b.hours}h
                     </div>
-                  ) : null}
-                </Td>
-                <Td className="text-right font-medium text-ink">{formatMoney(b.total)}</Td>
-                <Td className="text-right">
-                  {b.status === "held" || b.status === "reserved" ? (
+                  </Td>
+                  <Td>
+                    <div className={dim ? "text-ink-soft line-through" : "font-medium text-ink"}>
+                      {b.client_name}
+                    </div>
+                    <div className="text-xs text-ink-muted">{b.client_email}</div>
+                    {b.series_id ? (
+                      <div className="text-xs font-medium text-sky-700">
+                        Recurring · session {b.series_index}/{b.series_total}
+                      </div>
+                    ) : null}
+                    <Link
+                      href={`${qs()}${qs().includes("?") ? "&" : "?"}b=${b.id}`}
+                      className="mt-0.5 inline-block whitespace-nowrap text-xs font-medium text-verde-deep hover:underline"
+                      scroll={false}
+                    >
+                      View activity →
+                    </Link>
+                  </Td>
+                  <Td className="whitespace-nowrap">{spaceName(b.space).replace("The Alley ", "")}</Td>
+                  <Td>
+                    <Badge status={b.status} />
+                    {b.status === "cancelled" && b.refund_type && b.refund_type !== "none" ? (
+                      <div className="mt-0.5 text-xs text-ink-muted">
+                        refunded {formatMoney(b.refund_amount)}
+                      </div>
+                    ) : null}
+                  </Td>
+                  <Td className="capitalize">
+                    {comped && b.payment_status === "paid" ? (
+                      <span className="font-medium text-verde-deep">Free</span>
+                    ) : (
+                      b.payment_status || "unpaid"
+                    )}
+                    {b.status === "held" && b.hold_expires_at ? (
+                      <div className="text-xs normal-case text-ink-muted">
+                        holds until {formatDate(b.hold_expires_at.slice(0, 10))}
+                      </div>
+                    ) : null}
+                  </Td>
+                  <Td className="text-right font-medium text-ink">{formatMoney(b.total)}</Td>
+                  <Td className="text-right">
                     <div className="ml-auto flex w-[150px] flex-col gap-1.5">
-                      {b.square_invoice_id ? (
-                        <form action={checkPayment}>
+                      {b.archived ? (
+                        <form action={archive}>
+                          {filterInputs}
                           <input type="hidden" name="id" value={b.id} />
+                          <input type="hidden" name="on" value="0" />
                           <Button type="submit" variant="ghost" size="sm" full className="whitespace-nowrap">
-                            Check for payment
+                            Unarchive
                           </Button>
                         </form>
-                      ) : null}
-                      <form action={markPaid}>
-                        <input type="hidden" name="id" value={b.id} />
-                        <Button type="submit" variant="accent" size="sm" full className="whitespace-nowrap">
-                          Mark as paid
-                        </Button>
-                      </form>
-                      <div className="flex items-center justify-between gap-2 px-0.5 text-xs">
-                        {b.payment_link ? (
-                          <a
-                            href={b.payment_link}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="whitespace-nowrap font-medium text-verde-deep hover:underline"
-                          >
-                            Invoice ↗
-                          </a>
-                        ) : <span />}
-                        <Link
-                          href={`/admin/bookings/${b.id}/cancel`}
-                          className="whitespace-nowrap font-medium text-rust hover:underline"
-                        >
-                          Cancel
-                        </Link>
-                      </div>
-                      {b.series_id ? (
-                        <Link
-                          href={`/admin/bookings/series/${b.series_id}/cancel`}
-                          className="px-0.5 text-xs font-medium text-rust hover:underline"
-                        >
-                          Cancel whole series
-                        </Link>
-                      ) : null}
+                      ) : (
+                        <>
+                          {b.status === "pending" ? (
+                            <Button href="/admin/requests" variant="accent" size="sm" full className="whitespace-nowrap">
+                              Review request
+                            </Button>
+                          ) : null}
+
+                          {b.status === "held" || b.status === "reserved" ? (
+                            <>
+                              {b.square_invoice_id ? (
+                                <form action={checkPayment}>
+                                  {filterInputs}
+                                  <input type="hidden" name="id" value={b.id} />
+                                  <Button type="submit" variant="ghost" size="sm" full className="whitespace-nowrap">
+                                    Check for payment
+                                  </Button>
+                                </form>
+                              ) : null}
+                              <form action={markPaid}>
+                                {filterInputs}
+                                <input type="hidden" name="id" value={b.id} />
+                                <Button type="submit" variant="accent" size="sm" full className="whitespace-nowrap">
+                                  Mark as paid
+                                </Button>
+                              </form>
+                            </>
+                          ) : null}
+
+                          {b.status === "denied" ? (
+                            <>
+                              <form action={restore}>
+                                {filterInputs}
+                                <input type="hidden" name="id" value={b.id} />
+                                <input type="hidden" name="to" value="pending" />
+                                <Button type="submit" variant="ghost" size="sm" full className="whitespace-nowrap">
+                                  Restore → Pending
+                                </Button>
+                              </form>
+                              <form action={restore}>
+                                {filterInputs}
+                                <input type="hidden" name="id" value={b.id} />
+                                <input type="hidden" name="to" value="held" />
+                                <Button type="submit" variant="subtle" size="sm" full className="whitespace-nowrap">
+                                  Restore → Held
+                                </Button>
+                              </form>
+                            </>
+                          ) : null}
+
+                          <div className="flex items-center justify-between gap-2 px-0.5 text-xs">
+                            {b.payment_link ? (
+                              <a
+                                href={b.payment_link}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="whitespace-nowrap font-medium text-verde-deep hover:underline"
+                              >
+                                Invoice ↗
+                              </a>
+                            ) : <span />}
+                            {b.status === "held" || b.status === "reserved" || b.status === "confirmed" ? (
+                              <Link
+                                href={`/admin/bookings/${b.id}/cancel`}
+                                className="whitespace-nowrap font-medium text-rust hover:underline"
+                              >
+                                Cancel
+                              </Link>
+                            ) : null}
+                          </div>
+
+                          {b.series_id && (b.status === "held" || b.status === "reserved" || b.status === "confirmed") ? (
+                            <Link
+                              href={`/admin/bookings/series/${b.series_id}/cancel`}
+                              className="px-0.5 text-xs font-medium text-rust hover:underline"
+                            >
+                              Cancel whole series
+                            </Link>
+                          ) : null}
+
+                          <form action={archive}>
+                            {filterInputs}
+                            <input type="hidden" name="id" value={b.id} />
+                            <input type="hidden" name="on" value="1" />
+                            <button
+                              type="submit"
+                              className="px-0.5 text-left text-xs font-medium text-ink-muted hover:text-ink hover:underline"
+                            >
+                              Archive
+                            </button>
+                          </form>
+                        </>
+                      )}
                     </div>
-                  ) : b.status === "confirmed" ? (
-                    <div className="ml-auto flex w-[150px] flex-col gap-1.5">
-                      <Button href={`/admin/bookings/${b.id}/cancel`} variant="ghost" size="sm" className="whitespace-nowrap">
-                        Cancel booking
-                      </Button>
-                      {b.series_id ? (
-                        <Link
-                          href={`/admin/bookings/series/${b.series_id}/cancel`}
-                          className="px-0.5 text-xs font-medium text-rust hover:underline"
-                        >
-                          Cancel whole series
-                        </Link>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <span className="text-xs text-ink-muted">—</span>
-                  )}
-                </Td>
-              </Tr>
-            ))}
+                  </Td>
+                </Tr>
+              );
+            })}
           </DataTable>
         </Card>
       )}
     </div>
-  );
-}
-
-function FilterPill({ href, active, children }) {
-  return (
-    <Link
-      href={href}
-      className={cx(
-        "rounded-full px-4 py-1.5 text-sm font-semibold transition",
-        active ? "bg-ink text-paper" : "text-ink-soft hover:bg-paper-dim hover:text-ink"
-      )}
-    >
-      {children}
-    </Link>
   );
 }

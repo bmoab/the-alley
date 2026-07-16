@@ -89,7 +89,6 @@ async function confirmCancelSeries(formData) {
   }
 
   revalidatePath("/admin/bookings");
-  revalidatePath("/admin/all-requests");
   revalidatePath("/admin");
   redirect(
     "/admin/bookings?toast=" +

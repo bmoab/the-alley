@@ -13,6 +13,7 @@ import {
   rentalAmount,
 } from "@/lib/bookings.js";
 import { createBookingInvoice, createDepositInvoice } from "@/lib/square.js";
+import { confirmBookingPaid } from "@/lib/payments.js";
 import { emailClientApproved, emailClientDenied, emailClientSeriesApproved } from "@/lib/email.js";
 import { logActivity, logEmail } from "@/lib/activity.js";
 import { getActor } from "@/lib/auth.js";
@@ -47,14 +48,31 @@ async function approve(formData) {
     deposit: formData.get("deposit"),
   });
 
+  // A $0 booking (e.g. a tenant's free booking) has nothing to invoice — Square
+  // rejects any total under $0.01. Skip the payment step entirely and confirm it
+  // outright rather than leaving a hold that expires unpaid.
+  const comped = Number(booking.total) === 0;
+
   // Activity: approved (by the real logged-in user).
   logActivity({
     bookingId: booking.id,
     eventType: "approved",
-    description: `Approved · hold placed (${formatMoney(booking.total)})`,
+    description: comped
+      ? "Approved free of charge · confirmed on the calendar"
+      : `Approved · hold placed (${formatMoney(booking.total)})`,
     amount: booking.total,
     ...actor,
   });
+
+  if (comped) {
+    // confirmBookingPaid sends the confirmation email and, for public events,
+    // the host-listing invite — the same path a paid booking takes.
+    await confirmBookingPaid(id, actor, { comped: true });
+    refresh();
+    toastRedirect(
+      `Request approved free of charge — no invoice was sent and it's confirmed on the calendar.`
+    );
+  }
 
   let problem = "";
   try {
@@ -104,34 +122,48 @@ async function approveSeries(formData) {
   // Apply pricing across the series + place every date on the calendar (reserved).
   let rows = reserveSeries(seriesId, pricing);
   const holder = rows.find((r) => r.is_deposit_holder) || rows[0];
+  // Every session free and the deposit waived — nothing to invoice at any point.
+  // (A holder's total includes the series deposit; other rows carry deposit 0.)
+  const comped = rows.every((r) => Number(r.total) === 0);
 
   logActivity({
     bookingId: holder.id,
     eventType: "approved",
-    description: `Recurring series approved (${rows.length} sessions) · holds placed`,
+    description: comped
+      ? `Recurring series approved free of charge (${rows.length} sessions)`
+      : `Recurring series approved (${rows.length} sessions) · holds placed`,
     amount: rentalAmount(holder) * rows.length + (Number(holder.deposit) || 0),
     ...actor,
   });
 
   let problem = "";
   try {
-    // One deposit invoice for the series (on the holder), always up front.
-    const dep = await createDepositInvoice(holder);
-    setDepositInvoiceInfo(holder.id, { invoiceId: dep.invoiceId, paymentLink: dep.paymentLink });
+    if (comped) {
+      // No invoices will ever be sent, so leaving the sessions "reserved"
+      // (awaiting payment) would strand them. Confirm each one outright; the
+      // single approval email below covers the whole series.
+      for (const r of rows) {
+        await confirmBookingPaid(r.id, actor, { comped: true, notify: false });
+      }
+    } else {
+      // One deposit invoice for the series (on the holder), always up front.
+      const dep = await createDepositInvoice(holder);
+      setDepositInvoiceInfo(holder.id, { invoiceId: dep.invoiceId, paymentLink: dep.paymentLink });
 
-    // Rental invoices: scheduled → first session now (the cron sends the rest);
-    // up-front → every session now. Each row is rental-only (series_id set).
-    const toInvoice = invoiceMode === "upfront" ? rows : [holder];
-    for (const r of toInvoice) {
-      const { invoiceId, paymentLink } = await createBookingInvoice(getBooking(r.id));
-      setInvoiceInfo(r.id, { invoiceId, paymentLink });
-      logActivity({
-        bookingId: r.id,
-        eventType: "invoice_sent",
-        description: `Rental invoice sent · session ${r.series_index} of ${r.series_total}`,
-        amount: rentalAmount(r),
-        ...actor,
-      });
+      // Rental invoices: scheduled → first session now (the cron sends the rest);
+      // up-front → every session now. Each row is rental-only (series_id set).
+      const toInvoice = invoiceMode === "upfront" ? rows : [holder];
+      for (const r of toInvoice) {
+        const { invoiceId, paymentLink } = await createBookingInvoice(getBooking(r.id));
+        setInvoiceInfo(r.id, { invoiceId, paymentLink });
+        logActivity({
+          bookingId: r.id,
+          eventType: "invoice_sent",
+          description: `Rental invoice sent · session ${r.series_index} of ${r.series_total}`,
+          amount: rentalAmount(r),
+          ...actor,
+        });
+      }
     }
 
     rows = getSeries(seriesId);
@@ -139,7 +171,9 @@ async function approveSeries(formData) {
     logEmail({
       bookingId: holder.id,
       eventType: "invoice_sent",
-      description: `Series approval sent · deposit + ${invoiceMode === "upfront" ? "all" : "first"} rental invoice`,
+      description: comped
+        ? "Series approval sent · free of charge, no invoices"
+        : `Series approval sent · deposit + ${invoiceMode === "upfront" ? "all" : "first"} rental invoice`,
       recipientEmail: holder.client_email,
       sendResult: res,
     });
@@ -155,7 +189,11 @@ async function approveSeries(formData) {
       "error"
     );
   }
-  toastRedirect(`Recurring series approved — holds placed and the client was invoiced.`);
+  toastRedirect(
+    comped
+      ? `Recurring series approved free of charge — all ${rows.length} sessions are confirmed and no invoices were sent.`
+      : `Recurring series approved — holds placed and the client was invoiced.`
+  );
 }
 
 async function denySeriesAction(formData) {

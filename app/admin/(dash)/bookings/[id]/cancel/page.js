@@ -91,7 +91,6 @@ async function confirmCancel(formData) {
   }
 
   revalidatePath("/admin/bookings");
-  revalidatePath("/admin/all-requests");
   revalidatePath("/admin/calendar");
   revalidatePath("/admin");
   redirect(
@@ -113,7 +112,7 @@ export default async function CancelBookingPage({ params }) {
   if (!booking) redirect("/admin/bookings");
   if (booking.status === "cancelled") {
     redirect(
-      "/admin/all-requests?status=cancelled&toast=" +
+      "/admin/bookings?status=cancelled&preset=all&toast=" +
         encodeURIComponent(`Booking #${id} is already cancelled.`) +
         "&toastType=neutral"
     );

@@ -91,7 +91,7 @@ export default function CalendarPage() {
     kind: "cancelled",
     title: `${b.client_name || spaceName(b.space)} (cancelled)`,
     meta: `${spaceName(b.space)} · cancelled`,
-    href: `/admin/all-requests?status=cancelled`,
+    href: `/admin/bookings?status=cancelled&preset=all`,
   }));
 
   const items = [...bookingItems, ...eventItems, ...cancelledItems];
