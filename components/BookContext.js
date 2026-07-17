@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { SPACES, EVENT_TYPES, GUEST_RANGES, formatTime } from "@/lib/constants.js";
+import { generateSeriesDates, describeRule, WEEKDAYS, weekOfMonthFor, weekdayOf } from "@/lib/recurrence.js";
 import { useBodyScrollLock } from "@/components/hooks.js";
 import { submitBooking, submitBookingSeries } from "@/app/(site)/book/actions.js";
 import { Bolt } from "@/components/site/Primitives.js";
@@ -27,11 +28,6 @@ function fmtDateLong(s) {
   return parseYmd(s).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 }
 /** Add `days` to a YYYY-MM-DD date in local time (no UTC drift). */
-function addDaysYmd(s, days) {
-  const dt = parseYmd(s);
-  dt.setDate(dt.getDate() + days);
-  return ymd(dt.getFullYear(), dt.getMonth(), dt.getDate());
-}
 /** Long weekday name for a YYYY-MM-DD date (e.g. "Tuesday"). */
 function weekdayLong(s) {
   return s ? parseYmd(s).toLocaleDateString("en-US", { weekday: "long" }) : "";
@@ -406,8 +402,12 @@ function BookModal({ initialRoom, config, onClose }) {
     is_public_event: false,
     cutoff_ack: false,
     is_recurring: false,
-    recur_every: 1, // weeks between sessions
+    recur_mode: "weekly", // weekly | monthly-weekday | monthly-date | manual
+    recur_interval: 1, // weekly: weeks between sessions
+    recur_nth: null, // monthly-weekday: 1..5 or -1 (last); null → derive from start date
+    recur_weekday: null, // monthly-weekday: 0..6; null → derive from start date
     recur_count: 4, // total sessions, including the first
+    recur_dates: [], // manual mode: explicit YYYY-MM-DD list
   });
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -422,13 +422,21 @@ function BookModal({ initialRoom, config, onClose }) {
   const [excludedDates, setExcludedDates] = useState([]); // sessions the client opted out of
   const [recurAvail, setRecurAvail] = useState({}); // date -> { available, reason }
 
-  // Generated occurrence dates (first = the step-1 date).
+  // The recurrence rule assembled from the form; the weekday/nth default from
+  // the chosen start date so the common case needs no extra clicks.
+  const recurRule = {
+    mode: form.recur_mode,
+    interval: Number(form.recur_interval) || 1,
+    weekday: form.recur_weekday,
+    nth: form.recur_nth,
+    dates: form.recur_dates,
+  };
+  const recurCount = Math.max(2, Math.min(seriesMaxOcc, Number(form.recur_count) || 2));
+
+  // Generated occurrence dates via the shared rule engine.
   const seriesDates =
-    form.is_recurring && form.date
-      ? Array.from(
-          { length: Math.max(2, Math.min(seriesMaxOcc, Number(form.recur_count) || 2)) },
-          (_, i) => addDaysYmd(form.date, i * 7 * (Number(form.recur_every) || 1))
-        )
+    form.is_recurring && (form.date || form.recur_mode === "manual")
+      ? generateSeriesDates(recurRule, form.date, recurCount)
       : [];
   const includedDates = seriesDates.filter(
     (d) => !excludedDates.includes(d) && recurAvail[d]?.available !== false
@@ -559,7 +567,7 @@ function BookModal({ initialRoom, config, onClose }) {
 
     let res;
     if (form.is_recurring) {
-      const recurring_schedule = `Every ${Number(form.recur_every) === 2 ? "other " : ""}${weekdayLong(form.date)} × ${includedDates.length}`;
+      const recurring_schedule = describeRule(recurRule, form.date, includedDates.length);
       res = await submitBookingSeries({
         ...common,
         start_time: form.start,
@@ -701,19 +709,89 @@ function BookModal({ initialRoom, config, onClose }) {
                     <p className="bk-times-hint">Pick your first date &amp; time above — your sessions repeat from there.</p>
                   ) : (
                     <>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                        <label><span style={labStyle}>Repeats</span>
-                          <select value={form.recur_every} onChange={(e) => setForm((f) => ({ ...f, recur_every: Number(e.target.value) }))} style={fieldStyle}>
-                            <option value={1}>Every {weekdayLong(form.date)}</option>
-                            <option value={2}>Every other {weekdayLong(form.date)}</option>
-                          </select>
-                        </label>
-                        <label><span style={labStyle}>Sessions</span>
-                          <select value={form.recur_count} onChange={(e) => setForm((f) => ({ ...f, recur_count: Number(e.target.value) }))} style={fieldStyle}>
-                            {Array.from({ length: seriesMaxOcc - 1 }, (_, i) => i + 2).map((n) => <option key={n} value={n}>{n} sessions</option>)}
-                          </select>
-                        </label>
+                      {/* Pattern mode */}
+                      <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+                        {[["weekly", "Weekly"], ["monthly-weekday", "Monthly"], ["manual", "Pick dates"]].map(([m, label]) => {
+                          const active = form.recur_mode === m;
+                          return (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => setForm((f) => ({
+                                ...f,
+                                recur_mode: m,
+                                // Seed manual mode with the chosen first date.
+                                recur_dates: m === "manual" ? (f.date ? [f.date] : []) : f.recur_dates,
+                              }))}
+                              style={{
+                                padding: "6px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                                border: "1px solid var(--line-strong)",
+                                background: active ? "var(--ink)" : "transparent",
+                                color: active ? "var(--paper)" : "var(--ink-soft)",
+                              }}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
                       </div>
+
+                      {form.recur_mode === "weekly" ? (
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                          <label><span style={labStyle}>Repeats</span>
+                            <select value={form.recur_interval} onChange={(e) => setForm((f) => ({ ...f, recur_interval: Number(e.target.value) }))} style={fieldStyle}>
+                              <option value={1}>Every {weekdayLong(form.date)}</option>
+                              <option value={2}>Every other {weekdayLong(form.date)}</option>
+                              <option value={3}>Every 3 weeks</option>
+                              <option value={4}>Every 4 weeks</option>
+                            </select>
+                          </label>
+                          <label><span style={labStyle}>Sessions</span>
+                            <select value={form.recur_count} onChange={(e) => setForm((f) => ({ ...f, recur_count: Number(e.target.value) }))} style={fieldStyle}>
+                              {Array.from({ length: seriesMaxOcc - 1 }, (_, i) => i + 2).map((n) => <option key={n} value={n}>{n} sessions</option>)}
+                            </select>
+                          </label>
+                        </div>
+                      ) : form.recur_mode === "monthly-weekday" ? (
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                          <label><span style={labStyle}>Which</span>
+                            <select value={form.recur_nth ?? weekOfMonthFor(form.date)} onChange={(e) => setForm((f) => ({ ...f, recur_nth: Number(e.target.value) }))} style={fieldStyle}>
+                              <option value={1}>First</option>
+                              <option value={2}>Second</option>
+                              <option value={3}>Third</option>
+                              <option value={4}>Fourth</option>
+                              <option value={-1}>Last</option>
+                            </select>
+                          </label>
+                          <label><span style={labStyle}>Weekday</span>
+                            <select value={form.recur_weekday ?? weekdayOf(form.date)} onChange={(e) => setForm((f) => ({ ...f, recur_weekday: Number(e.target.value) }))} style={fieldStyle}>
+                              {WEEKDAYS.map((w, i) => <option key={i} value={i}>{w}</option>)}
+                            </select>
+                          </label>
+                          <label><span style={labStyle}>Sessions</span>
+                            <select value={form.recur_count} onChange={(e) => setForm((f) => ({ ...f, recur_count: Number(e.target.value) }))} style={fieldStyle}>
+                              {Array.from({ length: seriesMaxOcc - 1 }, (_, i) => i + 2).map((n) => <option key={n} value={n}>{n}</option>)}
+                            </select>
+                          </label>
+                        </div>
+                      ) : (
+                        <div>
+                          <span style={labStyle}>Add each date you want</span>
+                          <input
+                            type="date"
+                            min={form.date}
+                            onChange={(e) => {
+                              const d = e.target.value;
+                              if (d) setForm((f) => ({ ...f, recur_dates: [...new Set([...f.recur_dates, d])].sort() }));
+                              e.target.value = "";
+                            }}
+                            style={fieldStyle}
+                          />
+                          <p className="bk-times-hint" style={{ marginTop: 6 }}>
+                            Your first date is added already — pick any others (they can be weeks or months apart).
+                          </p>
+                        </div>
+                      )}
                       <ul style={{ listStyle: "none", padding: 0, margin: "14px 0 0", display: "grid", gap: 6 }}>
                         {seriesDates.map((d) => {
                           const avail = recurAvail[d];
@@ -836,7 +914,7 @@ function BookModal({ initialRoom, config, onClose }) {
                 {roomObj ? <div><span>Space</span><b>{roomObj.name}</b></div> : null}
                 {form.date ? <div><span>{form.is_recurring ? "First date" : "Date"}</span><b>{fmtDateLong(form.date)}</b></div> : null}
                 {form.start && form.hours ? <div><span>Time</span><b>{formatTime(form.start)} – {formatTime(addHours(form.start, hours))} · {hours} hrs</b></div> : null}
-                {form.is_recurring ? <div><span>Sessions</span><b>{includedDates.length} · every {Number(form.recur_every) === 2 ? "other " : ""}{weekdayLong(form.date)}</b></div> : null}
+                {form.is_recurring ? <div><span>Sessions</span><b>{includedDates.length} · {describeRule(recurRule, form.date, includedDates.length)}</b></div> : null}
                 <div><span>Estimated total</span><b>${rentalCost * (form.is_recurring ? includedDates.length : 1) + deposit}</b></div>
               </div>
             </div>

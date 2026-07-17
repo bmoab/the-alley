@@ -164,8 +164,8 @@ export async function submitBookingSeries(payload) {
   const dates = Array.from(
     new Set((payload.dates || []).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)))
   ).sort();
-  const maxOcc = Number(getSetting("series_max_occurrences", "8")) || 8;
-  const maxSpan = Number(getSetting("series_max_span_days", "31")) || 31;
+  const maxOcc = Number(getSetting("series_max_occurrences", "26")) || 26;
+  const maxSpan = Number(getSetting("series_max_span_days", "400")) || 400;
   if (dates.length < 2) errors.push("A recurring booking needs at least 2 dates.");
   if (dates.length > maxOcc) errors.push(`A recurring booking can have at most ${maxOcc} sessions.`);
   if (dates.length >= 2) {
