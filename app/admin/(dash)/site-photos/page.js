@@ -12,9 +12,9 @@ export const metadata = { title: "Site Photos" };
 // NOTE: the key stays `home_hero_image` (so any photo already uploaded here is
 // preserved) even though it now powers the About page's hero banner.
 // `framing` adds the focal-point + "show whole photo" controls; `height` adds
-// the banner-height control (the About hero is the only fixed-height banner).
+// the banner-height control (the homepage hero is the only fixed-height banner).
 const IMAGE_FIELDS = [
-  { key: "home_hero_image", label: "About — hero banner (top of the About page)", hint: "Wide banner across the top of the About page. Click the photo to choose what stays in view.", framing: true, height: true },
+  { key: "home_hero_image", label: "Homepage — hero banner (above the headline)", hint: "Wide banner across the top of the homepage. Click the photo to choose what stays in view.", framing: true, height: true },
   { key: "space_loft_image", label: "Spaces — The Loft lead photo (fallback)", hint: "Used if no Loft photos are added under Spaces Photos." },
   { key: "space_main_image", label: "Spaces — Main Floor lead photo (fallback)", hint: "Used if no Main Floor photos are added under Spaces Photos." },
   { key: "about_image", label: "About — story photo (beside the text)", hint: "Image next to the About story text. Click the photo to choose what stays in view.", framing: true },

@@ -3,6 +3,7 @@ import { getContent } from "@/lib/db.js";
 import { listPublicDirectoryWithSuites, listExhibitorsByPhase, listGallery, listUpcomingLiveEvents, listSpacePhotos } from "@/lib/catalog.js";
 import { SPACES } from "@/lib/constants.js";
 import Hero from "@/components/home/Hero.js";
+import PhotoSlot from "@/components/site/PhotoSlot.js";
 import SectionHead from "@/components/site/SectionHead.js";
 import DestinationsRow from "@/components/home/DestinationsRow.js";
 import RoomsTeaser from "@/components/home/RoomsTeaser.js";
@@ -44,6 +45,28 @@ export default function HomePage() {
 
   return (
     <>
+      {/* Hero banner — the site-managed homepage photo (Site Photos admin),
+          shown above the headline. Only once one has been uploaded. Framing
+          (focal point / fit / height) comes from its companion keys. */}
+      {c.home_hero_image ? (
+        <div className="wrap" style={{ marginTop: "clamp(16px,3vw,32px)" }} data-edit="home_hero_image">
+          <PhotoSlot
+            src={c.home_hero_image}
+            alt="The Alley On Center"
+            showTag={false}
+            variant="verde"
+            className="reveal"
+            objectFit={c.home_hero_image_fit || "cover"}
+            objectPosition={c.home_hero_image_pos || "50% 50%"}
+            style={{
+              height: `min(${Number(c.home_hero_image_h) || 440}px, 62vh)`,
+              borderRadius: 16,
+              overflow: "hidden",
+            }}
+          />
+        </div>
+      ) : null}
+
       <Hero eyebrow={c.home_hero_eyebrow} rotate={rotate} lede={c.home_hero_lede || c.home_hero_subtitle} />
 
       {/* what you'll find here */}
