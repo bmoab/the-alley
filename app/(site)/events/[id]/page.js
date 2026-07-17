@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getEvent, normalizeLinkUrl } from "@/lib/catalog.js";
 import { formatDate, formatTime, spaceName } from "@/lib/constants.js";
 import PhotoSlot from "@/components/site/PhotoSlot.js";
+import EventPhoto from "@/components/site/EventPhoto.js";
 
 export function generateMetadata({ params }) {
   const e = getEvent(params.id);
@@ -27,7 +28,13 @@ export default function EventDetailPage({ params }) {
       </Link>
 
       <div style={{ marginTop: 28, display: "grid", gap: "clamp(24px,4vw,48px)", gridTemplateColumns: "minmax(0,1.1fr) minmax(0,.9fr)" }} className="ev-detail-grid">
-        <PhotoSlot src={e.photo_path || null} tag={e.title} showTag={false} variant="verde" style={{ minHeight: 320 }} />
+        {e.photo_path ? (
+          // A real flyer: show it whole (posters are portrait and were being
+          // cropped) and let attendees tap to read it full-screen.
+          <EventPhoto src={e.photo_path} alt={e.title || "Event flyer"} />
+        ) : (
+          <PhotoSlot src={null} tag={e.title} showTag={false} variant="verde" style={{ minHeight: 320 }} />
+        )}
         <div>
           <p className="eyebrow" style={{ color: "var(--verde-deep)" }}>
             {formatDate(e.date)} {e.time ? `· ${formatTime(e.time)}` : ""}{e.end_label ? ` · ${e.end_label}` : ""}
