@@ -59,6 +59,7 @@ export default function BookingActionsMenu({
   markPaidAction,
   checkPaymentAction,
   resendAction,
+  keepOnCalendarAction,
   restoreAction,
   archiveAction,
 }) {
@@ -176,6 +177,32 @@ export default function BookingActionsMenu({
           hint: "Void this invoice, send a corrected one",
           href: `/admin/bookings/${b.id}/edit`,
         });
+      }
+      // Override: keep an unpaid hold on the calendar (or re-arm the expiry).
+      // Only for a single held booking (series dates never auto-expire).
+      if (b.status === "held" && keepOnCalendarAction) {
+        if (b.hold_expires_at) {
+          items.push({
+            key: "keep",
+            label: "Keep on calendar",
+            hint: "Stop it expiring while you sort a deal",
+            action: keepOnCalendarAction,
+            confirm: {
+              title: "Keep this on the calendar?",
+              body: `${b.client_name}'s hold will stop counting down and won't auto-expire, staying on the calendar unpaid until you mark it paid or cancel it. (Automatic payment reminders pause too.)`,
+              cta: "Keep it on the calendar",
+              pending: "Saving…",
+            },
+          });
+        } else {
+          items.push({
+            key: "rearm",
+            label: "Let it expire again",
+            hint: "Re-start the payment countdown",
+            action: keepOnCalendarAction,
+            fields: { rearm: "1" },
+          });
+        }
       }
     }
     if (b.payment_link) {

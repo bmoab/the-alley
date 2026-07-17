@@ -8,6 +8,8 @@ import {
   restoreBooking,
   archiveBooking,
   unarchiveBooking,
+  keepBookingOnCalendar,
+  reArmHold,
 } from "@/lib/bookings.js";
 import { confirmBookingPaid, releaseExpiredHolds, resendInvoice } from "@/lib/payments.js";
 import { listDirectory } from "@/lib/catalog.js";
@@ -91,6 +93,28 @@ async function markPaid(formData) {
   await confirmBookingPaid(id, await getActor());
   refresh();
   redirect(backTo(formData, { toast: `Booking #${id} marked as paid.`, toastType: "success" }));
+}
+
+// Override: keep an unpaid hold on the calendar (stop it auto-expiring) while a
+// deal is worked out, or re-arm the expiry to undo it.
+async function keepOnCalendar(formData) {
+  "use server";
+  if (!(await requireBookingManager())) redirect(backTo(formData, { toast: NO_PERMISSION, toastType: "error" }));
+  const id = Number(formData.get("id"));
+  const rearm = formData.get("rearm") === "1";
+  const actor = await getActor();
+  if (rearm) {
+    reArmHold(id);
+    logActivity({ bookingId: id, eventType: "hold_rearmed", description: "Payment window re-armed — hold can expire again", ...actor });
+  } else {
+    keepBookingOnCalendar(id);
+    logActivity({ bookingId: id, eventType: "hold_kept", description: "Kept on the calendar — hold won't expire (deal)", ...actor });
+  }
+  refresh();
+  redirect(backTo(formData, {
+    toast: rearm ? `Booking #${id} will expire normally again.` : `Booking #${id} kept on the calendar — it won't expire.`,
+    toastType: "success",
+  }));
 }
 
 // Re-email the client their existing payment link.
@@ -433,6 +457,10 @@ export default async function BookingsPage({ searchParams }) {
                       <div className="text-xs normal-case text-ink-muted">
                         holds until {formatDate(b.hold_expires_at.slice(0, 10))}
                       </div>
+                    ) : b.status === "held" ? (
+                      <div className="text-xs normal-case font-medium text-verde-deep">
+                        Kept on calendar · won’t expire
+                      </div>
                     ) : null}
                   </Td>
                   <Td className="text-right font-medium text-ink">{formatMoney(b.total)}</Td>
@@ -444,6 +472,7 @@ export default async function BookingsPage({ searchParams }) {
                         markPaidAction={markPaid}
                         checkPaymentAction={checkPayment}
                         resendAction={resend}
+                        keepOnCalendarAction={keepOnCalendar}
                         restoreAction={restore}
                         archiveAction={archive}
                       />
