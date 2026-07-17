@@ -10,6 +10,8 @@ import {
   getEvent,
 } from "@/lib/catalog.js";
 import { emailHostInvite, emailHostReminder } from "@/lib/email.js";
+import { logEmail } from "@/lib/activity.js";
+import { getActor } from "@/lib/auth.js";
 import { SPACES, spaceName, formatDate, formatTime } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Button from "@/components/admin/ui/Button.js";
@@ -90,7 +92,18 @@ async function remindHost(formData) {
   let ok = false;
   if (ev?.host_email && ev?.host_token) {
     try {
-      await emailHostReminder(ev);
+      const res = await emailHostReminder(ev);
+      // Record the nudge so there's a trail of who was reminded and when.
+      // Booking-tied listings attach to their booking's activity; manual
+      // invites (no booking) still land in the global activity feed.
+      logEmail({
+        bookingId: ev.booking_id || null,
+        eventType: "host_reminder_sent",
+        description: `Host-details reminder sent${ev.title ? ` · ${ev.title}` : ""}`,
+        recipientEmail: ev.host_email,
+        sendResult: res,
+        ...(await getActor()),
+      });
       ok = true;
     } catch (err) {
       console.error("[events] host reminder email error:", err.message);

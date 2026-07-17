@@ -17,15 +17,21 @@ export default function PhotoSlot({
   className = "",
   style = {},
   showTag = true,
+  objectFit,
+  objectPosition,
 }) {
   const variantClass = variant === "verde" ? "photo--verde" : variant === "soft" ? "photo--soft" : "";
   const css = { ...style };
   if (ar) css.aspectRatio = ar;
+  // Owner-set framing (Site Photos): override the default cover crop / centering.
+  const imgStyle = {};
+  if (objectFit) imgStyle.objectFit = objectFit;
+  if (objectPosition) imgStyle.objectPosition = objectPosition;
   return (
     <div className={`photo ${variantClass} ${className}`.trim()} style={css}>
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img className="photo__img" src={src} alt={alt || tag || ""} loading="lazy" />
+        <img className="photo__img" src={src} alt={alt || tag || ""} loading="lazy" style={imgStyle} />
       ) : null}
       {showTag && tag ? (
         <div className="photo__tag">

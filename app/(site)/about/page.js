@@ -42,7 +42,16 @@ export default function AboutPage() {
             showTag={false}
             variant="verde"
             className="reveal"
-            style={{ height: "clamp(240px,34vw,440px)", borderRadius: 16, overflow: "hidden" }}
+            objectFit={c.home_hero_image_fit || "cover"}
+            objectPosition={c.home_hero_image_pos || "50% 50%"}
+            style={{
+              // The chosen height drives it directly (so Short/Medium/Tall
+              // actually differ), capped by the viewport so it's never absurd
+              // on a phone.
+              height: `min(${Number(c.home_hero_image_h) || 440}px, 62vh)`,
+              borderRadius: 16,
+              overflow: "hidden",
+            }}
           />
         </div>
       ) : null}
@@ -54,7 +63,14 @@ export default function AboutPage() {
             <Link className="btn btn--solid" href="/directory" style={{ marginTop: 10 }}>Meet the makers</Link>
           </div>
           <div data-edit="about_image">
-            <PhotoSlot src={c.about_image || null} tag="The Alley" variant="verde" style={{ height: "clamp(280px,30vw,360px)" }} />
+            <PhotoSlot
+              src={c.about_image || null}
+              tag="The Alley"
+              variant="verde"
+              objectFit={c.about_image_fit || "cover"}
+              objectPosition={c.about_image_pos || "50% 50%"}
+              style={{ height: "clamp(280px,30vw,360px)" }}
+            />
             <blockquote className="about-quote">
               &ldquo;Art is what we use to decorate space. Music is what we use to decorate time.&rdquo;
             </blockquote>
