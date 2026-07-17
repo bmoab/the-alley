@@ -9,7 +9,7 @@ import {
   createHostInvite,
   getEvent,
 } from "@/lib/catalog.js";
-import { emailHostInvite } from "@/lib/email.js";
+import { emailHostInvite, emailHostReminder } from "@/lib/email.js";
 import { SPACES, spaceName, formatDate, formatTime } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Button from "@/components/admin/ui/Button.js";
@@ -51,6 +51,7 @@ async function inviteHost(formData) {
   const { id, token } = createHostInvite({
     host_name,
     host_email,
+    title: (formData.get("title") || "").toString().trim(),
     date: (formData.get("date") || "").toString().trim(),
     active_until: (formData.get("active_until") || "").toString().trim(),
   });
@@ -79,6 +80,34 @@ async function emailHostLink(formData) {
   }
   refresh();
   invitedRedirect(!!ev?.host_email, id);
+}
+
+// Nudge a host whose listing is live as a placeholder but still empty.
+async function remindHost(formData) {
+  "use server";
+  const id = Number(formData.get("id"));
+  const ev = getEvent(id);
+  let ok = false;
+  if (ev?.host_email && ev?.host_token) {
+    try {
+      await emailHostReminder(ev);
+      ok = true;
+    } catch (err) {
+      console.error("[events] host reminder email error:", err.message);
+    }
+  }
+  refresh();
+  redirect(
+    "/admin/events?toast=" +
+      encodeURIComponent(
+        ok
+          ? `Reminder sent to ${ev.host_email}.`
+          : ev?.host_token
+            ? "No host email on file — copy their link and send it manually."
+            : "Couldn't send the reminder."
+      ) +
+      "&toastType=" + (ok ? "success" : "neutral")
+  );
 }
 
 async function approveEvent(formData) {
@@ -164,11 +193,19 @@ function EventEditor({ ev }) {
 }
 
 function EventCard({ ev, children }) {
+  // A live listing with a host link the host hasn't filled in yet — on the
+  // calendar as a title-only placeholder.
+  const placeholder = ev.status === "live" && ev.host_token && !ev.host_posted;
   return (
     <details className="card p-5">
       <summary className="flex cursor-pointer items-center justify-between gap-3">
         <span>
           <span className="font-semibold text-ink">{ev.title || "(untitled)"}</span>
+          {placeholder ? (
+            <span className="ml-2 rounded-full border border-gold/40 bg-gold/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-soft">
+              Placeholder · host hasn’t posted
+            </span>
+          ) : null}
           <span className="ml-2 text-xs text-ink-muted">
             {ev.host_name ? `${ev.host_name} · ` : ""}
             {ev.date ? formatDate(ev.date) : "no date"}
@@ -187,12 +224,20 @@ function EventCard({ ev, children }) {
             edit on their behalf, or re-send it.
           </p>
           <input readOnly value={`${APP_URL}/host-listing/${ev.host_token}`} className="field mt-2 text-xs" />
-          <form action={emailHostLink} className="mt-2">
-            <input type="hidden" name="id" value={ev.id} />
-            <Button type="submit" variant="ghost" size="sm">
-              {ev.host_email ? `Email link to ${ev.host_email}` : "No host email on file"}
-            </Button>
-          </form>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <form action={emailHostLink}>
+              <input type="hidden" name="id" value={ev.id} />
+              <Button type="submit" variant="ghost" size="sm">
+                {ev.host_email ? `Email link to ${ev.host_email}` : "No host email on file"}
+              </Button>
+            </form>
+            {placeholder && ev.host_email ? (
+              <form action={remindHost}>
+                <input type="hidden" name="id" value={ev.id} />
+                <Button type="submit" variant="subtle" size="sm">Remind host to finish</Button>
+              </form>
+            ) : null}
+          </div>
         </div>
       ) : null}
       <div className="mt-3 flex flex-wrap gap-3 border-t border-line pt-3">{children}</div>
@@ -221,13 +266,17 @@ export default function EventsAdminPage() {
             <div><label className="label">Host name</label><input name="host_name" required placeholder="Jane Maker" className="field" /></div>
             <div><label className="label">Host email (sends them the link)</label><input name="host_email" type="email" placeholder="host@email.com" className="field" /></div>
           </div>
+          <div>
+            <label className="label">Event title (optional)</label>
+            <input name="title" placeholder="e.g. Saturday Improv Night" className="field" />
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div><label className="label">Event date (optional)</label><input name="date" type="date" className="field" /></div>
             <div><label className="label">Through (optional, multi-day)</label><input name="active_until" type="date" className="field" /></div>
           </div>
           <p className="text-xs text-ink-muted">
-            The host gets a private link to add the title, description, photo/flyer, and how attendees pay them.
-            Their submission comes back here for your review.
+            With a date, the title goes on the public calendar right away as a placeholder — the host then
+            adds their photo, description, and how attendees pay them via their private link.
           </p>
           <Button type="submit" className="w-fit">Send host invite</Button>
         </form>
