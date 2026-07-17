@@ -58,6 +58,7 @@ export default function BookingActionsMenu({
   filters,
   markPaidAction,
   checkPaymentAction,
+  resendAction,
   restoreAction,
   archiveAction,
 }) {
@@ -150,6 +151,30 @@ export default function BookingActionsMenu({
           label: "Check for payment",
           hint: "Ask Square if it's been paid",
           action: checkPaymentAction,
+        });
+      }
+      if (b.payment_link && resendAction) {
+        items.push({
+          key: "resend",
+          label: "Resend invoice",
+          hint: "Email the payment link again",
+          action: resendAction,
+          confirm: {
+            title: "Resend the invoice?",
+            body: `This emails the payment link to ${b.client_name} (${b.client_email}) again. Nothing else changes.`,
+            cta: "Send it",
+            pending: "Sending…",
+          },
+        });
+      }
+      // Reprice an approved-but-unpaid single booking (e.g. remove a
+      // double-charged deposit). Series pricing is edited via the series, not here.
+      if (!b.series_id) {
+        items.push({
+          key: "edit",
+          label: "Edit price & reissue",
+          hint: "Void this invoice, send a corrected one",
+          href: `/admin/bookings/${b.id}/edit`,
         });
       }
     }

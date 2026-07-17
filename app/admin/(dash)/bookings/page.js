@@ -9,7 +9,7 @@ import {
   archiveBooking,
   unarchiveBooking,
 } from "@/lib/bookings.js";
-import { confirmBookingPaid, releaseExpiredHolds } from "@/lib/payments.js";
+import { confirmBookingPaid, releaseExpiredHolds, resendInvoice } from "@/lib/payments.js";
 import { listDirectory } from "@/lib/catalog.js";
 import { getInvoiceStatus } from "@/lib/square.js";
 import { logActivity } from "@/lib/activity.js";
@@ -86,6 +86,23 @@ async function markPaid(formData) {
   await confirmBookingPaid(id, await getActor());
   refresh();
   redirect(backTo(formData, { toast: `Booking #${id} marked as paid.`, toastType: "success" }));
+}
+
+// Re-email the client their existing payment link.
+async function resend(formData) {
+  "use server";
+  const id = Number(formData.get("id"));
+  const result = await resendInvoice(id, await getActor());
+  const toast =
+    result?.error === "no_invoice"
+      ? `Booking #${id} has no invoice to resend — approve it or reissue one first.`
+      : result?.error === "already_paid"
+        ? `Booking #${id} is already paid.`
+        : result?.error
+          ? `Couldn't resend booking #${id}.`
+          : `Invoice resent to ${result.booking.client_email}.`;
+  refresh();
+  redirect(backTo(formData, { toast, toastType: result?.error ? "error" : "success" }));
 }
 
 // Ask Square whether the invoice has been paid; if so, confirm the booking.
@@ -414,6 +431,7 @@ export default async function BookingsPage({ searchParams }) {
                       filters={filterValues}
                       markPaidAction={markPaid}
                       checkPaymentAction={checkPayment}
+                      resendAction={resend}
                       restoreAction={restore}
                       archiveAction={archive}
                     />
