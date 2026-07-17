@@ -22,7 +22,7 @@ async function uploadFile(file, kind) {
   return data.path;
 }
 
-export default function HostListingForm({ event, saveAction, alreadyLive }) {
+export default function HostListingForm({ event, saveAction, alreadyLive, lastEvent }) {
   const [form, setForm] = useState({
     title: event.title || "",
     description: event.description || "",
@@ -43,7 +43,30 @@ export default function HostListingForm({ event, saveAction, alreadyLive }) {
   const [toast, setToast] = useState(null); // { msg, at: Date } | null
   const [busy, setBusy] = useState(false);
 
+  const [prefilled, setPrefilled] = useState(false);
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
+
+  // Copy everything from the host's previous event so they can tweak instead of
+  // starting blank. Date/time stay locked to this booking.
+  function prefillFromLast() {
+    if (!lastEvent) return;
+    setForm((f) => ({
+      ...f,
+      title: lastEvent.title || f.title,
+      description: lastEvent.description || "",
+      tickets: lastEvent.tickets ?? "",
+      price: lastEvent.price || "",
+      payment_instructions: lastEvent.payment_instructions || "",
+      payment_link: lastEvent.payment_link || "",
+    }));
+    if (lastEvent.photo_path) setPhoto(lastEvent.photo_path);
+    setLinks(parseLinks(lastEvent.links));
+    try {
+      const p = JSON.parse(lastEvent.pdf_paths || "[]");
+      if (Array.isArray(p)) setPdfs(p);
+    } catch {}
+    setPrefilled(true);
+  }
 
   // Auto-dismiss the saved toast after a bit (it also has an × to close).
   useEffect(() => {
@@ -123,6 +146,23 @@ export default function HostListingForm({ event, saveAction, alreadyLive }) {
         <div className="rounded-lg border border-rust/30 bg-rust/10 px-4 py-2 text-sm text-rust">{error}</div>
       ) : null}
 
+      {lastEvent && !prefilled ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-verde-deep/30 bg-verde/30 p-4 text-sm text-ink">
+          <span>
+            Welcome back! Want to start from your last event
+            {lastEvent.title ? ` (“${lastEvent.title}”)` : ""}? We&apos;ll copy its
+            details, photo, and links here — you can tweak anything before posting.
+          </span>
+          <button
+            type="button"
+            onClick={prefillFromLast}
+            className="btn-accent shrink-0 whitespace-nowrap"
+          >
+            Use my last event
+          </button>
+        </div>
+      ) : null}
+
       <div className="card p-5">
         <label className="label">Event title</label>
         <input className="field" value={form.title} onChange={(e) => set({ title: e.target.value })} placeholder="Sunrise Vinyasa Yoga" />
@@ -184,7 +224,9 @@ export default function HostListingForm({ event, saveAction, alreadyLive }) {
           optional; we&apos;ll name it for you if you leave it blank.
         </p>
         <div className="mt-4">
-          <LinksEditor value={links} onChange={setLinks} />
+          {/* key flips once on prefill so the editor re-seeds from the copied
+              links; it stays stable during normal editing (no focus loss). */}
+          <LinksEditor key={prefilled ? "prefilled" : "initial"} value={links} onChange={setLinks} />
         </div>
       </div>
 

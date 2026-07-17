@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
-import { getEventByToken, saveHostListing } from "@/lib/catalog.js";
+import { getEventByToken, saveHostListing, findLastEventByHostEmail } from "@/lib/catalog.js";
 import { getSetting } from "@/lib/db.js";
 import { logActivity } from "@/lib/activity.js";
 import HostListingForm from "@/components/HostListingForm.js";
@@ -28,6 +28,26 @@ export default function HostListingPage({ params }) {
   }
 
   const alreadyLive = event.status === "live";
+
+  // If this host has a prior event, offer to prefill from it (unless this one is
+  // already filled in). Pass a slim, serializable subset to the client form.
+  const priorRow =
+    !event.host_posted && !event.description
+      ? findLastEventByHostEmail(event.host_email, event.id)
+      : null;
+  const lastEvent = priorRow
+    ? {
+        title: priorRow.title || "",
+        description: priorRow.description || "",
+        tickets: priorRow.tickets ?? "",
+        price: priorRow.price || "",
+        payment_instructions: priorRow.payment_instructions || "",
+        payment_link: priorRow.payment_link || "",
+        photo_path: priorRow.photo_path || "",
+        pdf_paths: priorRow.pdf_paths || "[]",
+        links: priorRow.links || "[]",
+      }
+    : null;
 
   async function save(data) {
     "use server";
@@ -80,7 +100,7 @@ export default function HostListingPage({ params }) {
         </p>
 
         <div className="mt-8">
-          <HostListingForm event={event} saveAction={save} alreadyLive={alreadyLive} />
+          <HostListingForm event={event} saveAction={save} alreadyLive={alreadyLive} lastEvent={lastEvent} />
         </div>
       </div>
     </main>
