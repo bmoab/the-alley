@@ -1,10 +1,16 @@
 // Public-site navigation (single source of truth for header + footer).
+
+// Art Beat now lives on its own site — the nav item points there (opens in a new
+// tab). The internal /art-beat page is kept but turned off (see that route);
+// flip it back on and change this href to "/art-beat" to restore the in-site page.
+export const ART_BEAT_URL = "https://centerstreetartbeat.com";
+
 export const NAV = [
   { label: "Spaces", href: "/spaces" },
   { label: "Directory", href: "/directory" },
   { label: "Gallery", href: "/gallery" },
   { label: "Exhibitors", href: "/exhibitors" },
-  { label: "Art Beat", href: "/art-beat" },
+  { label: "Art Beat", href: ART_BEAT_URL, external: true },
   { label: "Calendar", href: "/calendar" },
 ];
 
@@ -23,7 +29,7 @@ export const FOOTER_COLS = [
       { t: "Directory", h: "/directory" },
       { t: "Gallery", h: "/gallery" },
       { t: "Exhibitors", h: "/exhibitors" },
-      { t: "Art Beat", h: "/art-beat" },
+      { t: "Art Beat", h: ART_BEAT_URL, external: true },
       { t: "Calendar", h: "/calendar" },
     ],
   },

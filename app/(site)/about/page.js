@@ -27,6 +27,26 @@ export default function AboutPage() {
         editKeys={{ eyebrow: "about_hero_eyebrow", title: "about_hero_title" }}
       />
 
+      {/* Hero banner — the site-managed "About hero" photo (Site Photos admin).
+          Only shown once one has been uploaded, so the page never shows an
+          empty placeholder. */}
+      {c.home_hero_image ? (
+        <div
+          className="wrap"
+          style={{ marginTop: "clamp(12px,2vw,24px)" }}
+          data-edit="home_hero_image"
+        >
+          <PhotoSlot
+            src={c.home_hero_image}
+            alt="The Alley On Center"
+            showTag={false}
+            variant="verde"
+            className="reveal"
+            style={{ height: "clamp(240px,34vw,440px)", borderRadius: 16, overflow: "hidden" }}
+          />
+        </div>
+      ) : null}
+
       <section className="wrap iband" style={{ paddingTop: "clamp(20px,3vw,40px)" }}>
         <div className="about-grid">
           <div className="about-body" data-edit="about_body">

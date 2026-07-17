@@ -1,8 +1,15 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getContentValue } from "@/lib/db.js";
 import PhotoSlot from "@/components/site/PhotoSlot.js";
+import { ART_BEAT_URL } from "@/components/site/nav.js";
 
 export const metadata = { title: "Center Street Art Beat" };
+
+// Art Beat now lives on its own site. This page is turned OFF but kept intact —
+// any visit (bookmark, old link) is sent to the external site. To bring the
+// in-site page back, set ENABLED = true and restore the nav href in nav.js.
+const ENABLED = false;
 
 function parseJson(value, fallback) {
   try {
@@ -13,6 +20,8 @@ function parseJson(value, fallback) {
 }
 
 export default function ArtBeatPage() {
+  if (!ENABLED) redirect(ART_BEAT_URL);
+
   const ab = parseJson(getContentValue("art_beat"), {
     date: "August 29, 2026 · Logan, Utah",
     intro: "",

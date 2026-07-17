@@ -9,11 +9,13 @@ export const metadata = { title: "Site Photos" };
 
 // Single photos used across the public site (separate from the Gallery and the
 // per-space photo sets). A styled placeholder shows until one is uploaded.
+// NOTE: the key stays `home_hero_image` (so any photo already uploaded here is
+// preserved) even though it now powers the About page's hero banner.
 const IMAGE_FIELDS = [
-  { key: "home_hero_image", label: "Homepage — main hero photo", hint: "The large image beside the headline on the homepage." },
+  { key: "home_hero_image", label: "About — hero banner (top of the About page)", hint: "Wide banner shown across the top of the About page, under the headline." },
   { key: "space_loft_image", label: "Spaces — The Loft lead photo (fallback)", hint: "Used if no Loft photos are added under Spaces Photos." },
   { key: "space_main_image", label: "Spaces — Main Floor lead photo (fallback)", hint: "Used if no Main Floor photos are added under Spaces Photos." },
-  { key: "about_image", label: "About — photo", hint: "Image on the About page." },
+  { key: "about_image", label: "About — story photo (beside the text)", hint: "Square-ish image next to the About story text." },
 ];
 
 async function save(formData) {

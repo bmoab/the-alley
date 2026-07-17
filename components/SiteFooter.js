@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { getContent } from "@/lib/db.js";
 import { FOOTER_COLS } from "@/components/site/nav.js";
+import NavLink from "@/components/site/NavLink.js";
 import FitWordmark from "@/components/site/FitWordmark.js";
 
 export default function SiteFooter() {
@@ -39,7 +39,7 @@ export default function SiteFooter() {
             <ul>
               {col.links.map((l) => (
                 <li key={l.t + l.h}>
-                  <Link href={l.h}>{l.t}</Link>
+                  <NavLink href={l.h} external={l.external}>{l.t}</NavLink>
                 </li>
               ))}
             </ul>

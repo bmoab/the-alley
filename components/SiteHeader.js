@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { NAV, SECONDARY } from "@/components/site/nav.js";
+import NavLink from "@/components/site/NavLink.js";
 import { useScrolled, useBodyScrollLock } from "@/components/hooks.js";
 
 export default function SiteHeader() {
@@ -29,13 +30,14 @@ export default function SiteHeader() {
 
         <nav className="sh-nav" aria-label="Primary">
           {NAV.map((l) => (
-            <Link
+            <NavLink
               key={l.href}
               href={l.href}
-              className={`sh-link${isActive(l.href) ? " is-active" : ""}`}
+              external={l.external}
+              className={`sh-link${!l.external && isActive(l.href) ? " is-active" : ""}`}
             >
               {l.label}
-            </Link>
+            </NavLink>
           ))}
           <div className="sh-more">
             <button type="button" className="sh-link sh-more-btn" aria-haspopup="true">
@@ -80,14 +82,15 @@ export default function SiteHeader() {
               ×
             </button>
             {[...NAV, ...SECONDARY].map((l) => (
-              <Link
+              <NavLink
                 key={l.href}
                 href={l.href}
-                className={isActive(l.href) ? "is-active" : ""}
+                external={l.external}
+                className={!l.external && isActive(l.href) ? "is-active" : ""}
                 onClick={() => setMenuOpen(false)}
               >
                 {l.label}
-              </Link>
+              </NavLink>
             ))}
             <Link href="/spaces" className="btn btn--solid" style={{ marginTop: 18 }} onClick={() => setMenuOpen(false)}>
               Request to Book
