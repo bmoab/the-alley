@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getEvent, normalizeLinkUrl } from "@/lib/catalog.js";
+import { getEvent, normalizeLinkUrl, parseEventLinks } from "@/lib/catalog.js";
+import { directoryLinkLabel } from "@/lib/link-label.js";
 import { formatDate, formatTime, spaceName } from "@/lib/constants.js";
 import PhotoSlot from "@/components/site/PhotoSlot.js";
 import EventPhoto from "@/components/site/EventPhoto.js";
@@ -13,6 +14,7 @@ export function generateMetadata({ params }) {
 export default function EventDetailPage({ params }) {
   const e = getEvent(params.id);
   if (!e || e.status !== "live") notFound();
+  const links = parseEventLinks(e);
 
   let pdfs = [];
   try {
@@ -62,6 +64,22 @@ export default function EventDetailPage({ params }) {
               <p className="mono" style={{ marginTop: 12, fontSize: 11, color: "var(--ink-muted)" }}>
                 The Alley provides this listing as a courtesy — payment goes directly to the host.
               </p>
+            </div>
+          ) : null}
+
+          {links.length ? (
+            <div style={{ marginTop: 22, display: "flex", flexWrap: "wrap", gap: 10 }}>
+              {links.map((l, i) => (
+                <a
+                  key={i}
+                  className={"btn " + (i === 0 ? "btn--solid" : "btn--ghost")}
+                  href={l.url}
+                  target={l.url.startsWith("http") ? "_blank" : undefined}
+                  rel={l.url.startsWith("http") ? "noreferrer" : undefined}
+                >
+                  {directoryLinkLabel(l)} →
+                </a>
+              ))}
             </div>
           ) : null}
         </div>

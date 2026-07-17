@@ -1,6 +1,16 @@
 "use client";
 import { useEffect, useState } from "react";
 import { spaceName, formatDate, formatTime } from "@/lib/constants.js";
+import LinksEditor from "@/components/LinksEditor.js";
+
+function parseLinks(raw) {
+  try {
+    const l = JSON.parse(raw || "[]");
+    return Array.isArray(l) ? l.filter((x) => x && x.url) : [];
+  } catch {
+    return [];
+  }
+}
 
 async function uploadFile(file, kind) {
   const fd = new FormData();
@@ -24,6 +34,7 @@ export default function HostListingForm({ event, saveAction, alreadyLive }) {
     payment_link: event.payment_link || "",
   });
   const [photo, setPhoto] = useState(event.photo_path || "");
+  const [links, setLinks] = useState(() => parseLinks(event.links));
   const [pdfs, setPdfs] = useState(() => {
     try { return event.pdf_paths ? JSON.parse(event.pdf_paths) : []; } catch { return []; }
   });
@@ -69,6 +80,7 @@ export default function HostListingForm({ event, saveAction, alreadyLive }) {
       tickets: form.tickets === "" ? null : Number(form.tickets),
       photo_path: photo || null,
       pdf_paths: pdfs,
+      links,
       submit,
     });
     setBusy(false);
@@ -161,6 +173,18 @@ export default function HostListingForm({ event, saveAction, alreadyLive }) {
         <div className="mt-4">
           <label className="label">Payment link (optional)</label>
           <input className="field" value={form.payment_link} onChange={(e) => set({ payment_link: e.target.value })} placeholder="https://venmo.com/priya-yoga" />
+        </div>
+      </div>
+
+      <div className="card p-5">
+        <h3 className="font-display text-lg font-semibold text-ink">Links</h3>
+        <p className="mt-1 text-sm text-ink-muted">
+          Add your website, tickets page, or socials — they show as buttons on your
+          listing (much cleaner than pasting a URL in the description). A label is
+          optional; we&apos;ll name it for you if you leave it blank.
+        </p>
+        <div className="mt-4">
+          <LinksEditor value={links} onChange={setLinks} />
         </div>
       </div>
 

@@ -8,7 +8,9 @@ import {
   createOwnEvent,
   createHostInvite,
   getEvent,
+  parseEventLinks,
 } from "@/lib/catalog.js";
+import LinksEditor from "@/components/LinksEditor.js";
 import { emailHostInvite, emailHostReminder } from "@/lib/email.js";
 import { logEmail } from "@/lib/activity.js";
 import { getActor } from "@/lib/auth.js";
@@ -144,6 +146,15 @@ async function removeEvent(formData) {
   redirect("/admin/events");
 }
 
+function parseLinksField(formData) {
+  try {
+    const l = JSON.parse(formData.get("links") || "[]");
+    return Array.isArray(l) ? l : [];
+  } catch {
+    return [];
+  }
+}
+
 async function saveEvent(formData) {
   "use server";
   const id = Number(formData.get("id"));
@@ -157,6 +168,7 @@ async function saveEvent(formData) {
     price: formData.get("price"),
     payment_instructions: formData.get("payment_instructions"),
     payment_link: formData.get("payment_link"),
+    links: parseLinksField(formData),
   });
   refresh();
   redirect("/admin/events");
@@ -199,6 +211,10 @@ function EventEditor({ ev }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <div><label className="label">Payment instructions</label><input name="payment_instructions" defaultValue={ev.payment_instructions || ""} className="field" /></div>
         <div><label className="label">Payment link</label><input name="payment_link" defaultValue={ev.payment_link || ""} className="field" /></div>
+      </div>
+      <div>
+        <label className="label">Links (buttons on the public listing)</label>
+        <LinksEditor name="links" value={parseEventLinks(ev)} />
       </div>
       <Button type="submit" className="w-fit">Save changes</Button>
     </form>
