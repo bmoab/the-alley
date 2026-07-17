@@ -13,7 +13,7 @@ import { confirmBookingPaid, releaseExpiredHolds, resendInvoice } from "@/lib/pa
 import { listDirectory } from "@/lib/catalog.js";
 import { getInvoiceStatus } from "@/lib/square.js";
 import { logActivity } from "@/lib/activity.js";
-import { getActor } from "@/lib/auth.js";
+import { getActor, getCurrentUser, canManageBookings, requireBookingManager } from "@/lib/auth.js";
 import {
   SPACES,
   DATE_PRESETS,
@@ -67,6 +67,10 @@ function refresh() {
   revalidatePath("/admin/events");
 }
 
+// Every booking action here moves money or state, so it's owner/admin only.
+// A limited user reaching an action (stale page, crafted POST) is turned away.
+const NO_PERMISSION = "You don't have permission to manage bookings.";
+
 // Preserve the caller's filters across a server action, so acting on a row
 // doesn't dump the owner back to an unfiltered list.
 function backTo(formData, extra = {}) {
@@ -82,6 +86,7 @@ function backTo(formData, extra = {}) {
 
 async function markPaid(formData) {
   "use server";
+  if (!(await requireBookingManager())) redirect(backTo(formData, { toast: NO_PERMISSION, toastType: "error" }));
   const id = Number(formData.get("id"));
   await confirmBookingPaid(id, await getActor());
   refresh();
@@ -91,6 +96,7 @@ async function markPaid(formData) {
 // Re-email the client their existing payment link.
 async function resend(formData) {
   "use server";
+  if (!(await requireBookingManager())) redirect(backTo(formData, { toast: NO_PERMISSION, toastType: "error" }));
   const id = Number(formData.get("id"));
   const result = await resendInvoice(id, await getActor());
   const toast =
@@ -108,6 +114,7 @@ async function resend(formData) {
 // Ask Square whether the invoice has been paid; if so, confirm the booking.
 async function checkPayment(formData) {
   "use server";
+  if (!(await requireBookingManager())) redirect(backTo(formData, { toast: NO_PERMISSION, toastType: "error" }));
   const id = Number(formData.get("id"));
   const b = getBooking(id);
   let toast = "No payment recorded yet.";
@@ -134,6 +141,7 @@ async function checkPayment(formData) {
 // conflicts with another held/confirmed booking; never silently double-books.
 async function restore(formData) {
   "use server";
+  if (!(await requireBookingManager())) redirect(backTo(formData, { toast: NO_PERMISSION, toastType: "error" }));
   const id = Number(formData.get("id"));
   const to = formData.get("to") === "held" ? "held" : "pending";
   const booking = getBooking(id);
@@ -168,6 +176,7 @@ async function restore(formData) {
 
 async function archive(formData) {
   "use server";
+  if (!(await requireBookingManager())) redirect(backTo(formData, { toast: NO_PERMISSION, toastType: "error" }));
   const id = Number(formData.get("id"));
   const on = formData.get("on") !== "0";
   const actor = await getActor();
@@ -191,6 +200,8 @@ async function archive(formData) {
 }
 
 export default async function BookingsPage({ searchParams }) {
+  const canManage = canManageBookings(await getCurrentUser());
+
   // Lazy sweep: release any holds whose payment window has lapsed (a cron does
   // this in production too). Notifies affected clients.
   await releaseExpiredHolds();
@@ -426,15 +437,28 @@ export default async function BookingsPage({ searchParams }) {
                   </Td>
                   <Td className="text-right font-medium text-ink">{formatMoney(b.total)}</Td>
                   <Td className="text-right">
-                    <BookingActionsMenu
-                      booking={b}
-                      filters={filterValues}
-                      markPaidAction={markPaid}
-                      checkPaymentAction={checkPayment}
-                      resendAction={resend}
-                      restoreAction={restore}
-                      archiveAction={archive}
-                    />
+                    {canManage ? (
+                      <BookingActionsMenu
+                        booking={b}
+                        filters={filterValues}
+                        markPaidAction={markPaid}
+                        checkPaymentAction={checkPayment}
+                        resendAction={resend}
+                        restoreAction={restore}
+                        archiveAction={archive}
+                      />
+                    ) : b.payment_link ? (
+                      <a
+                        href={b.payment_link}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="whitespace-nowrap text-xs font-medium text-verde-deep hover:underline"
+                      >
+                        Invoice ↗
+                      </a>
+                    ) : (
+                      <span className="text-xs text-ink-muted">—</span>
+                    )}
                   </Td>
                 </Tr>
               );

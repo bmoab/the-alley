@@ -8,6 +8,7 @@ import {
   setUserRole,
   resetUserPasswordToTemp,
   isLastActiveOwner,
+  normalizeRole,
 } from "@/lib/auth.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
@@ -34,7 +35,7 @@ async function addUser(formData) {
   await requireOwner();
   const name = (formData.get("name") || "").toString().trim();
   const email = (formData.get("email") || "").toString().trim();
-  const role = formData.get("role") === "owner" ? "owner" : "user";
+  const role = normalizeRole(formData.get("role"));
   const typed = (formData.get("password") || "").toString().trim();
   const me = await getCurrentUser();
   try {
@@ -68,7 +69,7 @@ async function changeRole(formData) {
   "use server";
   await requireOwner();
   const id = Number(formData.get("id"));
-  const role = formData.get("role") === "owner" ? "owner" : "user";
+  const role = normalizeRole(formData.get("role"));
   try {
     setUserRole(id, role);
   } catch (err) {
@@ -112,9 +113,10 @@ export default async function TeamPage() {
           </div>
           <div>
             <label className="label" htmlFor="role">Role</label>
-            <select id="role" name="role" defaultValue="user" className="field">
-              <option value="user">User — full access, can't manage team</option>
-              <option value="owner">Owner — full access + manage team</option>
+            <select id="role" name="role" defaultValue="admin" className="field">
+              <option value="user">User — view &amp; edit content, can’t approve or charge bookings</option>
+              <option value="admin">Admin — manage bookings &amp; content, can’t manage team</option>
+              <option value="owner">Owner — everything, including the team</option>
             </select>
           </div>
           <div>
@@ -140,7 +142,7 @@ export default async function TeamPage() {
                 <Td className="font-medium text-ink">{u.name || "—"}</Td>
                 <Td className="text-ink-soft">{u.email}</Td>
                 <Td>
-                  <Badge tone={u.role === "owner" ? "sage" : "neutral"}>{u.role}</Badge>
+                  <Badge tone={u.role === "owner" ? "sage" : u.role === "admin" ? "sky" : "neutral"}>{u.role}</Badge>
                 </Td>
                 <Td>
                   <Badge tone={u.is_active ? "success" : "danger"}>
@@ -163,6 +165,7 @@ export default async function TeamPage() {
                         title={lastOwner ? "The last active owner can't be demoted" : "Change role"}
                       >
                         <option value="user">User</option>
+                        <option value="admin">Admin</option>
                         <option value="owner">Owner</option>
                       </select>
                       <Button type="submit" variant="ghost" size="sm" disabled={lastOwner}>

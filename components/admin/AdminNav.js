@@ -12,9 +12,9 @@ import { cx } from "./ui/cx.js";
  * active state with a sage accent bar. Footer actions (View website / Sign out)
  * are always visible here. `logout` is a server action passed from the layout.
  */
-export default function AdminNav({ email, isOwner = false, logout }) {
+export default function AdminNav({ email, isOwner = false, canManageBookings = false, logout }) {
   const pathname = usePathname();
-  const nav = navFor(isOwner);
+  const nav = navFor({ isOwner, canManageBookings });
 
   return (
     <div className="flex h-full flex-col">

@@ -8,7 +8,7 @@ import {
 } from "@/lib/bookings.js";
 import { refundPayment } from "@/lib/square.js";
 import { emailClientCancelled } from "@/lib/email.js";
-import { getActor } from "@/lib/auth.js";
+import { getActor, getCurrentUser, canManageBookings, requireBookingManager } from "@/lib/auth.js";
 import { logActivity, logEmail } from "@/lib/activity.js";
 import { spaceName, formatDate, formatTime, formatMoney } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
@@ -20,6 +20,11 @@ export const metadata = { title: "Cancel booking" };
 
 async function confirmCancel(formData) {
   "use server";
+  if (!(await requireBookingManager())) {
+    redirect(
+      `/admin/bookings?toast=${encodeURIComponent("You don't have permission to cancel bookings.")}&toastType=error`
+    );
+  }
   const id = Number(formData.get("id"));
   const booking = getBooking(id);
   if (!booking) redirect("/admin/bookings");
@@ -107,6 +112,11 @@ async function confirmCancel(formData) {
 }
 
 export default async function CancelBookingPage({ params }) {
+  if (!canManageBookings(await getCurrentUser())) {
+    redirect(
+      `/admin/bookings?toast=${encodeURIComponent("You don't have permission to cancel bookings.")}&toastType=error`
+    );
+  }
   const id = Number(params.id);
   const booking = getBooking(id);
   if (!booking) redirect("/admin/bookings");

@@ -27,6 +27,7 @@ const TONE_STYLES = {
   warning: "bg-amber-100 text-amber-800 border-amber-200",
   danger: "bg-rust/10 text-rust border-rust/25",
   ink: "bg-ink/10 text-ink-soft border-ink/15",
+  sky: "bg-sky-100 text-sky-800 border-sky-200",
 };
 
 export default function Badge({ status, tone, children, className }) {

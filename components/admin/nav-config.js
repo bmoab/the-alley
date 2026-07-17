@@ -27,9 +27,11 @@ export const NAV = [
     group: "Reservations",
     icon: ClipboardList,
     items: [
-      { href: "/admin/requests", label: "Requests", icon: Inbox },
+      // Requests (approve/deny) and Deposits (refunds) are booking-management
+      // surfaces — hidden from a limited "user" (server-guarded regardless).
+      { href: "/admin/requests", label: "Requests", icon: Inbox, needsBookings: true },
       { href: "/admin/bookings", label: "Bookings", icon: CalendarCheck },
-      { href: "/admin/deposits", label: "Deposits", icon: Wallet },
+      { href: "/admin/deposits", label: "Deposits", icon: Wallet, needsBookings: true },
       { href: "/admin/activity", label: "Activity", icon: Activity },
     ],
   },
@@ -54,16 +56,21 @@ export const NAV = [
 ];
 
 /**
- * NAV filtered for the current user. Drops owner-only items (and prunes any
- * group left empty) when `isOwner` is false.
+ * NAV filtered for the current user's capabilities. `perms` is
+ * { isOwner, canManageBookings }. Drops owner-only items when not an owner and
+ * booking-management items when the user can't manage bookings, then prunes any
+ * group left empty. (A bare boolean is still accepted as legacy isOwner.)
  */
-export function navFor(isOwner) {
+export function navFor(perms = {}) {
+  const p = typeof perms === "boolean" ? { isOwner: perms } : perms;
+  const allowed = (item) =>
+    (!item.ownerOnly || p.isOwner) && (!item.needsBookings || p.canManageBookings);
   return NAV.flatMap((item) => {
     if (item.group) {
-      const items = item.items.filter((sub) => isOwner || !sub.ownerOnly);
+      const items = item.items.filter(allowed);
       return items.length ? [{ ...item, items }] : [];
     }
-    return isOwner || !item.ownerOnly ? [item] : [];
+    return allowed(item) ? [item] : [];
   });
 }
 

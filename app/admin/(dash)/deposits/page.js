@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { listDepositsToRefund, resolveDeposit } from "@/lib/deposits.js";
-import { getActor } from "@/lib/auth.js";
+import { getActor, getCurrentUser, canManageBookings, requireBookingManager } from "@/lib/auth.js";
 import { spaceName, formatDate, formatMoney } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
@@ -13,6 +13,11 @@ export const metadata = { title: "Deposits" };
 // or "Withhold all" (refund 0). Optional reason is shown to the client + logged.
 async function resolve(formData) {
   "use server";
+  if (!(await requireBookingManager())) {
+    redirect(
+      `/admin/deposits?toast=${encodeURIComponent("You don't have permission to resolve deposits.")}&toastType=error`
+    );
+  }
   const id = Number(formData.get("id"));
   const withholdAll = formData.get("withhold_all");
   const refundAmount = withholdAll ? 0 : Number(formData.get("refund_amount"));

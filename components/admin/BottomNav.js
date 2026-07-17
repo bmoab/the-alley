@@ -12,10 +12,10 @@ import { cx } from "./ui/cx.js";
  * section plus View website / Sign out / the signed-in email — the actions
  * that were previously unreachable on a phone.
  */
-export default function BottomNav({ email, isOwner = false, logout }) {
+export default function BottomNav({ email, isOwner = false, canManageBookings = false, logout }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const nav = navFor(isOwner);
+  const nav = navFor({ isOwner, canManageBookings });
 
   // Close the sheet on navigation.
   useEffect(() => {
@@ -32,8 +32,13 @@ export default function BottomNav({ email, isOwner = false, logout }) {
     };
   }, [open]);
 
+  // A limited user can't approve, so Requests isn't a primary tab for them.
+  const primaryTabs = canManageBookings
+    ? PRIMARY_TABS
+    : PRIMARY_TABS.filter((t) => t.href !== "/admin/requests");
+
   // "More" is highlighted when the current page isn't one of the primary tabs.
-  const onPrimary = PRIMARY_TABS.some((t) => isActive(pathname, t.href));
+  const onPrimary = primaryTabs.some((t) => isActive(pathname, t.href));
 
   return (
     <>
@@ -98,7 +103,7 @@ export default function BottomNav({ email, isOwner = false, logout }) {
 
       {/* Fixed bottom tab bar */}
       <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
-        {PRIMARY_TABS.map((tab) => {
+        {primaryTabs.map((tab) => {
           const active = isActive(pathname, tab.href);
           const Icon = tab.icon;
           return (

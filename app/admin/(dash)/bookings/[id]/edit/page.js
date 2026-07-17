@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getBooking } from "@/lib/bookings.js";
 import { reissueInvoice } from "@/lib/payments.js";
-import { getActor } from "@/lib/auth.js";
+import { getActor, getCurrentUser, canManageBookings, requireBookingManager } from "@/lib/auth.js";
 import { spaceName, formatDate, formatTime, formatMoney } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
@@ -14,6 +14,11 @@ export const metadata = { title: "Edit invoice" };
 
 async function saveAndReissue(formData) {
   "use server";
+  if (!(await requireBookingManager())) {
+    redirect(
+      `/admin/bookings?toast=${encodeURIComponent("You don't have permission to edit invoices.")}&toastType=error`
+    );
+  }
   const id = Number(formData.get("id"));
   const booking = getBooking(id);
   if (!booking) redirect("/admin/bookings");
@@ -54,6 +59,11 @@ async function saveAndReissue(formData) {
 }
 
 export default async function EditInvoicePage({ params }) {
+  if (!canManageBookings(await getCurrentUser())) {
+    redirect(
+      `/admin/bookings?toast=${encodeURIComponent("You don't have permission to edit invoices.")}&toastType=error`
+    );
+  }
   const id = Number(params.id);
   const booking = getBooking(id);
   if (!booking) redirect("/admin/bookings");

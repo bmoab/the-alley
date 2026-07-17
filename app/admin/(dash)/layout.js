@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
-import { getCurrentUser, clearSessionCookie } from "@/lib/auth.js";
+import { getCurrentUser, clearSessionCookie, canManageBookings } from "@/lib/auth.js";
 import AdminNav from "@/components/admin/AdminNav.js";
 import BottomNav from "@/components/admin/BottomNav.js";
 import Toaster from "@/components/admin/ui/Toaster.js";
@@ -20,12 +20,13 @@ export default async function AdminLayout({ children }) {
   // First login (or owner-reset) must set a password before using the admin.
   if (user.must_change_password) redirect("/admin/set-password");
   const isOwner = user.role === "owner";
+  const canManage = canManageBookings(user);
 
   return (
     <div className="admin-ui min-h-screen bg-paper-warm lg:flex">
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-r border-line bg-paper lg:block">
-        <AdminNav email={user.email} isOwner={isOwner} logout={logout} />
+        <AdminNav email={user.email} isOwner={isOwner} canManageBookings={canManage} logout={logout} />
       </aside>
 
       {/* Mobile top bar */}
@@ -52,7 +53,7 @@ export default async function AdminLayout({ children }) {
       </main>
 
       {/* Mobile bottom tab bar + More sheet */}
-      <BottomNav email={user.email} isOwner={isOwner} logout={logout} />
+      <BottomNav email={user.email} isOwner={isOwner} canManageBookings={canManage} logout={logout} />
 
       {/* Booking activity drawer — opens when ?b=<id> is in the URL (any list) */}
       <Suspense fallback={null}>

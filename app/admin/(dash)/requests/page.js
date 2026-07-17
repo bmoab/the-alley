@@ -20,9 +20,9 @@ import { createBookingInvoice, createDepositInvoice } from "@/lib/square.js";
 import { confirmBookingPaid } from "@/lib/payments.js";
 import { emailClientApproved, emailClientDenied, emailClientSeriesApproved } from "@/lib/email.js";
 import { logActivity, logEmail } from "@/lib/activity.js";
-import { getActor } from "@/lib/auth.js";
+import { getActor, getCurrentUser, canManageBookings, requireBookingManager } from "@/lib/auth.js";
 import { resolveDenial } from "@/lib/denial.js";
-import { formatMoney } from "@/lib/constants.js";
+import { formatMoney, spaceName, formatDate, formatTime } from "@/lib/constants.js";
 import RequestCard from "@/components/RequestCard.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
@@ -35,6 +35,11 @@ function toastRedirect(message, type = "success") {
   );
 }
 
+// Booking approvals are owner/admin only. A "user" that reaches an action
+// (stale page, hand-crafted POST) is turned away here — the UI hiding the
+// buttons is convenience; this is the enforcement.
+const NO_PERMISSION = "You don't have permission to approve or deny bookings.";
+
 function refresh() {
   revalidatePath("/admin/requests");
   revalidatePath("/admin");
@@ -43,6 +48,7 @@ function refresh() {
 
 async function approve(formData) {
   "use server";
+  if (!(await requireBookingManager())) toastRedirect(NO_PERMISSION, "error");
   const id = Number(formData.get("id"));
   const actor = await getActor();
   let booking = approveBooking(id, {
@@ -117,6 +123,7 @@ async function approve(formData) {
 
 async function approveSeries(formData) {
   "use server";
+  if (!(await requireBookingManager())) toastRedirect(NO_PERMISSION, "error");
   const seriesId = Number(formData.get("series_id"));
   const actor = await getActor();
   const pricing = {
@@ -207,6 +214,7 @@ async function approveSeries(formData) {
 
 async function denySeriesAction(formData) {
   "use server";
+  if (!(await requireBookingManager())) toastRedirect(NO_PERMISSION, "error");
   const id = Number(formData.get("id"));
   const actor = await getActor();
   const { reasonValue, internalLabel, clientPhrasing } = resolveDenial(
@@ -243,6 +251,7 @@ async function denySeriesAction(formData) {
 
 async function deny(formData) {
   "use server";
+  if (!(await requireBookingManager())) toastRedirect(NO_PERMISSION, "error");
   const id = Number(formData.get("id"));
   const actor = await getActor();
 
@@ -295,7 +304,9 @@ function suggestTenant(booking, tenants) {
   return hit?.id ?? null;
 }
 
-export default function RequestsPage() {
+export default async function RequestsPage() {
+  const canManage = canManageBookings(await getCurrentUser());
+
   // Oldest submitted at the top (FIFO) so requests are worked in arrival order.
   const pending = listBookings({ status: "pending", sort: "created_asc" });
 
@@ -333,11 +344,44 @@ export default function RequestsPage() {
         subtitle="Pending booking requests. Adjust pricing if needed, then approve (places a hold and sends a payment link) or deny."
       />
 
+      {!canManage ? (
+        <Card pad="md" className="mb-5 border-gold/40 bg-gold/10 text-sm text-ink-soft">
+          You have <strong>view-only</strong> access to requests. Approving, pricing,
+          and denying are limited to owners and admins.
+        </Card>
+      ) : null}
+
       {items.length === 0 ? (
         <Card pad="lg" className="py-12 text-center text-ink-muted">
           No pending requests right now. New requests from the website will appear
           here.
         </Card>
+      ) : !canManage ? (
+        // Read-only list for limited users: they can see what's pending, but the
+        // pricing/approve/deny controls (RequestCard) are withheld.
+        <div className="space-y-2">
+          {items.map((it) => {
+            const b = it.type === "series" ? it.holder : it.booking;
+            return (
+              <Card key={it.type === "series" ? `s${b.series_id}` : b.id} pad="md" className="text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <span className="font-semibold text-ink">{b.client_name}</span>
+                    <span className="text-ink-muted"> · {b.client_email}</span>
+                    {it.type === "series" ? (
+                      <span className="ml-2 rounded-full border border-sky-300 bg-sky-100 px-2 py-0.5 text-xs text-sky-800">
+                        Recurring · {it.rows.length} sessions
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="text-ink-soft">
+                    {spaceName(b.space)} · {formatDate(b.date)} · {formatTime(b.start_time)}
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
       ) : (
         <div className="space-y-5">
           {items.map((it) => {

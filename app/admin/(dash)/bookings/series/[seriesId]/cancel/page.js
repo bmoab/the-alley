@@ -9,7 +9,7 @@ import {
 } from "@/lib/bookings.js";
 import { refundPayment, refundSeriesDeposit } from "@/lib/square.js";
 import { emailClientSeriesCancelled } from "@/lib/email.js";
-import { getActor } from "@/lib/auth.js";
+import { getActor, getCurrentUser, canManageBookings, requireBookingManager } from "@/lib/auth.js";
 import { logActivity, logEmail } from "@/lib/activity.js";
 import { spaceName, formatDate, formatTime, formatMoney } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
@@ -23,6 +23,11 @@ const liveStatuses = ["reserved", "held", "confirmed", "completed"];
 
 async function confirmCancelSeries(formData) {
   "use server";
+  if (!(await requireBookingManager())) {
+    redirect(
+      `/admin/bookings?toast=${encodeURIComponent("You don't have permission to cancel bookings.")}&toastType=error`
+    );
+  }
   const seriesId = Number(formData.get("series_id"));
   const rows = getSeries(seriesId);
   if (!rows.length) redirect("/admin/bookings");
@@ -99,7 +104,12 @@ async function confirmCancelSeries(formData) {
   );
 }
 
-export default function CancelSeriesPage({ params }) {
+export default async function CancelSeriesPage({ params }) {
+  if (!canManageBookings(await getCurrentUser())) {
+    redirect(
+      `/admin/bookings?toast=${encodeURIComponent("You don't have permission to cancel bookings.")}&toastType=error`
+    );
+  }
   const seriesId = Number(params.seriesId);
   const rows = getSeries(seriesId);
   if (!rows.length) redirect("/admin/bookings");
