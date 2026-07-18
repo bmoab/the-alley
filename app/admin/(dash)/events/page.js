@@ -14,7 +14,8 @@ import LinksEditor from "@/components/LinksEditor.js";
 import { emailHostInvite, emailHostReminder } from "@/lib/email.js";
 import { logEmail } from "@/lib/activity.js";
 import { getActor } from "@/lib/auth.js";
-import { SPACES, spaceName, formatDate, formatTime } from "@/lib/constants.js";
+import { SPACES, spaceName, formatDate, formatTime, venueToday } from "@/lib/constants.js";
+import { db } from "@/lib/db.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Button from "@/components/admin/ui/Button.js";
 
@@ -95,6 +96,9 @@ async function remindHost(formData) {
   if (ev?.host_email && ev?.host_token) {
     try {
       const res = await emailHostReminder(ev);
+      // Reset the auto-reminder clock so the cron doesn't double-nudge within
+      // its ~3-day window right after a manual reminder.
+      db.prepare("UPDATE events SET host_reminder_last_sent = ? WHERE id = ?").run(venueToday(), id);
       // Record the nudge so there's a trail of who was reminded and when.
       // Booking-tied listings attach to their booking's activity; manual
       // invites (no booking) still land in the global activity feed.
