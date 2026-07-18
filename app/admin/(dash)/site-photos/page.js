@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getContent, setContent } from "@/lib/db.js";
 import ContentImageField from "@/components/ContentImageField.js";
+import ImageCropField from "@/components/ImageCropField.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Button from "@/components/admin/ui/Button.js";
 
@@ -14,7 +15,7 @@ export const metadata = { title: "Site Photos" };
 // `framing` adds the focal-point + "show whole photo" controls; `height` adds
 // the banner-height control (the homepage hero is the only fixed-height banner).
 const IMAGE_FIELDS = [
-  { key: "home_hero_image", label: "Homepage — hero banner (above the headline)", hint: "Wide banner across the top of the homepage. Click the photo to choose what stays in view.", framing: true, height: true },
+  { key: "home_hero_image", label: "Homepage — hero banner (above the headline)", hint: "Wide banner across the top of the homepage. Use “Adjust crop” to drag a box over the photo and frame exactly what shows.", crop: true },
   { key: "space_loft_image", label: "Spaces — The Loft lead photo (fallback)", hint: "Used if no Loft photos are added under Spaces Photos." },
   { key: "space_main_image", label: "Spaces — Main Floor lead photo (fallback)", hint: "Used if no Main Floor photos are added under Spaces Photos." },
   { key: "about_image", label: "About — story photo (beside the text)", hint: "Image next to the About story text. Click the photo to choose what stays in view.", framing: true },
@@ -24,6 +25,8 @@ async function save(formData) {
   "use server";
   for (const f of IMAGE_FIELDS) {
     setContent(f.key, (formData.get(f.key) || "").toString());
+    // Crop rectangle (homepage hero): JSON {x,y,w,h,nw,nh} or "" when unset.
+    if (f.crop) setContent(`${f.key}_crop`, (formData.get(`${f.key}_crop`) || "").toString());
     // Companion framing keys: only for fields that expose the controls.
     if (f.framing) {
       setContent(`${f.key}_fit`, (formData.get(`${f.key}_fit`) || "cover").toString());
@@ -50,20 +53,31 @@ export default function SitePhotosPage() {
       />
 
       <form action={save} className="space-y-5">
-        {IMAGE_FIELDS.map((f) => (
-          <ContentImageField
-            key={f.key}
-            name={f.key}
-            label={f.label}
-            hint={f.hint}
-            value={c[f.key] || ""}
-            framing={f.framing}
-            height={f.height}
-            pos={c[`${f.key}_pos`] || "50% 50%"}
-            fit={c[`${f.key}_fit`] || "cover"}
-            heightPx={Number(c[`${f.key}_h`]) || 440}
-          />
-        ))}
+        {IMAGE_FIELDS.map((f) =>
+          f.crop ? (
+            <ImageCropField
+              key={f.key}
+              name={f.key}
+              label={f.label}
+              hint={f.hint}
+              value={c[f.key] || ""}
+              crop={c[`${f.key}_crop`] || ""}
+            />
+          ) : (
+            <ContentImageField
+              key={f.key}
+              name={f.key}
+              label={f.label}
+              hint={f.hint}
+              value={c[f.key] || ""}
+              framing={f.framing}
+              height={f.height}
+              pos={c[`${f.key}_pos`] || "50% 50%"}
+              fit={c[`${f.key}_fit`] || "cover"}
+              heightPx={Number(c[`${f.key}_h`]) || 440}
+            />
+          )
+        )}
         <Button type="submit">Save changes</Button>
       </form>
     </div>

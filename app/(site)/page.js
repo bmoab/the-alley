@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getContent } from "@/lib/db.js";
 import { listPublicDirectoryWithSuites, listExhibitorsByPhase, listGallery, listUpcomingLiveEvents, listSpacePhotos } from "@/lib/catalog.js";
 import { SPACES } from "@/lib/constants.js";
+import { parseCrop, cropBackgroundStyle } from "@/lib/crop.js";
 import Hero from "@/components/home/Hero.js";
 import PhotoSlot from "@/components/site/PhotoSlot.js";
 import SectionHead from "@/components/site/SectionHead.js";
@@ -42,28 +43,39 @@ export default function HomePage() {
   const exhibitors = listExhibitorsByPhase().current;
   const events = listUpcomingLiveEvents(3);
   const gallery = listGallery().slice(0, 6);
+  const heroCrop = parseCrop(c.home_hero_image_crop);
 
   return (
     <>
       {/* Hero banner — the site-managed homepage photo (Site Photos admin),
-          shown above the headline. Only once one has been uploaded. Framing
-          (focal point / fit / height) comes from its companion keys. */}
+          shown above the headline. When the owner has framed a crop box, render
+          that exact rectangle (its shape sets the height); otherwise fall back
+          to the older focal-point framing so nothing breaks pre-crop. */}
       {c.home_hero_image ? (
         <div className="wrap" style={{ marginTop: "clamp(16px,3vw,32px)" }} data-edit="home_hero_image">
-          <PhotoSlot
-            src={c.home_hero_image}
-            alt="The Alley On Center"
-            showTag={false}
-            variant="verde"
-            className="reveal"
-            objectFit={c.home_hero_image_fit || "cover"}
-            objectPosition={c.home_hero_image_pos || "50% 50%"}
-            style={{
-              height: `min(${Number(c.home_hero_image_h) || 440}px, 62vh)`,
-              borderRadius: 16,
-              overflow: "hidden",
-            }}
-          />
+          {heroCrop ? (
+            <div
+              className="reveal"
+              role="img"
+              aria-label="The Alley On Center"
+              style={{ ...cropBackgroundStyle(c.home_hero_image, heroCrop), width: "100%", borderRadius: 16, overflow: "hidden" }}
+            />
+          ) : (
+            <PhotoSlot
+              src={c.home_hero_image}
+              alt="The Alley On Center"
+              showTag={false}
+              variant="verde"
+              className="reveal"
+              objectFit={c.home_hero_image_fit || "cover"}
+              objectPosition={c.home_hero_image_pos || "50% 50%"}
+              style={{
+                height: `min(${Number(c.home_hero_image_h) || 440}px, 62vh)`,
+                borderRadius: 16,
+                overflow: "hidden",
+              }}
+            />
+          )}
         </div>
       ) : null}
 
