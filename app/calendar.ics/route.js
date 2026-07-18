@@ -72,10 +72,12 @@ export async function GET() {
       dtStart = `DTSTART;VALUE=DATE:${y}${mo}${d}`;
       dtEnd = `DTEND;VALUE=DATE:${y}${mo}${d}`;
     }
+    // Deep-link each session to its own date so the right one opens.
+    const eventUrl = appUrl ? `${appUrl}/events/${e.id}${e.date ? `?d=${e.date}` : ""}` : null;
     const descParts = [];
     if (e.description) descParts.push(e.description);
     if (e.host_name) descParts.push(`Hosted by ${e.host_name}`);
-    if (appUrl) descParts.push(`${appUrl}/events/${e.id}`);
+    if (eventUrl) descParts.push(eventUrl);
 
     lines.push(
       "BEGIN:VEVENT",
@@ -86,7 +88,7 @@ export async function GET() {
       `SUMMARY:${esc(e.title || "Event")}`,
       `DESCRIPTION:${esc(descParts.join("\n\n"))}`,
       `LOCATION:${esc("The Alley On Center, " + address)}`,
-      appUrl ? `URL:${esc(appUrl + "/events/" + e.id)}` : null,
+      eventUrl ? `URL:${esc(eventUrl)}` : null,
       "END:VEVENT"
     );
   }

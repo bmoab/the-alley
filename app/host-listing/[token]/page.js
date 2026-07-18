@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
-import { getEventByToken, saveHostListing, findLastEventByHostEmail } from "@/lib/catalog.js";
+import { getEventByToken, saveHostListing, findLastEventByHostEmail, getEventSessions } from "@/lib/catalog.js";
 import { getSetting } from "@/lib/db.js";
 import { logActivity } from "@/lib/activity.js";
 import HostListingForm from "@/components/HostListingForm.js";
@@ -100,7 +100,7 @@ export default function HostListingPage({ params }) {
         </p>
 
         <div className="mt-8">
-          <HostListingForm event={event} saveAction={save} alreadyLive={alreadyLive} lastEvent={lastEvent} />
+          <HostListingForm event={event} saveAction={save} alreadyLive={alreadyLive} lastEvent={lastEvent} sessions={getEventSessions(event)} />
         </div>
       </div>
     </main>

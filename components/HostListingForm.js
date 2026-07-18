@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { spaceName, formatDate, formatTime } from "@/lib/constants.js";
 import LinksEditor from "@/components/LinksEditor.js";
+import SessionContentEditor from "@/components/SessionContentEditor.js";
 
 function parseLinks(raw) {
   try {
@@ -22,7 +23,7 @@ async function uploadFile(file, kind) {
   return data.path;
 }
 
-export default function HostListingForm({ event, saveAction, alreadyLive, lastEvent }) {
+export default function HostListingForm({ event, saveAction, alreadyLive, lastEvent, sessions = [] }) {
   const [form, setForm] = useState({
     title: event.title || "",
     description: event.description || "",
@@ -35,6 +36,15 @@ export default function HostListingForm({ event, saveAction, alreadyLive, lastEv
   });
   const [photo, setPhoto] = useState(event.photo_path || "");
   const [links, setLinks] = useState(() => parseLinks(event.links));
+  const isSeries = sessions.length > 1;
+  const [sessionContent, setSessionContent] = useState(() => {
+    try {
+      const sc = JSON.parse(event.session_content || "{}");
+      return { fields: Array.isArray(sc.fields) ? sc.fields : [], sessions: sc.sessions || {} };
+    } catch {
+      return { fields: [], sessions: {} };
+    }
+  });
   const [pdfs, setPdfs] = useState(() => {
     try { return event.pdf_paths ? JSON.parse(event.pdf_paths) : []; } catch { return []; }
   });
@@ -104,6 +114,7 @@ export default function HostListingForm({ event, saveAction, alreadyLive, lastEv
       photo_path: photo || null,
       pdf_paths: pdfs,
       links,
+      session_content: isSeries ? sessionContent : { fields: [], sessions: {} },
       submit,
     });
     setBusy(false);
@@ -127,8 +138,11 @@ export default function HostListingForm({ event, saveAction, alreadyLive, lastEv
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-paper-warm p-4 text-sm text-ink-soft">
         <span>
           Booking: <strong>{spaceName(event.space)}</strong>
-          {event.date ? ` · ${formatDate(event.date)}` : ""} — the date &amp; time are
-          locked to your reservation; fill in the listing details below.
+          {isSeries
+            ? ` · recurring series · ${sessions.length} sessions`
+            : event.date ? ` · ${formatDate(event.date)}` : ""}
+          {" "}— the date{isSeries ? "s" : ""} &amp; time are locked to your reservation;
+          fill in the listing details below.
         </span>
         {alreadyLive ? (
           <a
@@ -229,6 +243,15 @@ export default function HostListingForm({ event, saveAction, alreadyLive, lastEv
           <LinksEditor key={prefilled ? "prefilled" : "initial"} value={links} onChange={setLinks} />
         </div>
       </div>
+
+      {isSeries ? (
+        <SessionContentEditor
+          key={prefilled ? "sc-prefilled" : "sc-initial"}
+          sessions={sessions}
+          value={sessionContent}
+          onChange={setSessionContent}
+        />
+      ) : null}
 
       <div className="card p-5">
         <h3 className="font-display text-lg font-semibold text-ink">Photo & files</h3>

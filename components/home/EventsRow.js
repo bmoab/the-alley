@@ -30,7 +30,7 @@ export default function EventsRow({ events = [] }) {
         const d = fmtEvDate(e.date);
         const when = e.end_label || (e.time ? formatTime(e.time) : "");
         return (
-          <Link key={e.key ?? e.id} href={`/events/${e.id}`} className="ev-card reveal">
+          <Link key={e.key ?? e.id} href={`/events/${e.id}?d=${e.date}`} className="ev-card reveal">
             <PhotoSlot src={e.photo_path || null} tag={e.kind || "Event"} variant={VARIANTS[i % 3]} className="ev-photo" />
             <div className="ev-datechip mono"><b>{d.dy}</b><span>{d.mo}</span></div>
             <div className="ev-body">
