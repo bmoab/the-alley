@@ -181,7 +181,15 @@ export default function BookingActionsMenu({
       // Override: keep an unpaid hold on the calendar (or re-arm the expiry).
       // Only for a single held booking (series dates never auto-expire).
       if (b.status === "held" && keepOnCalendarAction) {
-        if (b.hold_expires_at) {
+        if (b.keep_on_calendar) {
+          items.push({
+            key: "rearm",
+            label: "Let it expire again",
+            hint: "Re-start the payment countdown",
+            action: keepOnCalendarAction,
+            fields: { rearm: "1" },
+          });
+        } else {
           items.push({
             key: "keep",
             label: "Keep on calendar",
@@ -194,16 +202,24 @@ export default function BookingActionsMenu({
               pending: "Saving…",
             },
           });
-        } else {
-          items.push({
-            key: "rearm",
-            label: "Let it expire again",
-            hint: "Re-start the payment countdown",
-            action: keepOnCalendarAction,
-            fields: { rearm: "1" },
-          });
         }
       }
+    }
+    // An unpaid hold auto-expires once its event date passes — but the owner can
+    // bring it back and keep it (a deal settled late). Available after expiry.
+    if (b.status === "expired" && keepOnCalendarAction) {
+      items.push({
+        key: "keep-expired",
+        label: "Keep on calendar",
+        hint: "Restore this hold and stop it expiring",
+        action: keepOnCalendarAction,
+        confirm: {
+          title: "Restore and keep on the calendar?",
+          body: `This puts ${b.client_name}'s expired hold back on the calendar (unpaid) and stops it auto-expiring, until you mark it paid or cancel it.`,
+          cta: "Restore & keep it",
+          pending: "Restoring…",
+        },
+      });
     }
     if (b.payment_link) {
       items.push({ key: "invoice", label: "Open invoice ↗", href: b.payment_link, external: true });

@@ -457,13 +457,13 @@ export default async function BookingsPage({ searchParams }) {
                     ) : (
                       b.payment_status || "unpaid"
                     )}
-                    {b.status === "held" && b.hold_expires_at ? (
-                      <div className="text-xs normal-case text-ink-muted">
-                        holds until {formatDate(b.hold_expires_at.slice(0, 10))}
-                      </div>
-                    ) : b.status === "held" ? (
+                    {b.status === "held" && b.keep_on_calendar ? (
                       <div className="text-xs normal-case font-medium text-verde-deep">
                         Kept on calendar · won’t expire
+                      </div>
+                    ) : b.status === "held" && b.hold_expires_at ? (
+                      <div className="text-xs normal-case text-ink-muted">
+                        holds until {formatDate(b.hold_expires_at.slice(0, 10))}
                       </div>
                     ) : null}
                   </Td>
