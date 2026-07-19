@@ -33,14 +33,14 @@ export default function AdminDashboard() {
         <StatCard
           label="Held bookings"
           value={held.length}
-          href="/admin/bookings"
+          href="/admin/bookings?status=held&preset=all"
           hint="Awaiting payment"
           icon={Clock}
         />
         <StatCard
           label="Confirmed"
           value={confirmed.length}
-          href="/admin/bookings"
+          href="/admin/bookings?status=confirmed&preset=all"
           hint="Paid & on the calendar"
           icon={CalendarCheck}
         />

@@ -243,7 +243,11 @@ export default async function BookingsPage({ searchParams }) {
   // explicit ?preset overrides this, so switching filters doesn't carry an
   // implied range along with it.
   const explicitPreset = (searchParams?.preset || "").toString();
-  const defaultPreset = HISTORICAL_STATUSES.has(status) ? "all" : DEFAULT_DATE_PRESET;
+  // "held" defaults to All time too: a hold awaiting payment can be past-due,
+  // and "upcoming" would hide exactly the overdue ones that most need action
+  // (this also makes the dashboard's Held count match what the filter shows).
+  const showsAllByDefault = HISTORICAL_STATUSES.has(status) || status === "held";
+  const defaultPreset = showsAllByDefault ? "all" : DEFAULT_DATE_PRESET;
   const preset = explicitPreset || defaultPreset;
 
   const { from, to } = resolveDateRange(preset, { from: customFrom, to: customTo });
