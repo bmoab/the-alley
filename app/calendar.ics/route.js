@@ -1,4 +1,5 @@
 import { listLiveEvents } from "@/lib/catalog.js";
+import { eventPublicStart, eventPublicEnd } from "@/lib/event-time.js";
 import { getContentValue } from "@/lib/db.js";
 
 export const dynamic = "force-dynamic";
@@ -58,15 +59,25 @@ export async function GET() {
   for (const e of events) {
     if (!e.date) continue;
     const [y, mo, d] = e.date.split("-");
+    // Subscribers should see when GUESTS are expected, not when the host's
+    // reservation starts — those differ whenever a host books setup time.
+    const start = eventPublicStart(e);
+    const publicEnd = eventPublicEnd(e);
     let dtStart, dtEnd;
-    if (e.time) {
-      const [hh, mm] = e.time.split(":");
+    if (start) {
+      const [hh, mm] = start.split(":");
       dtStart = `DTSTART;TZID=${TZID}:${y}${mo}${d}T${hh}${mm}00`;
-      const end = addHoursToTime(e.time, 2);
-      // Keep the end on the same day (clamp) for simplicity.
-      const eh = end.overflow ? 23 : end.h;
-      const em = end.overflow ? 59 : end.m;
-      dtEnd = `DTEND;TZID=${TZID}:${y}${mo}${d}T${pad(eh)}${pad(em)}00`;
+      if (publicEnd) {
+        const [eh, em] = publicEnd.split(":");
+        dtEnd = `DTEND;TZID=${TZID}:${y}${mo}${d}T${eh}${em}00`;
+      } else {
+        // No stated end — fall back to a nominal 2 hours, as before.
+        const end = addHoursToTime(start, 2);
+        // Keep the end on the same day (clamp) for simplicity.
+        const fh = end.overflow ? 23 : end.h;
+        const fm = end.overflow ? 59 : end.m;
+        dtEnd = `DTEND;TZID=${TZID}:${y}${mo}${d}T${pad(fh)}${pad(fm)}00`;
+      }
     } else {
       // All-day event.
       dtStart = `DTSTART;VALUE=DATE:${y}${mo}${d}`;

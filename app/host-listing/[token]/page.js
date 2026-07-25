@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
-import { getEventByToken, saveHostListing, findLastEventByHostEmail, getEventSessions } from "@/lib/catalog.js";
+import { getEventByToken, saveHostListing, findLastEventByHostEmail, getEventSessions, getEventBookingWindow } from "@/lib/catalog.js";
 import { getSetting } from "@/lib/db.js";
 import { logActivity } from "@/lib/activity.js";
 import HostListingForm from "@/components/HostListingForm.js";
@@ -55,10 +55,12 @@ export default function HostListingPage({ params }) {
     // If it's already live, keep it live on edit; otherwise route through review.
     const existing = getEventByToken(params.token);
     const wasLive = existing?.status === "live";
-    saveHostListing(params.token, data, {
+    const saved = saveHostListing(params.token, data, {
       submit: data.submit,
       autoPublish: autoPublish || wasLive,
     });
+    // Guest times outside the booked window are rejected — nothing was saved.
+    if (saved?.error) return { ok: false, error: saved.error };
     // Activity: host listing submitted (a public-event host self-action). Only
     // log an actual submission, not autosaves/drafts.
     if (data.submit && existing?.booking_id) {
@@ -100,7 +102,7 @@ export default function HostListingPage({ params }) {
         </p>
 
         <div className="mt-8">
-          <HostListingForm event={event} saveAction={save} alreadyLive={alreadyLive} lastEvent={lastEvent} sessions={getEventSessions(event)} />
+          <HostListingForm event={event} saveAction={save} alreadyLive={alreadyLive} lastEvent={lastEvent} sessions={getEventSessions(event)} bookingWindow={getEventBookingWindow(event)} />
         </div>
       </div>
     </main>

@@ -23,12 +23,15 @@ async function uploadFile(file, kind) {
   return data.path;
 }
 
-export default function HostListingForm({ event, saveAction, alreadyLive, lastEvent, sessions = [] }) {
+export default function HostListingForm({ event, saveAction, alreadyLive, lastEvent, sessions = [], bookingWindow = null }) {
   const [form, setForm] = useState({
     title: event.title || "",
     description: event.description || "",
     date: event.date || "",
     time: event.time || "",
+    // What the public is told, as opposed to when the room becomes theirs.
+    public_time: event.public_time || "",
+    public_end_time: event.public_end_time || "",
     tickets: event.tickets || "",
     price: event.price || "",
     payment_instructions: event.payment_instructions || "",
@@ -192,16 +195,68 @@ export default function HostListingForm({ event, saveAction, alreadyLive, lastEv
             </div>
           </div>
           <div>
-            <label className="label">Time</label>
+            <label className="label">You have the room</label>
             <div className="field bg-paper-warm text-ink-soft" aria-readonly="true">
-              {form.time ? formatTime(form.time) : "—"}
+              {bookingWindow
+                ? `${formatTime(bookingWindow.start)} – ${formatTime(bookingWindow.end)}`
+                : form.time
+                  ? formatTime(form.time)
+                  : "—"}
             </div>
           </div>
         </div>
         <p className="mt-2 text-xs text-ink-muted">
-          Date &amp; time come from your booking and can&apos;t be changed here. Need a different
-          time? Contact The Alley.
+          Date &amp; booking time come from your reservation and can&apos;t be changed here.
+          Need a different booking? Contact The Alley.
         </p>
+
+        <div className="mt-5 rounded-xl border border-ink/10 bg-paper-warm p-4">
+          <h3 className="font-display text-base font-semibold text-ink">
+            What should guests see?
+          </h3>
+          <p className="mt-1 text-sm text-ink-muted">
+            Most hosts book extra time to set up. Put the time your event actually
+            starts here and that&apos;s what goes on the public calendar — your room is
+            still yours from{" "}
+            {bookingWindow ? formatTime(bookingWindow.start) : "your booking time"}.
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="label" htmlFor="public_time">Guests arrive at</label>
+              <input
+                id="public_time"
+                type="time"
+                className="field"
+                value={form.public_time}
+                // Clearing the start clears the end — an end alone means nothing.
+                onChange={(e) =>
+                  set({
+                    public_time: e.target.value,
+                    ...(e.target.value ? {} : { public_end_time: "" }),
+                  })
+                }
+              />
+            </div>
+            <div>
+              <label className="label" htmlFor="public_end_time">Ends at (optional)</label>
+              <input
+                id="public_end_time"
+                type="time"
+                className="field"
+                value={form.public_end_time}
+                disabled={!form.public_time}
+                onChange={(e) => set({ public_end_time: e.target.value })}
+              />
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-ink-muted">
+            {form.public_time
+              ? "This is what the calendar will show."
+              : `Leave blank and the calendar shows your booking time${
+                  bookingWindow ? ` (${formatTime(bookingWindow.start)})` : ""
+                }.`}
+          </p>
+        </div>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <label className="label">Spots available</label>

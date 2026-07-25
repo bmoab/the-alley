@@ -1,6 +1,6 @@
 import Link from "next/link";
 import PhotoSlot from "@/components/site/PhotoSlot.js";
-import { formatTime } from "@/lib/constants.js";
+import { eventTimeLabel } from "@/lib/event-time.js";
 
 function fmtEvDate(ymd) {
   const [y, m, d] = ymd.split("-").map(Number);
@@ -28,7 +28,7 @@ export default function EventsRow({ events = [] }) {
     <div className="ev-grid">
       {events.map((e, i) => {
         const d = fmtEvDate(e.date);
-        const when = e.end_label || (e.time ? formatTime(e.time) : "");
+        const when = eventTimeLabel(e);
         return (
           <Link key={e.key ?? e.id} href={`/events/${e.id}?d=${e.date}`} className="ev-card reveal">
             <PhotoSlot src={e.photo_path || null} tag={e.kind || "Event"} variant={VARIANTS[i % 3]} className="ev-photo" />

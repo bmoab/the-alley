@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getEvent, normalizeLinkUrl, parseEventLinks, getEventSessions, applySessionContent } from "@/lib/catalog.js";
 import { directoryLinkLabel } from "@/lib/link-label.js";
-import { formatDate, formatTime, spaceName } from "@/lib/constants.js";
+import { formatDate, spaceName } from "@/lib/constants.js";
+import { eventTimeLabel } from "@/lib/event-time.js";
 import PhotoSlot from "@/components/site/PhotoSlot.js";
 import EventPhoto from "@/components/site/EventPhoto.js";
 
@@ -55,7 +56,10 @@ export default function EventDetailPage({ params, searchParams }) {
         )}
         <div>
           <p className="eyebrow" style={{ color: "var(--verde-deep)" }}>
-            {formatDate(selectedDate)} {selectedTime ? `· ${formatTime(selectedTime)}` : ""}{e.end_label ? ` · ${e.end_label}` : ""}
+            {formatDate(selectedDate)}
+            {/* Guest-facing time: the host's public times win over the
+                reservation start that `selectedTime` carries. */}
+            {eventTimeLabel({ ...e, time: selectedTime }) ? ` · ${eventTimeLabel({ ...e, time: selectedTime })}` : ""}
           </p>
           <h1 className="space-name" style={{ marginTop: 8 }}>{m.title}</h1>
           <p className="mono" style={{ color: "var(--ink-muted)", fontSize: 12, letterSpacing: ".06em" }}>
@@ -132,7 +136,8 @@ export default function EventDetailPage({ params, searchParams }) {
                   }}
                 >
                   <span className="mono" style={{ fontSize: 12, color: "var(--verde-deep)", whiteSpace: "nowrap" }}>
-                    {formatDate(s.date)}{s.time ? ` · ${formatTime(s.time)}` : ""}
+                    {formatDate(s.date)}
+                    {eventTimeLabel({ ...e, time: s.time }) ? ` · ${eventTimeLabel({ ...e, time: s.time })}` : ""}
                   </span>
                   <span style={{ fontWeight: current ? 600 : 400, color: "var(--ink)" }}>
                     {sm.title !== e.title ? sm.title : ""}

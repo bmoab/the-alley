@@ -15,6 +15,7 @@ import { emailHostInvite, emailHostReminder } from "@/lib/email.js";
 import { logEmail } from "@/lib/activity.js";
 import { getActor } from "@/lib/auth.js";
 import { SPACES, spaceName, formatDate, formatTime, venueToday } from "@/lib/constants.js";
+import { eventTimeLabel } from "@/lib/event-time.js";
 import { db } from "@/lib/db.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Button from "@/components/admin/ui/Button.js";
@@ -168,6 +169,9 @@ async function saveEvent(formData) {
     description: formData.get("description"),
     date: formData.get("date"),
     time: formData.get("time"),
+    // Guest-facing times; blank clears back to the reservation time.
+    public_time: (formData.get("public_time") || "").toString(),
+    public_end_time: (formData.get("public_end_time") || "").toString(),
     tickets: formData.get("tickets") || null,
     price: formData.get("price"),
     payment_instructions: formData.get("payment_instructions"),
@@ -186,6 +190,8 @@ async function createEvent(formData) {
     description: formData.get("description"),
     date: formData.get("date"),
     time: formData.get("time"),
+    public_time: (formData.get("public_time") || "").toString(),
+    public_end_time: (formData.get("public_end_time") || "").toString(),
     space: formData.get("space") || null,
     tickets: formData.get("tickets") || null,
     price: formData.get("price"),
@@ -208,10 +214,19 @@ function EventEditor({ ev }) {
       <div><label className="label">Description</label><textarea name="description" rows={3} defaultValue={ev.description || ""} className="field" /></div>
       <div className="grid gap-3 sm:grid-cols-4">
         <div><label className="label">Date</label><input type="date" name="date" defaultValue={ev.date || ""} className="field" /></div>
-        <div><label className="label">Time</label><input type="time" name="time" defaultValue={ev.time || ""} className="field" /></div>
+        <div><label className="label">Booking time</label><input type="time" name="time" defaultValue={ev.time || ""} className="field" /></div>
         <div><label className="label">Spots</label><input type="number" name="tickets" defaultValue={ev.tickets ?? ""} className="field" /></div>
         <div><label className="label">Price</label><input name="price" defaultValue={ev.price || ""} className="field" /></div>
       </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div><label className="label">Guests arrive at</label><input type="time" name="public_time" defaultValue={ev.public_time || ""} className="field" /></div>
+        <div><label className="label">Ends at</label><input type="time" name="public_end_time" defaultValue={ev.public_end_time || ""} className="field" /></div>
+      </div>
+      <p className="-mt-1 text-xs text-ink-muted">
+        What the public calendar shows. Hosts often book early to set up — set these
+        so guests see the real event time. Blank falls back to the booking time.
+        Changing them never moves the reservation.
+      </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <div><label className="label">Payment instructions</label><input name="payment_instructions" defaultValue={ev.payment_instructions || ""} className="field" /></div>
         <div><label className="label">Payment link</label><input name="payment_link" defaultValue={ev.payment_link || ""} className="field" /></div>
@@ -242,7 +257,8 @@ function EventCard({ ev, children }) {
           <span className="ml-2 text-xs text-ink-muted">
             {ev.host_name ? `${ev.host_name} · ` : ""}
             {ev.date ? formatDate(ev.date) : "no date"}
-            {ev.time ? ` · ${formatTime(ev.time)}` : ""}
+            {/* Show what the public sees, not the reservation start. */}
+            {eventTimeLabel(ev) ? ` · ${eventTimeLabel(ev)}` : ""}
             {ev.space ? ` · ${spaceName(ev.space)}` : ""}
           </span>
         </span>
@@ -412,6 +428,10 @@ export default function EventsAdminPage() {
               </select>
             </div>
             <div><label className="label">Spots</label><input type="number" name="tickets" className="field" /></div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div><label className="label">Guests arrive at (optional)</label><input type="time" name="public_time" className="field" /></div>
+            <div><label className="label">Ends at (optional)</label><input type="time" name="public_end_time" className="field" /></div>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <div><label className="label">Price</label><input name="price" className="field" /></div>

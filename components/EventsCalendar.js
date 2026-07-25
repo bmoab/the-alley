@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { formatTime } from "@/lib/constants.js";
+import { eventTimeLabel } from "@/lib/event-time.js";
 
 function parseYmd(s) {
   const [y, m, d] = s.split("-").map(Number);
@@ -26,10 +26,9 @@ export default function EventsCalendar({ events = [] }) {
   );
 }
 
-function whenLabel(e) {
-  // Custom end_label (e.g. "6–9 PM") wins; otherwise format the 24h time as am/pm.
-  return e.end_label || (e.time ? formatTime(e.time) : "");
-}
+// The guest-facing time (host's "guests arrive at", falling back to the
+// reservation start). See lib/event-time.js.
+const whenLabel = eventTimeLabel;
 
 function CalList({ events }) {
   if (!events.length) {
