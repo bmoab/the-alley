@@ -1,17 +1,25 @@
 "use client";
 import { useMemo, useState } from "react";
+import { SPACES } from "@/lib/constants.js";
+
+// Swatches handed out in SPACES order, so adding a space gives it a distinct
+// color here without editing this file. (Order today: Main Floor = charcoal,
+// Loft = verde chiaro, Conference Room = sage — the first two unchanged.)
+const SPACE_SWATCHES = ["bg-ink text-paper", "bg-brass text-ink", "bg-verde-deep text-paper"];
 
 // Color treatment per item kind, color-coded by space (plus public events).
 const KIND_STYLES = {
-  loft: "bg-brass text-ink",
-  main: "bg-ink text-paper",
+  ...Object.fromEntries(
+    SPACES.map((s, i) => [s.id, SPACE_SWATCHES[i % SPACE_SWATCHES.length]])
+  ),
   event: "bg-rust text-paper",
   cancelled: "bg-ink/15 text-ink-muted line-through",
 };
 
 const KIND_LABELS = {
-  loft: "Loft booking",
-  main: "Main Floor booking",
+  ...Object.fromEntries(
+    SPACES.map((s) => [s.id, `${s.name.replace("The Alley ", "")} booking`])
+  ),
   event: "Public event",
   cancelled: "Cancelled",
 };

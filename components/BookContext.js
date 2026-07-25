@@ -17,6 +17,21 @@ import PhotoSlot from "@/components/site/PhotoSlot.js";
 const BookCtx = createContext(null);
 export const useBook = () => useContext(BookCtx) || { openBook: () => {} };
 
+/**
+ * Rate, deposit, min/max length and the cleanup buffer can each be overridden
+ * per space (the Conference Room is $25/hour, 1-hour minimum, 30-minute gap).
+ * `config.spaces[id]` carries those overrides — merge them over the site
+ * defaults so this modal's price + availability math matches the server's.
+ * With no room chosen yet, the defaults stand.
+ */
+function configFor(config, roomId) {
+  const overrides = roomId ? config?.spaces?.[roomId] : null;
+  return overrides ? { ...config, ...overrides } : config;
+}
+
+// Placeholder tints for the space cards, cycled so neighbours differ.
+const ROOM_VARIANTS = ["", "verde", "soft"];
+
 const pad2 = (n) => String(n).padStart(2, "0");
 const ymd = (y, m, d) => `${y}-${pad2(m + 1)}-${pad2(d)}`;
 const parseYmd = (s) => {
@@ -383,9 +398,11 @@ function SmartTime({ config, bookings, closures, value, onChange, minStartFrac =
 }
 
 function BookModal({ initialRoom, config, onClose }) {
-  const { rate, minHours, deposit, openHour, closeHour, minLeadHours = 0, cancellationCutoffHours = 72, seriesMaxOcc = 8 } = config;
   const [step, setStep] = useState(initialRoom ? 1 : 0);
   const [room, setRoom] = useState(initialRoom || null);
+  // Everything priced or timed below is the CHOSEN space's, not the site's.
+  const cfg = configFor(config, room);
+  const { rate, minHours, deposit, openHour, closeHour, minLeadHours = 0, cancellationCutoffHours = 72, seriesMaxOcc = 8 } = cfg;
   const [form, setForm] = useState({
     date: "",
     start: "",
@@ -633,9 +650,12 @@ function BookModal({ initialRoom, config, onClose }) {
           {step === 0 ? (
             <div>
               <h3 style={{ fontSize: 26, marginBottom: 4 }}>Which space?</h3>
-              <p className="lede" style={{ fontSize: 15, marginTop: 0, marginBottom: 22 }}>Two rooms, endless occasions.</p>
+              <p className="lede" style={{ fontSize: 15, marginTop: 0, marginBottom: 22 }}>Every room, every occasion.</p>
               <div style={{ display: "grid", gap: 14 }}>
-                {SPACES.map((r) => (
+                {SPACES.map((r, i) => {
+                  // Each card advertises its OWN rate and capacity.
+                  const rc = configFor(config, r.id);
+                  return (
                   <button
                     key={r.id}
                     onClick={() => setRoom(r.id)}
@@ -650,15 +670,16 @@ function BookModal({ initialRoom, config, onClose }) {
                       transition: "all .2s",
                     }}
                   >
-                    <PhotoSlot tag={r.location} variant={r.id === "loft" ? "verde" : ""} className="bk-room-photo" />
+                    <PhotoSlot tag={r.location} variant={ROOM_VARIANTS[i % ROOM_VARIANTS.length]} className="bk-room-photo" />
                     <span style={{ padding: "14px 16px" }}>
                       <span style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: 19, display: "block" }}>{r.name}</span>
                       <span className="mono" style={{ fontSize: 11, color: "var(--ink-muted)", letterSpacing: ".08em" }}>
-                        {r.capacity} · ${rate} / hour
+                        {rc.capacity ? `${rc.capacity} · ` : ""}${rc.rate} / hour
                       </span>
                     </span>
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ) : null}
@@ -689,7 +710,7 @@ function BookModal({ initialRoom, config, onClose }) {
                     <p className="bk-times-hint">Checking availability…</p>
                   ) : (
                     <SmartTime
-                      config={config}
+                      config={cfg}
                       bookings={dayBookings}
                       closures={dayClosures}
                       minStartFrac={minStartFrac}

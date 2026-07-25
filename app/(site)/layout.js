@@ -5,6 +5,7 @@ import RevealMount from "@/components/site/RevealMount.js";
 import PreviewBridge from "@/components/site/PreviewBridge.js";
 import { BookProvider } from "@/components/BookContext.js";
 import { getSettings } from "@/lib/db.js";
+import { allSpaceRules } from "@/lib/spaces.js";
 
 // Render public pages on demand (they read owner-editable data from the DB).
 // This also keeps `next build` from prerendering — and thus from opening the
@@ -24,6 +25,23 @@ export default function SiteLayout({ children }) {
     cleanupBuffer: (Number(s.cleanup_buffer_minutes) || 60) / 60,
     cancellationCutoffHours: Number(s.cancellation_cutoff_hours) || 72,
     seriesMaxOcc: Number(s.series_max_occurrences) || 8,
+    // Per-space overrides of rate / deposit / min + max hours / cleanup buffer,
+    // keyed by space id. The booking modal merges the chosen space's entry over
+    // the defaults above (see configFor in components/BookContext.js), so its
+    // client-side buffer + price math matches what the server will enforce.
+    spaces: Object.fromEntries(
+      Object.entries(allSpaceRules()).map(([id, r]) => [
+        id,
+        {
+          rate: r.rate,
+          deposit: r.deposit,
+          minHours: r.minHours,
+          maxHours: r.maxHours,
+          cleanupBuffer: r.cleanupBufferMinutes / 60,
+          capacity: r.capacity,
+        },
+      ])
+    ),
   };
   return (
     <div className="dir-b">

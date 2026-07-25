@@ -162,7 +162,9 @@
 .dest-card:hover .dest-go { opacity: 1; transform: none; }
 
 /* rooms teaser */
-.rooms-grid { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(20px, 3vw, 40px); }
+/* Fits however many spaces there are (2 → two up, 3 → three up) instead of
+   leaving an odd card stranded on its own row. */
+.rooms-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: clamp(20px, 3vw, 40px); }
 .room { display: flex; flex-direction: column; background: var(--paper); border: 1px solid rgba(47,47,45,.16); }
 .room-photo { height: clamp(220px, 26vw, 320px); }
 .room-body { padding: clamp(22px, 2.4vw, 34px); display: flex; flex-direction: column; gap: 12px; flex: 1; }

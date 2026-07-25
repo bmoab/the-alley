@@ -1,7 +1,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSettings, setSetting, getContentValue, setContent } from "@/lib/db.js";
-import { formatTime } from "@/lib/constants.js";
+import { formatTime, SPACES } from "@/lib/constants.js";
+import { spaceSettingKey, spaceCapacityKey, spaceOverride, globalRule } from "@/lib/spaces.js";
 import { logActivity } from "@/lib/activity.js";
 import { getActor } from "@/lib/auth.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
@@ -22,7 +23,7 @@ const NUMBER_FIELDS = [
   {
     key: "standard_rate",
     label: "Standard rate ($ per hour)",
-    hint: "Default hourly rate for both spaces. You can still adjust it per request.",
+    hint: "Default hourly rate, used by any space without its own rate below. You can still adjust it per request.",
     min: 0,
     step: 5,
   },
@@ -91,10 +92,31 @@ const NUMBER_FIELDS = [
   },
 ];
 
+// Rules a single space can override. Blank = that space inherits the matching
+// default above. Field names double as the settings key (space_<id>_<key>), so
+// saving is a straight pass-through. See lib/spaces.js.
+const SPACE_FIELDS = [
+  { key: "standard_rate", label: "Rate ($ per hour)", fallback: "75", min: 0, step: 5 },
+  { key: "deposit", label: "Deposit ($)", fallback: "150", min: 0, step: 5 },
+  { key: "minimum_hours", label: "Minimum (hours)", fallback: "2", min: 1, step: 1 },
+  { key: "maximum_hours", label: "Maximum (hours)", fallback: "8", min: 1, step: 1 },
+  { key: "cleanup_buffer_minutes", label: "Cleanup buffer (minutes)", fallback: "60", min: 0, step: 15 },
+];
+
 async function save(formData) {
   "use server";
   for (const f of NUMBER_FIELDS) {
     setSetting(f.key, (formData.get(f.key) || "0").toString());
+  }
+  // Per-space overrides. An empty box is stored as "" — spaceRules() reads that
+  // as "inherit", so clearing a field puts the space back on the default.
+  for (const sp of SPACES) {
+    for (const f of SPACE_FIELDS) {
+      const name = spaceSettingKey(sp.id, f.key);
+      setSetting(name, (formData.get(name) ?? "").toString().trim());
+    }
+    const capKey = spaceCapacityKey(sp.id);
+    setContent(capKey, (formData.get(capKey) || "").toString().trim());
   }
   setSetting("open_hour", (formData.get("open_hour") || "8").toString());
   setSetting("close_hour", (formData.get("close_hour") || "23").toString());
@@ -111,6 +133,8 @@ async function save(formData) {
   });
   revalidatePath("/admin/settings");
   revalidatePath("/book");
+  revalidatePath("/spaces");
+  revalidatePath("/");
   redirect("/admin/settings?saved=1");
 }
 
@@ -204,6 +228,57 @@ export default function SettingsPage() {
                 ))}
               </select>
             </div>
+          </div>
+        </Card>
+
+        <Card pad="md">
+          <h2 className="text-lg font-semibold text-ink">Per-space rules</h2>
+          <p className="mt-1 text-xs text-ink-muted">
+            Leave a box empty and that space uses the default shown in grey. Fill it in
+            and that space uses your number instead — for pricing, booking length, and the
+            gap between bookings.
+          </p>
+          <div className="mt-4 space-y-6">
+            {SPACES.map((sp) => (
+              <div key={sp.id} className="rounded-lg border border-line bg-paper-dim p-4">
+                <h3 className="text-sm font-semibold text-ink">{sp.name}</h3>
+                <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {SPACE_FIELDS.map((f) => {
+                    const name = spaceSettingKey(sp.id, f.key);
+                    return (
+                      <div key={f.key}>
+                        <label className="label" htmlFor={name}>
+                          {f.label}
+                        </label>
+                        <input
+                          id={name}
+                          name={name}
+                          type="number"
+                          min={f.min}
+                          step={f.step}
+                          defaultValue={spaceOverride(sp.id, f.key)}
+                          placeholder={`${globalRule(f.key, f.fallback)} (default)`}
+                          className="field"
+                        />
+                      </div>
+                    );
+                  })}
+                  <div>
+                    <label className="label" htmlFor={spaceCapacityKey(sp.id)}>
+                      Capacity (shown on the site)
+                    </label>
+                    <input
+                      id={spaceCapacityKey(sp.id)}
+                      name={spaceCapacityKey(sp.id)}
+                      type="text"
+                      defaultValue={getContentValue(spaceCapacityKey(sp.id), "")}
+                      placeholder={sp.capacity || "e.g. Seats up to 12"}
+                      className="field"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </Card>
 

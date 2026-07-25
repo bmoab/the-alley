@@ -33,7 +33,7 @@ export const metadata = {
     template: "%s · The Alley On Center",
   },
   description:
-    "An arts and event building in the heart of Logan, Utah. Tenant shops, two rentable event spaces, a gallery, and a public calendar of classes and events.",
+    "An arts and event building in the heart of Logan, Utah. Tenant shops, rentable event spaces, a gallery, and a public calendar of classes and events.",
 };
 
 export default function RootLayout({ children }) {

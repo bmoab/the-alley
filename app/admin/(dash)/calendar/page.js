@@ -40,7 +40,12 @@ async function removeClosure(formData) {
   redirect("/admin/calendar#closures");
 }
 
-const SPACE_LABEL = { all: "Whole building", loft: "The Loft", main: "The Main Floor" };
+// Closure targets: every space, plus the whole building. Derived from SPACES so
+// a new space's closures read properly instead of showing a raw id.
+const SPACE_LABEL = {
+  all: "Whole building",
+  ...Object.fromEntries(SPACES.map((s) => [s.id, s.name])),
+};
 
 export default function CalendarPage() {
   const held = listBookings({ status: "held" });
@@ -66,7 +71,7 @@ export default function CalendarPage() {
     id: b.id,
     date: b.date,
     time: b.start_time,
-    kind: b.space === "loft" ? "loft" : "main",
+    kind: b.space, // AdminCalendar colors each space from SPACES
     title: b.client_name || spaceName(b.space),
     meta: `${b.status} · ${b.hours}h${b.event_type ? ` · ${b.event_type}` : ""}`,
     href: `/admin/bookings?focus=${b.id}#b-${b.id}`,

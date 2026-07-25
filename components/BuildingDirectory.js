@@ -99,11 +99,20 @@ function FloorPlan({ floor, zones, active, setActive, phone }) {
           const data = zones[s.code];
           const tenants = data?.tenants || [];
           const isActive = active === s.code;
-          const state = s.kind === "open" || s.kind === "loft" ? "special" : tenants.length ? "filled" : "open";
+          // A zone carrying a `space` is bookable (Main Floor / Loft /
+          // Conference Room), not leasable — key off that rather than listing
+          // kinds, so a new rentable space styles itself.
+          const bookable = !!s.space;
+          const state = bookable ? "special" : tenants.length ? "filled" : "open";
           const label = data?.name || s.code;
           const tenantLabel = tenants.length
             ? tenants.map((t) => t.business_name).join(" & ")
             : null;
+          const zoneLabel = bookable
+            ? `${data?.space?.name || label} — rental space`
+            : tenantLabel
+              ? `${label} — ${tenantLabel}`
+              : `Suite ${label} — available`;
           return (
             <rect
               key={s.code}
@@ -115,7 +124,7 @@ function FloorPlan({ floor, zones, active, setActive, phone }) {
               className={"bm-zone bm-zone--" + state + (isActive ? " is-active" : "")}
               tabIndex={0}
               role="button"
-              aria-label={tenantLabel ? `${label} — ${tenantLabel}` : `Suite ${label} — available`}
+              aria-label={zoneLabel}
               onMouseEnter={() => setActive(s.code)}
               onFocus={() => setActive(s.code)}
               onClick={() => setActive(s.code)}

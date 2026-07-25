@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getContent, setContent } from "@/lib/db.js";
+import { SPACES } from "@/lib/constants.js";
 import ContentImageField from "@/components/ContentImageField.js";
 import ImageCropField from "@/components/ImageCropField.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
@@ -16,8 +17,16 @@ export const metadata = { title: "Site Photos" };
 // the banner-height control (the homepage hero is the only fixed-height banner).
 const IMAGE_FIELDS = [
   { key: "home_hero_image", label: "Homepage — hero banner (above the headline)", hint: "Wide banner across the top of the homepage. Use “Adjust crop” to drag a box over the photo and frame exactly what shows.", crop: true },
-  { key: "space_loft_image", label: "Spaces — The Loft lead photo (fallback)", hint: "Used if no Loft photos are added under Spaces Photos." },
-  { key: "space_main_image", label: "Spaces — Main Floor lead photo (fallback)", hint: "Used if no Main Floor photos are added under Spaces Photos." },
+  // One fallback lead photo per space, generated from SPACES so a new space
+  // gets its field automatically.
+  ...SPACES.map((s) => {
+    const short = s.name.replace("The Alley ", "");
+    return {
+      key: `space_${s.id}_image`,
+      label: `Spaces — ${short} lead photo (fallback)`,
+      hint: `Used if no ${short} photos are added under Spaces Photos.`,
+    };
+  }),
   { key: "about_image", label: "About — story photo (beside the text)", hint: "Image next to the About story text. Click the photo to choose what stays in view.", framing: true },
 ];
 

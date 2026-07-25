@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getContent } from "@/lib/db.js";
 import { listPublicDirectoryWithSuites, listExhibitorsByPhase, listGallery, listUpcomingLiveEvents, listSpacePhotos } from "@/lib/catalog.js";
 import { SPACES } from "@/lib/constants.js";
+import { spaceRules } from "@/lib/spaces.js";
 import { parseCrop, cropBackgroundStyle } from "@/lib/crop.js";
 import Hero from "@/components/home/Hero.js";
 import PhotoSlot from "@/components/site/PhotoSlot.js";
@@ -27,17 +28,22 @@ export default function HomePage() {
   const destinations = parseJson(c.home_destinations, []);
   const rotate = parseJson(c.home_hero_rotate, ["MUSIC", "ART", "EVENTS", "COMMUNITY"]);
 
-  const rooms = SPACES.map((s) => ({
-    id: s.id,
-    name: s.name,
-    location: s.location,
-    capacity: s.capacity,
-    blurb: s.blurb,
-    rateLabel: `$${c.standard_rate || 75} / hour`,
-    tag: `${s.name.toLowerCase()} · ${s.location.toLowerCase()}`,
-    // Lead image = the first photo from this space's gallery (single source).
-    image: listSpacePhotos(s.id)[0]?.image_path || null,
-  }));
+  // Rate and capacity are per-space (see lib/spaces.js) — the Conference Room
+  // rents cheaper than the Main Floor and the Loft.
+  const rooms = SPACES.map((s) => {
+    const rules = spaceRules(s.id);
+    return {
+      id: s.id,
+      name: s.name,
+      location: s.location,
+      capacity: rules.capacity,
+      blurb: s.blurb,
+      rateLabel: `$${rules.rate} / hour`,
+      tag: `${s.name.toLowerCase()} · ${s.location.toLowerCase()}`,
+      // Lead image = the first photo from this space's gallery (single source).
+      image: listSpacePhotos(s.id)[0]?.image_path || null,
+    };
+  });
 
   const tenants = listPublicDirectoryWithSuites();
   const exhibitors = listExhibitorsByPhase().current;
@@ -95,7 +101,7 @@ export default function HomePage() {
         <div className="wrap">
           <SectionHead
             eyebrow="Rent a space"
-            title="Two rooms, endless occasions"
+            title="Rooms for every occasion"
             action={<Link href="/spaces" className="rulelink">View rates</Link>}
           />
           <RoomsTeaser rooms={rooms} />

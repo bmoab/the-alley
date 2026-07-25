@@ -4,10 +4,16 @@ import { isSlotAvailable, isStartTooSoon, createBookingRequest, createBookingSer
 import { isClosedForBooking } from "@/lib/closures.js";
 import { getSetting } from "@/lib/db.js";
 import { SPACE_BY_ID, EVENT_TYPES, GUEST_RANGES } from "@/lib/constants.js";
+import { spaceRules } from "@/lib/spaces.js";
 import { emailOwnerNewRequest, emailClientReceived, emailOwnerNewSeriesRequest, emailClientSeriesReceived } from "@/lib/email.js";
 import { logActivity, logEmail } from "@/lib/activity.js";
 
 const OWNER_EMAIL = process.env.OWNER_EMAIL || "thealleyoncenter@gmail.com";
+
+/** "1 hour" / "2 hours" — minimums differ per space, so this can be singular. */
+function hourLabel(n) {
+  return `${n} hour${n === 1 ? "" : "s"}`;
+}
 
 /**
  * Validate and persist a booking request (status = pending).
@@ -25,11 +31,12 @@ export async function submitBooking(payload) {
   const start_time = payload.start_time;
   if (!start_time || !/^\d{2}:\d{2}$/.test(start_time)) errors.push("Please choose a start time.");
 
-  const minHours = Number(getSetting("minimum_hours", "2"));
-  const maxHours = Number(getSetting("maximum_hours", "8")) || 8;
+  // Length limits are per-space (the Conference Room allows 1-hour bookings
+  // where the other spaces require 2) — see lib/spaces.js.
+  const { minHours, maxHours } = spaceRules(space);
   const hours = Number(payload.hours);
-  if (!hours || hours < minHours) errors.push(`Minimum booking is ${minHours} hours.`);
-  if (hours > maxHours) errors.push(`Maximum booking is ${maxHours} hours.`);
+  if (!hours || hours < minHours) errors.push(`Minimum booking is ${hourLabel(minHours)}.`);
+  if (hours > maxHours) errors.push(`Maximum booking is ${hourLabel(maxHours)}.`);
 
   if (!payload.client_name?.trim()) errors.push("Your name is required.");
   if (!payload.client_email?.trim()) errors.push("Your email is required.");
@@ -146,11 +153,12 @@ export async function submitBookingSeries(payload) {
   const start_time = payload.start_time;
   if (!start_time || !/^\d{2}:\d{2}$/.test(start_time)) errors.push("Please choose a start time.");
 
-  const minHours = Number(getSetting("minimum_hours", "2"));
-  const maxHours = Number(getSetting("maximum_hours", "8")) || 8;
+  // Length limits are per-space (the Conference Room allows 1-hour bookings
+  // where the other spaces require 2) — see lib/spaces.js.
+  const { minHours, maxHours } = spaceRules(space);
   const hours = Number(payload.hours);
-  if (!hours || hours < minHours) errors.push(`Minimum booking is ${minHours} hours.`);
-  if (hours > maxHours) errors.push(`Maximum booking is ${maxHours} hours.`);
+  if (!hours || hours < minHours) errors.push(`Minimum booking is ${hourLabel(minHours)}.`);
+  if (hours > maxHours) errors.push(`Maximum booking is ${hourLabel(maxHours)}.`);
 
   if (!payload.client_name?.trim()) errors.push("Your name is required.");
   if (!payload.client_email?.trim()) errors.push("Your email is required.");
