@@ -37,9 +37,11 @@ import { cx } from "@/components/admin/ui/cx.js";
 
 export const metadata = { title: "Bookings" };
 
-// Status filters. "archived" is not a status — it's the junk drawer, showing
-// archived rows of every status (they're hidden from all the other filters).
+// Status filters. "active" (the default) and "all" are both meta-filters;
+// "archived" is not a status either — it's the junk drawer, showing archived
+// rows of every status (they're hidden from all the other filters).
 const FILTERS = [
+  { key: "active", label: "Active" },
   { key: "all", label: "All" },
   { key: "pending", label: "Pending" },
   { key: "held", label: "Held" },
@@ -61,6 +63,22 @@ const HISTORICAL_STATUSES = new Set([
   "expired",
   "completed",
 ]);
+
+// Bookings that are over and done with: denied outright, cancelled, or a hold
+// that lapsed (which already reopened the slot). None of them need action, so
+// the default "Active" view leaves them out — "All" or their own filter shows
+// them. Not the same set as HISTORICAL_STATUSES: a completed booking still
+// belongs in Active (its deposit may be unresolved).
+const DEAD_STATUSES = new Set(["denied", "cancelled", "expired"]);
+
+// Every real booking status that isn't finished with — derived from FILTERS so
+// a status added there is included here automatically.
+const ACTIVE_STATUSES = FILTERS.map((f) => f.key).filter(
+  (k) => !["active", "all", "archived"].includes(k) && !DEAD_STATUSES.has(k)
+);
+
+// The status filter the list opens on.
+const DEFAULT_STATUS = "active";
 
 function refresh() {
   revalidatePath("/admin/bookings");
@@ -230,12 +248,18 @@ export default async function BookingsPage({ searchParams }) {
   // this in production too). Notifies affected clients.
   await releaseExpiredHolds();
 
-  const status = searchParams?.status || "all";
+  const status = searchParams?.status || DEFAULT_STATUS;
   const sort = searchParams?.sort === "date_desc" ? "date_desc" : "date_asc";
   const q = (searchParams?.q || "").toString();
   const space = (searchParams?.space || "").toString();
   const customFrom = (searchParams?.from || "").toString();
   const customTo = (searchParams?.to || "").toString();
+  // ?b=<id> opens the booking drawer (mounted in the dash layout). The drawer
+  // strips ?b= when it closes, so the row highlight rides on its own ?focus=
+  // param and survives — that highlight is the whole point of arriving from the
+  // calendar. Falls back to ?b= so any other drawer link still marks its row.
+  // Not part of qs(), so changing any filter clears it.
+  const focusedId = (searchParams?.focus || searchParams?.b || "").toString();
 
   // The date filter defaults to "upcoming" so finished events stay out of the
   // way — but the retrospective filters are about the past by definition, and
@@ -254,7 +278,12 @@ export default async function BookingsPage({ searchParams }) {
   const archived = status === "archived";
 
   const rows = listBookings({
-    status: archived || status === "all" ? undefined : status,
+    status:
+      archived || status === "all"
+        ? undefined
+        : status === "active"
+          ? ACTIVE_STATUSES
+          : status,
     sort,
     q,
     space: space || undefined,
@@ -269,7 +298,8 @@ export default async function BookingsPage({ searchParams }) {
   const qs = (next = {}) => {
     const m = { ...current, ...next };
     const p = new URLSearchParams();
-    if (m.status && m.status !== "all") p.set("status", m.status);
+    // "all" must survive into the URL now that it isn't the default.
+    if (m.status && m.status !== DEFAULT_STATUS) p.set("status", m.status);
     if (m.sort && m.sort !== "date_asc") p.set("sort", m.sort);
     if (m.q) p.set("q", m.q);
     if (m.space) p.set("space", m.space);
@@ -331,7 +361,7 @@ export default async function BookingsPage({ searchParams }) {
 
       {/* Search + space + date range (GET; status/sort preserved via hidden inputs) */}
       <form method="get" className="mb-5 flex flex-wrap items-end gap-3">
-        {status !== "all" ? <input type="hidden" name="status" value={status} /> : null}
+        {status !== DEFAULT_STATUS ? <input type="hidden" name="status" value={status} /> : null}
         {sort !== "date_asc" ? <input type="hidden" name="sort" value={sort} /> : null}
         <div className="min-w-[12rem] flex-1">
           <label className="label" htmlFor="q">Search client</label>
@@ -388,6 +418,15 @@ export default async function BookingsPage({ searchParams }) {
               </Link>
             </div>
           ) : null}
+          {/* On the default view, the other likely reason is that everything
+              here was denied or cancelled. */}
+          {status === "active" ? (
+            <div className="mt-2 text-sm">
+              <Link href={qs({ status: "all" })} className="font-medium text-verde-deep hover:underline">
+                Include denied &amp; cancelled →
+              </Link>
+            </div>
+          ) : null}
         </Card>
       ) : (
         <Card pad="sm">
@@ -411,8 +450,18 @@ export default async function BookingsPage({ searchParams }) {
             {rows.map((b) => {
               const dim = b.status === "cancelled" || b.archived;
               const comped = Number(b.total) === 0;
+              // Arrived here from the calendar (or any ?b= link): tint the row
+              // so it's obvious which booking the drawer belongs to.
+              const focused = String(b.id) === focusedId;
               return (
-                <Tr key={b.id} id={`b-${b.id}`} className={dim ? "opacity-55" : ""}>
+                <Tr
+                  key={b.id}
+                  id={`b-${b.id}`}
+                  className={cx(
+                    dim && "opacity-55",
+                    focused && "bg-verde/50 hover:bg-verde/50"
+                  )}
+                >
                   <Td>
                     <div className="whitespace-nowrap font-medium text-ink">{formatDateShort(b.date)}</div>
                     <div className="text-xs text-ink-muted">

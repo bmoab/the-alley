@@ -19,6 +19,7 @@ import { eventTimeLabel } from "@/lib/event-time.js";
 import { db } from "@/lib/db.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Button from "@/components/admin/ui/Button.js";
+import { cx } from "@/components/admin/ui/cx.js";
 
 export const metadata = { title: "Public Events" };
 
@@ -240,12 +241,18 @@ function EventEditor({ ev }) {
   );
 }
 
-function EventCard({ ev, children }) {
+function EventCard({ ev, children, focused = false }) {
   // A live listing with a host link the host hasn't filled in yet — on the
   // calendar as a title-only placeholder.
   const placeholder = ev.status === "live" && ev.host_token && !ev.host_posted;
   return (
-    <details className="card p-5">
+    // The id is what the calendar's #ev-<id> link scrolls to; arriving from the
+    // calendar also opens the card and rings it, so it's clear which one it is.
+    <details
+      id={`ev-${ev.id}`}
+      open={focused}
+      className={cx("card p-5", focused && "ring-2 ring-verde-deep")}
+    >
       <summary className="flex cursor-pointer items-center justify-between gap-3">
         <span>
           <span className="font-semibold text-ink">{ev.title || "(untitled)"}</span>
@@ -294,7 +301,9 @@ function EventCard({ ev, children }) {
   );
 }
 
-export default function EventsAdminPage() {
+export default function EventsAdminPage({ searchParams }) {
+  // ?ev=<id> — arrived from the admin calendar; open + highlight that listing.
+  const focusedEv = (searchParams?.ev || "").toString();
   const all = listAllEvents();
   const pending = all.filter((e) => e.status === "pending");
   const live = all.filter((e) => e.status === "live");
@@ -340,7 +349,7 @@ export default function EventsAdminPage() {
       ) : (
         <div className="mt-3 space-y-3">
           {pending.map((ev) => (
-            <EventCard key={ev.id} ev={ev}>
+            <EventCard key={ev.id} ev={ev} focused={String(ev.id) === focusedEv}>
               <form action={approveEvent}><input type="hidden" name="id" value={ev.id} /><Button type="submit" variant="accent" size="sm">Approve &amp; publish</Button></form>
               <form action={removeEvent}><input type="hidden" name="id" value={ev.id} /><button className="text-sm font-semibold text-rust hover:underline">Remove</button></form>
             </EventCard>
@@ -357,7 +366,7 @@ export default function EventsAdminPage() {
       ) : (
         <div className="mt-3 space-y-3">
           {live.map((ev) => (
-            <EventCard key={ev.id} ev={ev}>
+            <EventCard key={ev.id} ev={ev} focused={String(ev.id) === focusedEv}>
               <form action={unpublishEvent}><input type="hidden" name="id" value={ev.id} /><Button type="submit" variant="ghost" size="sm">Unpublish</Button></form>
               <form action={removeEvent}><input type="hidden" name="id" value={ev.id} /><button className="text-sm font-semibold text-rust hover:underline">Remove</button></form>
             </EventCard>
@@ -373,7 +382,14 @@ export default function EventsAdminPage() {
           </h2>
           <div className="mt-3 space-y-2">
             {drafts.map((ev) => (
-              <div key={ev.id} id={`ev-${ev.id}`} className="card p-4 text-sm">
+              <div
+                key={ev.id}
+                id={`ev-${ev.id}`}
+                className={cx(
+                  "card p-4 text-sm",
+                  String(ev.id) === focusedEv && "ring-2 ring-verde-deep"
+                )}
+              >
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-ink-soft">
                     <strong>{ev.host_name || "(host)"}</strong>

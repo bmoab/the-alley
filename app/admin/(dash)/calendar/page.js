@@ -74,7 +74,11 @@ export default function CalendarPage() {
     kind: b.space, // AdminCalendar colors each space from SPACES
     title: b.client_name || spaceName(b.space),
     meta: `${b.status} · ${b.hours}h${b.event_type ? ` · ${b.event_type}` : ""}`,
-    href: `/admin/bookings?focus=${b.id}#b-${b.id}`,
+    // Open THIS booking, not just the list: ?b= pops the booking drawer, ?focus=
+    // highlights the row (and outlives the drawer, which clears ?b= on close),
+    // and the hash scrolls to it. status/preset are forced wide so the row is
+    // actually present in the list behind the drawer.
+    href: `/admin/bookings?status=all&preset=all&focus=${b.id}&b=${b.id}#b-${b.id}`,
   }));
 
   const eventItems = events.map((e) => ({
@@ -84,7 +88,7 @@ export default function CalendarPage() {
     kind: "event",
     title: e.title || "Public event",
     meta: e.host_name ? `Hosted by ${e.host_name}` : "",
-    href: `/admin/events#ev-${e.id}`,
+    href: `/admin/events?ev=${e.id}#ev-${e.id}`,
   }));
 
   // Cancelled bookings stay visible (greyed) for the record, but no longer
@@ -96,7 +100,8 @@ export default function CalendarPage() {
     kind: "cancelled",
     title: `${b.client_name || spaceName(b.space)} (cancelled)`,
     meta: `${spaceName(b.space)} · cancelled`,
-    href: `/admin/bookings?status=cancelled&preset=all`,
+    // Was a bare "show me all cancelled" filter — open the specific one.
+    href: `/admin/bookings?status=all&preset=all&focus=${b.id}&b=${b.id}#b-${b.id}`,
   }));
 
   const items = [...bookingItems, ...eventItems, ...cancelledItems];
