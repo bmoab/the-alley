@@ -38,3 +38,8 @@ npm-debug.log*
 
 # claude local settings
 .claude/settings.local.json
+
+# macOS/iCloud sync duplicates ("File 2.ext"). Backstop only — the real fix was
+# moving these projects out of the iCloud-synced ~/Documents.
+* 2.*
+*\ 2
