@@ -8,7 +8,6 @@
     "dev": "next dev",
     "build": "next build",
     "start": "node scripts/prestart.mjs && next start",
-    "lint": "next lint",
     "seed": "node scripts/seed.mjs"
   },
   "dependencies": {
