@@ -5,6 +5,7 @@ import { getContentValue } from "@/lib/db.js";
 import { formatMonthRange } from "@/lib/constants.js";
 import PageHero from "@/components/site/PageHero.js";
 import PhotoSlot from "@/components/site/PhotoSlot.js";
+import PhotoGallery from "@/components/site/PhotoGallery.js";
 import ExhibitorCard from "@/components/ExhibitorCard.js";
 
 export const metadata = { title: "Exhibitors" };
@@ -24,7 +25,16 @@ function CurrentExhibitor({ ex, i }) {
   return (
     <article className={"ex-feature reveal" + (i % 2 ? " is-rev" : "")}>
       <div className="ex-feature-portrait">
-        <PhotoSlot src={ex.profile_photo || null} tag={ex.name} variant={portraitVariant} className="ex-portrait" />
+        {/* Clickable when there's a real photo; the placeholder stays inert. */}
+        {ex.profile_photo ? (
+          <PhotoGallery
+            photos={[{ src: ex.profile_photo, cap: ex.name, cat: ex.discipline || "" }]}
+            tileClassName="ex-portrait-open"
+            variants={[portraitVariant]}
+          />
+        ) : (
+          <PhotoSlot src={null} tag={ex.name} variant={portraitVariant} className="ex-portrait" />
+        )}
         <span className="ex-onview mono">On view</span>
       </div>
       <div className="ex-feature-body">
@@ -43,15 +53,15 @@ function CurrentExhibitor({ ex, i }) {
         ) : ex.site_handle ? (
           <p className="ex-handle mono">{ex.site_handle}</p>
         ) : null}
-        {ex.works?.length ? (
-          <div className="ex-works">
-            {ex.works.map((w, k) => (
-              <figure key={w.id ?? k} className="ex-work">
-                <PhotoSlot src={w.image_path || null} tag={w.caption || ""} variant={WORK_VARIANTS[k % WORK_VARIANTS.length]} />
-              </figure>
-            ))}
-          </div>
-        ) : null}
+        {/* Their actual work — tap any piece to view it full-screen and flip
+            through the rest. */}
+        <PhotoGallery
+          photos={(ex.works || []).map((w) => ({ src: w.image_path, cap: w.caption || "" }))}
+          className="ex-works"
+          tileClassName="ex-work"
+          variants={WORK_VARIANTS}
+          cat={ex.name}
+        />
       </div>
     </article>
   );

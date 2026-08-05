@@ -183,6 +183,17 @@ export async function submitBookingSeries(payload) {
     if (spanDays > maxSpan) errors.push(`Recurring sessions must fall within ${maxSpan} days.`);
   }
 
+  // Optional per-session names ({ "YYYY-MM-DD": "Week 2: Glazing" }). Only
+  // dates actually being booked are kept, and a blank just means "use the
+  // series title" — so this can never introduce a session we didn't validate.
+  const sessionTitles = {};
+  if (payload.session_titles && typeof payload.session_titles === "object") {
+    for (const date of dates) {
+      const t = String(payload.session_titles[date] ?? "").trim().slice(0, 120);
+      if (t) sessionTitles[date] = t;
+    }
+  }
+
   if (errors.length) return { ok: false, error: errors.join(" ") };
 
   // Authoritative per-date availability check.
@@ -216,7 +227,7 @@ export async function submitBookingSeries(payload) {
       recurring_schedule: payload.recurring_schedule?.trim() || null,
       is_public_event: !!payload.is_public_event,
     },
-    dates.map((date) => ({ date, start_time, hours }))
+    dates.map((date) => ({ date, start_time, hours, session_title: sessionTitles[date] || null }))
   );
 
   const rows = getSeries(seriesId);

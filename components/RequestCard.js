@@ -190,6 +190,12 @@ export default function RequestCard({
               ) : null}
             </div>
             <h3 className="mt-1 text-xl font-semibold text-ink">{holder.client_name}</h3>
+            {/* The title they gave the series — this becomes the public listing
+                name if they asked for a calendar spot, so it's worth seeing
+                before approving. */}
+            {holder.event_title ? (
+              <p className="text-sm font-medium text-ink">“{holder.event_title}”</p>
+            ) : null}
             <p className="text-sm text-ink-muted">
               {holder.recurring_schedule || `${series.length} sessions`} · {formatTime(holder.start_time)} · {holder.hours}h each
             </p>
@@ -214,7 +220,13 @@ export default function RequestCard({
         <ul className="mt-4 grid gap-1 text-sm text-ink-soft sm:grid-cols-2">
           {series.map((r) => (
             <li key={r.id} className="flex justify-between gap-3">
-              <span>Session {r.series_index}: {formatDate(r.date)}</span>
+              <span>
+                Session {r.series_index}: {formatDate(r.date)}
+                {/* Set only when they named the sessions individually. */}
+                {r.session_title ? (
+                  <span className="block text-xs text-ink-muted">“{r.session_title}”</span>
+                ) : null}
+              </span>
               <span className="text-ink-muted">{formatTime(r.start_time)}</span>
             </li>
           ))}
@@ -297,6 +309,9 @@ export default function RequestCard({
           <h3 className="mt-1 text-xl font-semibold text-ink">
             {booking.client_name}
           </h3>
+          {booking.event_title ? (
+            <p className="text-sm font-medium text-ink">“{booking.event_title}”</p>
+          ) : null}
           <p className="text-sm text-ink-muted">
             {formatDate(booking.date)} · {formatTime(booking.start_time)} ·{" "}
             {booking.hours}h

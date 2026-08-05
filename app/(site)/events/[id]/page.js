@@ -50,7 +50,7 @@ export default function EventDetailPage({ params, searchParams }) {
         {m.photo_path ? (
           // A real flyer: show it whole (posters are portrait and were being
           // cropped) and let attendees tap to read it full-screen.
-          <EventPhoto src={m.photo_path} alt={m.title || "Event flyer"} />
+          <EventPhoto src={m.photo_path} alt={m.title || "Event flyer"} caption={e.host_name || ""} />
         ) : (
           <PhotoSlot src={null} tag={m.title} showTag={false} variant="verde" style={{ minHeight: 320 }} />
         )}

@@ -13,6 +13,11 @@ export const metadata = { title: "Spaces — Request to Book" };
 // Lead-photo placeholder tints, cycled so neighbouring spaces differ.
 const LEAD_VARIANTS = ["verde", "soft", ""];
 
+// Kept beside the other Spaces copy defaults; the owner can edit it in admin
+// under Site Content → Pages → Spaces.
+const LISTING_BODY_DEFAULT =
+  "Tick the public event box when you book and we'll list your class, workshop or show on The Alley's calendar — free. Once your booking is confirmed we email you a private link where you add your description, flyer or photos, PDFs, how many spots you have, and how people pay you. Booking several dates at once? They share one listing (and one deposit), and you can give each session its own details.";
+
 /** "1 hour" / "2 hours" — minimums are per-space, so this can be singular. */
 function hourLabel(n) {
   return `${n} hour${n === 1 ? "" : "s"}`;
@@ -66,7 +71,7 @@ export default function SpacesPage() {
             ].filter(Boolean);
             return (
             <div key={r.id} id={r.id} className={"space-row reveal" + (i % 2 ? " is-rev" : "")}>
-              <SpaceGallery photos={listSpacePhotos(r.id)} lead={LEAD_VARIANTS[i % LEAD_VARIANTS.length]} />
+              <SpaceGallery photos={listSpacePhotos(r.id)} lead={LEAD_VARIANTS[i % LEAD_VARIANTS.length]} label={r.name} />
               <div>
                 <div className="space-meta">
                   {meta.map((m, mi) => (
@@ -90,7 +95,29 @@ export default function SpacesPage() {
           })}
         </div>
 
-        <div className="iband iband--verde" style={{ marginTop: "clamp(48px,6vw,84px)", padding: "clamp(26px,3vw,40px)", border: "1px solid var(--line-strong)" }}>
+        {/* Hosts are deciding whether to book right here, so this is where the
+            free calendar listing is worth mentioning — by the time they get the
+            invite email they've already committed. */}
+        <div
+          className="iband"
+          style={{ marginTop: "clamp(48px,6vw,84px)", padding: "clamp(26px,3vw,40px)", border: "1px solid var(--line-strong)", background: "var(--paper-warm)" }}
+        >
+          <div className="agreement">
+            <div>
+              <h2 data-edit="spaces_listing_heading">
+                {getContentValue("spaces_listing_heading", "Hosting something the public can join?")}
+              </h2>
+              <p style={{ color: "var(--ink-soft)" }} data-edit="spaces_listing_body">
+                {getContentValue("spaces_listing_body", LISTING_BODY_DEFAULT)}
+              </p>
+            </div>
+            <a className="btn btn--ghost" href="/calendar">
+              See the calendar
+            </a>
+          </div>
+        </div>
+
+        <div className="iband iband--verde" style={{ marginTop: "clamp(28px,3vw,40px)", padding: "clamp(26px,3vw,40px)", border: "1px solid var(--line-strong)" }}>
           <div className="agreement">
             <div>
               <h2 data-edit="spaces_book_heading">{getContentValue("spaces_book_heading", "Before you book")}</h2>

@@ -42,6 +42,11 @@ function fmtDateLong(s) {
   if (!s) return "";
   return parseYmd(s).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 }
+/** "Tue, Sep 2" — compact enough to label a row of per-session inputs. */
+function fmtDateShort(s) {
+  if (!s) return "";
+  return parseYmd(s).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
 /** Add `days` to a YYYY-MM-DD date in local time (no UTC drift). */
 /** Long weekday name for a YYYY-MM-DD date (e.g. "Tuesday"). */
 function weekdayLong(s) {
@@ -425,6 +430,10 @@ function BookModal({ initialRoom, config, onClose }) {
     recur_weekday: null, // monthly-weekday: 0..6; null → derive from start date
     recur_count: 4, // total sessions, including the first
     recur_dates: [], // manual mode: explicit YYYY-MM-DD list
+    // A weekly yoga class is the same every week; a 5-week course that builds
+    // on itself isn't. Off = every session shares `event_title`.
+    name_sessions: false,
+    session_titles: {}, // { "YYYY-MM-DD": "Week 2: Glazing" }
   });
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -591,6 +600,9 @@ function BookModal({ initialRoom, config, onClose }) {
         hours,
         dates: includedDates,
         recurring_schedule,
+        // Only when they asked for per-session names; the server keeps just the
+        // dates being booked and drops blanks.
+        session_titles: form.name_sessions ? form.session_titles : null,
       });
     } else {
       res = await submitBooking({
@@ -722,7 +734,11 @@ function BookModal({ initialRoom, config, onClose }) {
               </div>
               <label style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13, color: "var(--ink-soft)", fontWeight: 300, marginTop: 20 }}>
                 <input type="checkbox" checked={form.is_recurring} onChange={(e) => setForm((f) => ({ ...f, is_recurring: e.target.checked }))} style={{ marginTop: 3 }} />
-                <span>This is a recurring booking (e.g. a weekly class) — same space, day &amp; time each session.</span>
+                <span>
+                  This event has multiple sessions or is recurring — a weekly class, or a course
+                  that runs over several dates. Same space, day &amp; time each session, and one
+                  ${deposit} deposit covers the whole thing.
+                </span>
               </label>
               {form.is_recurring ? (
                 <div style={{ border: "1px solid var(--line-strong)", background: "var(--paper-dim)", padding: 16, marginTop: 12 }}>
@@ -850,12 +866,61 @@ function BookModal({ initialRoom, config, onClose }) {
             <div>
               <h3 style={{ fontSize: 26, marginBottom: 18 }}>Tell us about it.</h3>
               <div style={{ display: "grid", gap: 16 }}>
-                <label><span style={labStyle}>Event title</span>
+                <label><span style={labStyle}>{form.is_recurring ? "Series title" : "Event title"}</span>
                   <input name="event_title" value={form.event_title} onChange={set("event_title")} placeholder="e.g. Priya's Pottery Night" style={fieldStyle} />
                   <span style={{ display: "block", marginTop: 6, fontSize: 12, color: "var(--ink-muted)", fontWeight: 300 }}>
-                    The name we&apos;ll show for your event — you can always change it later.
+                    {form.is_recurring
+                      ? "The name for the whole series — you can always change it later."
+                      : "The name we'll show for your event — you can always change it later."}
                   </span>
                 </label>
+
+                {/* A weekly yoga class repeats identically; a 5-week course that
+                    builds on itself doesn't. Naming sessions here means an
+                    approved series reaches the public calendar already correct
+                    instead of showing one title on every date. */}
+                {form.is_recurring && includedDates.length >= 2 ? (
+                  <div style={{ border: "1px solid var(--line-strong)", background: "var(--paper-dim)", padding: 16 }}>
+                    <label style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13, color: "var(--ink-soft)", fontWeight: 300 }}>
+                      <input
+                        type="checkbox"
+                        checked={form.name_sessions}
+                        onChange={(e) => setForm((f) => ({ ...f, name_sessions: e.target.checked }))}
+                        style={{ marginTop: 3 }}
+                      />
+                      <span>
+                        Each session has its own name — a course that progresses week to week.
+                        Leave this off if every session is the same class.
+                      </span>
+                    </label>
+                    {form.name_sessions ? (
+                      <>
+                        <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
+                          {includedDates.map((d, i) => (
+                            <label key={d} className="bk-session-name">
+                              <span className="mono" style={{ fontSize: 12, color: "var(--ink-muted)", whiteSpace: "nowrap" }}>
+                                {fmtDateShort(d)}
+                              </span>
+                              <input
+                                value={form.session_titles[d] || ""}
+                                onChange={(e) =>
+                                  setForm((f) => ({ ...f, session_titles: { ...f.session_titles, [d]: e.target.value } }))
+                                }
+                                placeholder={`Session ${i + 1}`}
+                                style={fieldStyle}
+                              />
+                            </label>
+                          ))}
+                        </div>
+                        <p style={{ marginTop: 10, fontSize: 12, color: "var(--ink-muted)", fontWeight: 300 }}>
+                          Leave any blank to use the series title. These go straight onto our
+                          calendar once you&apos;re approved — and you can change them (plus add a
+                          photo, description and price per session) from the private link we email you.
+                        </p>
+                      </>
+                    ) : null}
+                  </div>
+                ) : null}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                   <label><span style={labStyle}>Your name</span><input name="name" autoComplete="name" value={form.name} onChange={set("name")} placeholder="Jane Maker" style={fieldStyle} /></label>
                   <label><span style={labStyle}>Email</span><input name="email" type="email" autoComplete="email" inputMode="email" value={form.email} onChange={set("email")} placeholder="you@email.com" style={fieldStyle} /></label>

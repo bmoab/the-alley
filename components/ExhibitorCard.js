@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import PhotoSlot from "@/components/site/PhotoSlot.js";
+import PhotoGallery from "@/components/site/PhotoGallery.js";
 
 const WORK_VARIANTS = ["verde", "", "soft"];
 
@@ -34,11 +35,15 @@ export default function ExhibitorCard({ ex, when = "", variant = "" }) {
             <p className="ex-flip-when mono">{when}</p>
           </div>
           <p className="ex-flip-blurb">{ex.blurb}</p>
-          <div className="ex-flip-works">
-            {works.map((w, k) => (
-              <PhotoSlot key={w.id ?? k} src={w.image_path || null} tag="" variant={WORK_VARIANTS[k % WORK_VARIANTS.length]} showTag={false} />
-            ))}
-          </div>
+          {/* Opens the lightbox rather than flipping the card back — PhotoGallery
+              stops the click reaching this card's own toggle. */}
+          <PhotoGallery
+            photos={works.map((w) => ({ src: w.image_path, cap: w.caption || "" }))}
+            className="ex-flip-works"
+            variants={WORK_VARIANTS}
+            cat={ex.name}
+            tabIndex={flipped ? 0 : -1}
+          />
           <span className="ex-flip-hint mono">Back ↺</span>
         </div>
       </div>

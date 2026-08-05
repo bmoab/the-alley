@@ -9,8 +9,10 @@ import {
   createHostInvite,
   getEvent,
   parseEventLinks,
+  eventLastDate,
 } from "@/lib/catalog.js";
 import LinksEditor from "@/components/LinksEditor.js";
+import EventMediaField from "@/components/admin/EventMediaField.js";
 import { emailHostInvite, emailHostReminder } from "@/lib/email.js";
 import { logEmail } from "@/lib/activity.js";
 import { getActor } from "@/lib/auth.js";
@@ -161,6 +163,16 @@ function parseLinksField(formData) {
   }
 }
 
+/** Uploaded PDF paths, posted by EventMediaField as a JSON array. */
+function parsePdfsField(formData) {
+  try {
+    const p = JSON.parse(formData.get("pdf_paths") || "[]");
+    return Array.isArray(p) ? p.filter((x) => typeof x === "string" && x) : [];
+  } catch {
+    return [];
+  }
+}
+
 async function saveEvent(formData) {
   "use server";
   const id = Number(formData.get("id"));
@@ -178,6 +190,9 @@ async function saveEvent(formData) {
     payment_instructions: formData.get("payment_instructions"),
     payment_link: formData.get("payment_link"),
     links: parseLinksField(formData),
+    // "" is an explicit "remove the photo", not "leave it alone".
+    photo_path: (formData.get("photo_path") ?? "").toString(),
+    pdf_paths: parsePdfsField(formData),
   });
   refresh();
   redirect("/admin/events");
@@ -198,10 +213,23 @@ async function createEvent(formData) {
     price: formData.get("price"),
     payment_instructions: formData.get("payment_instructions"),
     payment_link: formData.get("payment_link"),
+    photo_path: (formData.get("photo_path") || "").toString() || null,
+    pdf_paths: parsePdfsField(formData),
+    links: parseLinksField(formData),
     status: "live",
   });
   refresh();
   redirect("/admin/events");
+}
+
+/** An event's stored pdf_paths JSON → array (tolerates null / bad JSON). */
+function parsePdfPaths(ev) {
+  try {
+    const p = JSON.parse(ev.pdf_paths || "[]");
+    return Array.isArray(p) ? p : [];
+  } catch {
+    return [];
+  }
 }
 
 function EventEditor({ ev }) {
@@ -236,6 +264,7 @@ function EventEditor({ ev }) {
         <label className="label">Links (buttons on the public listing)</label>
         <LinksEditor name="links" value={parseEventLinks(ev)} />
       </div>
+      <EventMediaField photo={ev.photo_path || ""} pdfs={parsePdfPaths(ev)} />
       <Button type="submit" className="w-fit">Save changes</Button>
     </form>
   );
@@ -305,8 +334,18 @@ export default function EventsAdminPage({ searchParams }) {
   // ?ev=<id> — arrived from the admin calendar; open + highlight that listing.
   const focusedEv = (searchParams?.ev || "").toString();
   const all = listAllEvents();
+  // A listing is done only once its LAST date has passed — a weekly series
+  // whose first session already happened is still current. Undated invites are
+  // never "past". Finished listings move to their own collapsed section so this
+  // list stays about what's coming up; the admin calendar still shows history.
+  const today = venueToday();
+  const isPast = (e) => {
+    const last = eventLastDate(e);
+    return Boolean(last) && last < today;
+  };
   const pending = all.filter((e) => e.status === "pending");
-  const live = all.filter((e) => e.status === "live");
+  const live = all.filter((e) => e.status === "live" && !isPast(e));
+  const past = all.filter((e) => e.status === "live" && isPast(e)).reverse();
   const drafts = all.filter((e) => e.status === "draft");
 
   return (
@@ -373,6 +412,29 @@ export default function EventsAdminPage({ searchParams }) {
           ))}
         </div>
       )}
+
+      {/* Past — still editable, just out of the way. */}
+      {past.length ? (
+        // Opens when the calendar linked straight to a past listing, otherwise
+        // that #ev-<id> jump would land on a collapsed section.
+        <details className="mt-6" open={past.some((e) => String(e.id) === focusedEv)}>
+          <summary className="cursor-pointer text-sm font-semibold text-ink-soft hover:text-ink">
+            Past events ({past.length})
+          </summary>
+          <p className="mt-2 text-sm text-ink-muted">
+            Already happened, so they&apos;re off the public calendar — still here if you
+            need to reuse or remove one.
+          </p>
+          <div className="mt-3 space-y-3">
+            {past.map((ev) => (
+              <EventCard key={ev.id} ev={ev} focused={String(ev.id) === focusedEv}>
+                <form action={unpublishEvent}><input type="hidden" name="id" value={ev.id} /><Button type="submit" variant="ghost" size="sm">Unpublish</Button></form>
+                <form action={removeEvent}><input type="hidden" name="id" value={ev.id} /><button className="text-sm font-semibold text-rust hover:underline">Remove</button></form>
+              </EventCard>
+            ))}
+          </div>
+        </details>
+      ) : null}
 
       {/* Drafts (host invited, not yet submitted) */}
       {drafts.length ? (
@@ -454,6 +516,11 @@ export default function EventsAdminPage({ searchParams }) {
             <div><label className="label">Payment instructions</label><input name="payment_instructions" className="field" /></div>
             <div><label className="label">Payment link</label><input name="payment_link" className="field" /></div>
           </div>
+          <div>
+            <label className="label">Links (buttons on the public listing)</label>
+            <LinksEditor name="links" value={[]} />
+          </div>
+          <EventMediaField />
           <Button type="submit" className="w-fit">Publish event</Button>
         </form>
       </details>

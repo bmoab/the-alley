@@ -9,10 +9,22 @@ function parseYmd(s) {
 }
 const pad = (n) => String(n).padStart(2, "0");
 
-/** Public events as toggleable List / Month views. `events` are live event rows. */
-export default function EventsCalendar({ events = [] }) {
+/**
+ * Public events as toggleable List / Month views. `events` are live event rows,
+ * past ones included.
+ *
+ * The two views want different things: the LIST is "what's on", so it starts at
+ * today — nobody scrolls past finished workshops to find next week's. The MONTH
+ * grid is a calendar, so it keeps everything and you can page back through what
+ * the building has hosted.
+ *
+ * `today` (YYYY-MM-DD) is passed in from the server in the venue's timezone —
+ * deriving it here would disagree with the server on a late-evening render.
+ */
+export default function EventsCalendar({ events = [], today = "" }) {
   const [view, setView] = useState("list");
   const sorted = [...events].sort((a, b) => a.date.localeCompare(b.date));
+  const upcoming = today ? sorted.filter((e) => e.date >= today) : sorted;
 
   return (
     <>
@@ -21,7 +33,7 @@ export default function EventsCalendar({ events = [] }) {
           <button key={v} className={view === v ? "is-on" : ""} onClick={() => setView(v)}>{v}</button>
         ))}
       </div>
-      {view === "list" ? <CalList events={sorted} /> : <CalMonth events={sorted} />}
+      {view === "list" ? <CalList events={upcoming} /> : <CalMonth events={sorted} today={today} />}
     </>
   );
 }
@@ -34,7 +46,7 @@ function CalList({ events }) {
   if (!events.length) {
     return (
       <div className="ev-empty">
-        No public events are listed yet — check back soon, or <Link className="linkish" href="/spaces">host your own</Link>.
+        Nothing coming up just yet — check back soon, or <Link className="linkish" href="/spaces">host your own</Link>.
       </div>
     );
   }
@@ -65,17 +77,19 @@ function CalList({ events }) {
   );
 }
 
-function CalMonth({ events }) {
+function CalMonth({ events, today }) {
   const byDate = {};
   events.forEach((e) => {
     (byDate[e.date] ||= []).push(e);
   });
-  const first = events.length ? parseYmd(events[0].date) : new Date();
-  const [cur, setCur] = useState({ y: first.getFullYear(), m: first.getMonth() });
+  // Open on the current month, not the earliest event — this grid holds history
+  // now, so anchoring to the first event could land you in a past year. Paging
+  // back from here is exactly how you reach it.
+  const start = today ? parseYmd(today) : new Date();
+  const [cur, setCur] = useState({ y: start.getFullYear(), m: start.getMonth() });
   const fd = new Date(cur.y, cur.m, 1);
   const startDow = fd.getDay();
   const days = new Date(cur.y, cur.m + 1, 0).getDate();
-  const today = new Date();
   const cells = [];
   for (let i = 0; i < startDow; i++) cells.push(null);
   for (let d = 1; d <= days; d++) cells.push(d);
@@ -98,7 +112,9 @@ function CalMonth({ events }) {
           if (!d) return <div key={i} className="cal-cell cal-cell--empty" />;
           const ds = `${cur.y}-${pad(cur.m + 1)}-${pad(d)}`;
           const evs = byDate[ds] || [];
-          const isToday = d === today.getDate() && cur.m === today.getMonth() && cur.y === today.getFullYear();
+          // Compared as venue dates, so the highlight doesn't jump a day for a
+          // visitor in another timezone.
+          const isToday = ds === today;
           return (
             <div key={i} className={"cal-cell" + (isToday ? " is-today" : "")}>
               <span className="cd">{d}</span>

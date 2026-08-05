@@ -49,6 +49,7 @@ export default function TenantPage({ params }) {
           <div className="tenant-photos">
             <SpaceGallery
               photos={t.photos.map((p) => ({ image_path: p, caption: "" }))}
+              label={t.business_name}
             />
           </div>
           <div className="tenant-side">

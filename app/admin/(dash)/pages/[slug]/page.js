@@ -37,6 +37,8 @@ const TEXT = {
   spaces_hero_lede: { label: "Hero intro", textarea: true, rows: 3 },
   spaces_book_heading: { label: "“Before you book” heading" },
   spaces_book_body: { label: "“Before you book” text — type {deposit} to show the live deposit amount", textarea: true, rows: 4 },
+  spaces_listing_heading: { label: "“Public calendar listing” heading" },
+  spaces_listing_body: { label: "“Public calendar listing” text — what hosts get on our calendar", textarea: true, rows: 5 },
   directory_hero_eyebrow: { label: "Hero eyebrow" },
   directory_hero_title: { label: "Hero title" },
   directory_hero_lede: { label: "Hero intro", textarea: true, rows: 3 },
@@ -123,7 +125,7 @@ const PAGES = {
   },
   spaces: {
     label: "Spaces", route: "/spaces",
-    text: ["spaces_hero_eyebrow", "spaces_hero_title", "spaces_hero_lede", "spaces_book_heading", "spaces_book_body"],
+    text: ["spaces_hero_eyebrow", "spaces_hero_title", "spaces_hero_lede", "spaces_listing_heading", "spaces_listing_body", "spaces_book_heading", "spaces_book_body"],
     list: [], image: [],
     note: "Room photos are managed under Site Content → Spaces Photos.",
   },
