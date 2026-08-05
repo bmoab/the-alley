@@ -34,33 +34,17 @@ const NUMBER_FIELDS = [
     min: 0,
     step: 5,
   },
-  {
-    key: "minimum_hours",
-    label: "Minimum booking length (hours)",
-    hint: "Shortest rental a guest can request.",
-    min: 1,
-    step: 1,
-  },
-  {
-    key: "maximum_hours",
-    label: "Maximum booking length (hours)",
-    hint: "Longest single rental a guest can request.",
-    min: 1,
-    step: 1,
-  },
+  // Minimum / maximum booking length and the cleanup buffer used to live here
+  // too, duplicating the per-space boxes below that silently inherited them.
+  // They're now set per space only. The global keys still exist in `settings`
+  // as the fallback for a space with an empty box (see lib/spaces.js) — they
+  // just aren't edited from here any more.
   {
     key: "min_lead_hours",
     label: "Minimum advance notice (hours)",
     hint: "How far ahead a booking must be made. 0 = no requirement; 24 = one day; 48 = two days.",
     min: 0,
     step: 1,
-  },
-  {
-    key: "cleanup_buffer_minutes",
-    label: "Cleanup buffer (minutes)",
-    hint: "Gap reserved after each booking before the next can start.",
-    min: 0,
-    step: 15,
   },
   {
     key: "payment_window_days",
@@ -106,7 +90,12 @@ const SPACE_FIELDS = [
 async function save(formData) {
   "use server";
   for (const f of NUMBER_FIELDS) {
-    setSetting(f.key, (formData.get(f.key) || "0").toString());
+    // Only write what this form actually rendered. A field that isn't on the
+    // page posts nothing, and the old `|| "0"` would quietly stamp a 0 over a
+    // real setting.
+    const submitted = formData.get(f.key);
+    if (submitted === null) continue;
+    setSetting(f.key, submitted.toString() || "0");
   }
   // Per-space overrides. An empty box is stored as "" — spaceRules() reads that
   // as "inherit", so clearing a field puts the space back on the default.
@@ -184,13 +173,7 @@ export default function SettingsPage() {
           <h2 className="text-lg font-semibold text-ink">Booking rules</h2>
           <div className="mt-4 grid gap-5 sm:grid-cols-2">
             {NUMBER_FIELDS.filter((f) =>
-              [
-                "minimum_hours",
-                "maximum_hours",
-                "min_lead_hours",
-                "cleanup_buffer_minutes",
-                "payment_window_days",
-              ].includes(f.key)
+              ["min_lead_hours", "payment_window_days"].includes(f.key)
             ).map((f) => (
               <NumberField key={f.key} field={f} value={s[f.key]} />
             ))}
@@ -234,9 +217,9 @@ export default function SettingsPage() {
         <Card pad="md">
           <h2 className="text-lg font-semibold text-ink">Per-space rules</h2>
           <p className="mt-1 text-xs text-ink-muted">
-            Leave a box empty and that space uses the default shown in grey. Fill it in
-            and that space uses your number instead — for pricing, booking length, and the
-            gap between bookings.
+            Booking length and the gap between bookings are set here, per space — each
+            room can differ. Rate and deposit fall back to the Pricing card above when
+            left empty; an empty box always uses the value shown in grey.
           </p>
           <div className="mt-4 space-y-6">
             {SPACES.map((sp) => (
