@@ -115,6 +115,12 @@ async function save(formData) {
   );
   // Shared calendar link is content (used in tenant/host/exhibitor invite emails).
   setContent("calendar_share_url", (formData.get("calendar_share_url") || "").toString());
+  // Notification routing (lib/notify.js). Plain text, NOT part of NUMBER_FIELDS —
+  // that loop's `|| "0"` fallback would turn a cleared box into the string "0"
+  // and quietly send every notification to a nonexistent address.
+  for (const key of ["notify_requests", "notify_reminders", "reply_to_email"]) {
+    setSetting(key, (formData.get(key) || "").toString().trim());
+  }
   logActivity({
     eventType: "settings_changed",
     description: "Settings updated · pricing & booking rules",
@@ -298,6 +304,67 @@ export default function SettingsPage() {
             <p className="mt-1 text-xs text-ink-muted">
               When off, host submissions wait for your approval in the Events tab.
             </p>
+          </div>
+        </Card>
+
+        <Card pad="md">
+          <h2 className="text-lg font-semibold text-ink">Notifications</h2>
+          <p className="mt-1 text-sm text-ink-muted">
+            Where the Alley&rsquo;s own emails go. Separate several addresses with commas.
+            Leave a box empty to fall back to the site&rsquo;s default address.
+          </p>
+          <div className="mt-4 space-y-5">
+            <div>
+              <label className="label" htmlFor="notify_requests">
+                Requests &amp; approvals
+              </label>
+              <input
+                id="notify_requests"
+                name="notify_requests"
+                type="text"
+                defaultValue={s.notify_requests ?? ""}
+                placeholder="name@example.com, someone@example.com"
+                className="field"
+              />
+              <p className="mt-1 text-xs text-ink-muted">
+                New booking requests, the daily &ldquo;still waiting for review&rdquo; nudge,
+                deposits to resolve, and any date change a client makes themselves.
+              </p>
+            </div>
+            <div>
+              <label className="label" htmlFor="notify_reminders">
+                Event reminders
+              </label>
+              <input
+                id="notify_reminders"
+                name="notify_reminders"
+                type="text"
+                defaultValue={s.notify_reminders ?? ""}
+                placeholder="name@example.com, someone@example.com"
+                className="field"
+              />
+              <p className="mt-1 text-xs text-ink-muted">
+                The &ldquo;happening soon&rdquo; digests — everything booked in the building,
+                including private bookings that never hit the public calendar.
+              </p>
+            </div>
+            <div>
+              <label className="label" htmlFor="reply_to_email">
+                Client replies go to
+              </label>
+              <input
+                id="reply_to_email"
+                name="reply_to_email"
+                type="email"
+                defaultValue={s.reply_to_email ?? ""}
+                placeholder="thealleyoncenter@gmail.com"
+                className="field"
+              />
+              <p className="mt-1 text-xs text-ink-muted">
+                One address. When a client hits reply on any email from the site, this
+                is where it lands.
+              </p>
+            </div>
           </div>
         </Card>
 

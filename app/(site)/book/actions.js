@@ -7,8 +7,7 @@ import { SPACE_BY_ID, EVENT_TYPES, GUEST_RANGES } from "@/lib/constants.js";
 import { spaceRules } from "@/lib/spaces.js";
 import { emailOwnerNewRequest, emailClientReceived, emailOwnerNewSeriesRequest, emailClientSeriesReceived } from "@/lib/email.js";
 import { logActivity, logEmail } from "@/lib/activity.js";
-
-const OWNER_EMAIL = process.env.OWNER_EMAIL || "thealleyoncenter@gmail.com";
+import { requestRecipients, recipientLabel } from "@/lib/notify.js";
 
 /** "1 hour" / "2 hours" — minimums differ per space, so this can be singular. */
 function hourLabel(n) {
@@ -120,7 +119,7 @@ export async function submitBooking(payload) {
       bookingId: booking.id,
       eventType: "owner_notified",
       description: "Owner notified of new request",
-      recipientEmail: OWNER_EMAIL,
+      recipientEmail: recipientLabel(requestRecipients()),
       sendResult: ownerRes,
     });
     logEmail({
@@ -250,7 +249,7 @@ export async function submitBookingSeries(payload) {
       bookingId: holder.id,
       eventType: "owner_notified",
       description: "Owner notified of new recurring request",
-      recipientEmail: OWNER_EMAIL,
+      recipientEmail: recipientLabel(requestRecipients()),
       sendResult: ownerRes,
     });
     logEmail({
