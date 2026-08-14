@@ -23,6 +23,10 @@ export function GET(request) {
   const date = searchParams.get("date");
   const month = searchParams.get("month");
   const hours = Number(searchParams.get("hours") || 2);
+  // Ignore one booking when judging availability, so a booking being moved
+  // doesn't block its own slot. UI hint only — every write path re-derives the
+  // exclusion server-side from the token or route param and never trusts this.
+  const excludeId = Number(searchParams.get("exclude")) || null;
 
   if (!space || !SPACE_BY_ID[space]) {
     return NextResponse.json({ error: "Unknown space" }, { status: 400 });
@@ -49,7 +53,7 @@ export function GET(request) {
         results[ds] = { available: false, reason: "Too soon" };
       } else if (isClosedForBooking(space, ds, startHour, startHour + hours)) {
         results[ds] = { available: false, reason: "Closed" };
-      } else if (!isSlotAvailable(space, ds, startTime, hours)) {
+      } else if (!isSlotAvailable(space, ds, startTime, hours, excludeId)) {
         results[ds] = { available: false, reason: "Taken" };
       } else {
         results[ds] = { available: true, reason: null };
@@ -68,7 +72,7 @@ export function GET(request) {
     const closedDays = [];
     for (let d = 1; d <= lastDay; d++) {
       const ds = `${month}-${String(d).padStart(2, "0")}`;
-      days[ds] = getDayAvailability(space, ds, hours).open;
+      days[ds] = getDayAvailability(space, ds, hours, excludeId).open;
       if (isFullyClosed(space, ds)) closedDays.push(ds);
     }
     return NextResponse.json({ space, month, hours, days, closedDays });
@@ -80,7 +84,7 @@ export function GET(request) {
 
   // Range picker: per-30-min freeness for the whole day.
   if (searchParams.get("free")) {
-    return NextResponse.json({ space, date, slots: getDayFreeSlots(space, date) });
+    return NextResponse.json({ space, date, slots: getDayFreeSlots(space, date, excludeId) });
   }
 
   // Smart picker: the day's raw bookings (buffered client-side) + closures (hard blocks).
@@ -88,11 +92,11 @@ export function GET(request) {
     return NextResponse.json({
       space,
       date,
-      bookings: getDayBookings(space, date),
+      bookings: getDayBookings(space, date, excludeId),
       closures: getClosureIntervals(space, date),
     });
   }
 
-  const slots = getAvailableStartTimes(space, date, hours);
+  const slots = getAvailableStartTimes(space, date, hours, excludeId);
   return NextResponse.json({ space, date, hours, slots });
 }

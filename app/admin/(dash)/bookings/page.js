@@ -10,11 +10,13 @@ import {
   unarchiveBooking,
   keepBookingOnCalendar,
   reArmHold,
+  ensureRescheduleToken,
 } from "@/lib/bookings.js";
 import { confirmBookingPaid, releaseExpiredHolds, resendInvoice } from "@/lib/payments.js";
 import { listDirectory } from "@/lib/catalog.js";
 import { getInvoiceStatus } from "@/lib/square.js";
-import { logActivity } from "@/lib/activity.js";
+import { emailClientRescheduleLink } from "@/lib/email.js";
+import { logActivity, logEmail } from "@/lib/activity.js";
 import { getActor, getCurrentUser, canManageBookings, requireBookingManager } from "@/lib/auth.js";
 import {
   SPACES,
@@ -136,6 +138,37 @@ async function keepOnCalendar(formData) {
 }
 
 // Re-email the client their existing payment link.
+async function sendRescheduleLink(formData) {
+  "use server";
+  if (!(await requireBookingManager())) redirect(backTo(formData, { toast: NO_PERMISSION, toastType: "error" }));
+  const id = Number(formData.get("id"));
+  const booking = getBooking(id);
+  if (!booking) redirect(backTo(formData, { toast: "Booking not found.", toastType: "error" }));
+  // Minting here is what lets an ALREADY-confirmed booking get a link: their
+  // approval/confirmation email went out long before this feature existed.
+  ensureRescheduleToken(id);
+  const withToken = getBooking(id);
+  let toast, toastType = "success";
+  try {
+    const res = await emailClientRescheduleLink(withToken);
+    logEmail({
+      bookingId: id,
+      eventType: "reschedule_link_sent",
+      description: "Change-date link sent to the client",
+      recipientEmail: withToken.client_email,
+      sendResult: res,
+      ...(await getActor()),
+    });
+    toast = `Change-date link sent to ${withToken.client_email}.`;
+  } catch (err) {
+    console.error(`[bookings] reschedule link failed for #${id}:`, err.message);
+    toast = "Couldn't send the change-date link.";
+    toastType = "error";
+  }
+  refresh();
+  redirect(backTo(formData, { toast, toastType }));
+}
+
 async function resend(formData) {
   "use server";
   if (!(await requireBookingManager())) redirect(backTo(formData, { toast: NO_PERMISSION, toastType: "error" }));
@@ -191,12 +224,11 @@ async function restore(formData) {
 
   const conflict = findRestoreConflict(booking);
   if (conflict) {
-    redirect(
-      backTo(formData, {
-        toast: `Can't restore — that slot now conflicts with ${conflict.client_name} on ${formatDate(conflict.date)} at ${formatTime(conflict.start_time)} (${spaceName(conflict.space)}). Resolve that booking first.`,
-        toastType: "error",
-      })
-    );
+    const toast =
+      conflict.kind === "closure"
+        ? `Can't restore — ${spaceName(booking.space)} is closed on ${formatDate(booking.date)} at that time. Remove the closure first, or move the booking.`
+        : `Can't restore — that slot now conflicts with ${conflict.booking.client_name} on ${formatDate(conflict.booking.date)} at ${formatTime(conflict.booking.start_time)} (${spaceName(conflict.booking.space)}). Resolve that booking first.`;
+    redirect(backTo(formData, { toast, toastType: "error" }));
   }
 
   restoreBooking(id, to);
@@ -525,6 +557,7 @@ export default async function BookingsPage({ searchParams }) {
                         markPaidAction={markPaid}
                         checkPaymentAction={checkPayment}
                         resendAction={resend}
+                        rescheduleLinkAction={sendRescheduleLink}
                         keepOnCalendarAction={keepOnCalendar}
                         restoreAction={restore}
                         archiveAction={archive}

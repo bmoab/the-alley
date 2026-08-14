@@ -59,6 +59,7 @@ export default function BookingActionsMenu({
   markPaidAction,
   checkPaymentAction,
   resendAction,
+  rescheduleLinkAction,
   keepOnCalendarAction,
   restoreAction,
   archiveAction,
@@ -178,6 +179,32 @@ export default function BookingActionsMenu({
           href: `/admin/bookings/${b.id}/edit`,
         });
       }
+    }
+    // Move a live booking to another day. Space, length and price are unchanged
+    // and no invoice is reissued, so this is safe on a paid booking too.
+    if (live) {
+      items.push({
+        key: "reschedule",
+        label: "Change date",
+        hint: "Move it to another day",
+        href: `/admin/bookings/${b.id}/reschedule`,
+      });
+      if (rescheduleLinkAction && b.client_email) {
+        items.push({
+          key: "reschedule-link",
+          label: "Email the change-date link",
+          hint: "Let them pick a new day themselves",
+          action: rescheduleLinkAction,
+          confirm: {
+            title: "Send the change-date link?",
+            body: `This emails ${b.client_name} (${b.client_email}) a private link to move this booking to another day. They can't cancel with it.`,
+            cta: "Send it",
+            pending: "Sending…",
+          },
+        });
+      }
+    }
+    if (awaitingPayment) {
       // Override: keep an unpaid hold on the calendar (or re-arm the expiry).
       // Only for a single held booking (series dates never auto-expire).
       if (b.status === "held" && keepOnCalendarAction) {

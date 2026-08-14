@@ -802,3 +802,36 @@ a.ex-handle:hover { text-decoration-color: var(--ink); }
   0%, 100% { box-shadow: 0 0 0 0 rgba(123,160,91,0); }
   12% { box-shadow: 0 0 0 4px rgba(123,160,91,.65); background-color: rgba(123,160,91,.12); }
 }
+
+/* ── Client "change my date" page (app/(site)/reschedule/[token]) ────────────
+   Lives inside (site) on purpose: the pickers it renders use the bk-* classes
+   defined above, which are only loaded by app/(site)/layout.js. */
+.rs-page { padding: 56px 0 80px; max-width: 720px; }
+.rs-h1 { font-family: var(--font-display); font-size: clamp(28px, 5vw, 40px); font-weight: 600; color: var(--ink); margin: 6px 0 14px; line-height: 1.12; }
+.rs-h2 { font-family: var(--font-display); font-size: clamp(22px, 4vw, 30px); font-weight: 600; color: var(--ink); margin: 6px 0 16px; }
+.rs-lede { margin-bottom: 26px; }
+.rs-back { margin-top: 24px; display: inline-block; }
+
+.rs-facts { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); margin: 22px 0 24px; }
+.rs-facts > div { display: flex; justify-content: space-between; gap: 16px; background: var(--paper-dim); padding: 12px 14px; }
+.rs-facts dt { font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-muted); }
+.rs-facts dd { color: var(--ink); font-weight: 600; text-align: right; }
+
+.rs-block { margin-bottom: 28px; }
+.rs-actions { border-top: 1px solid var(--line); padding-top: 20px; margin-top: 8px; }
+.rs-note { font-size: 14px; color: var(--ink-muted); margin-top: 12px; line-height: 1.6; }
+.rs-foot { border-top: 1px solid var(--line); margin-top: 34px; padding-top: 18px; }
+.rs-error { background: rgba(156, 74, 46, .08); border: 1px solid rgba(156, 74, 46, .35); color: #9c4a2e; padding: 12px 14px; font-size: 14px; margin: 16px 0 0; }
+
+.rs-done { padding: 8px 0 12px; }
+.rs-recap { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); margin: 20px 0; }
+.rs-recap > div { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; background: var(--paper-dim); padding: 12px 14px; }
+.rs-lbl { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-muted); }
+.rs-recap s { color: var(--ink-muted); }
+.rs-recap strong { color: var(--ink); }
+
+@media (max-width: 560px) {
+  .rs-page { padding: 36px 0 60px; }
+  .rs-facts > div, .rs-recap > div { flex-direction: column; gap: 4px; }
+  .rs-facts dd, .rs-recap strong, .rs-recap s { text-align: left; }
+}
