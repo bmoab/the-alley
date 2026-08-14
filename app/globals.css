@@ -20,6 +20,10 @@
   --line: rgba(47, 47, 45, 0.14);
   --line-strong: rgba(47, 47, 45, 0.28);
 
+  /* Body and display are the same face (Josefin Sans) at different weights, so
+     they share one next/font instance. --font-archivo is kept as an alias
+     because site.css and tailwind.config.cjs reference it in many places. */
+  --font-archivo: var(--font-display);
   --font-body: var(--font-archivo), system-ui, sans-serif;
   --font-mono: var(--font-archivo), system-ui, sans-serif;
 

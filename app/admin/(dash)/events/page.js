@@ -200,7 +200,7 @@ async function saveEvent(formData) {
 
 async function createEvent(formData) {
   "use server";
-  createOwnEvent({
+  const created = createOwnEvent({
     title: formData.get("title"),
     host_name: formData.get("host_name") || "The Alley On Center",
     description: formData.get("description"),
@@ -219,7 +219,16 @@ async function createEvent(formData) {
     status: "live",
   });
   refresh();
-  redirect("/admin/events");
+  // Redirecting to the bare "/admin/events" was a no-op: that's the page the
+  // form is already on, so nothing visibly happened, no confirmation appeared,
+  // and the form kept its values — pressing "Publish event" again just created
+  // another copy. Carrying the new id + a toast makes it a real navigation, so
+  // the owner gets feedback and the form below resets (it's keyed on ?ev=).
+  redirect(
+    `/admin/events?ev=${created.id}&toast=` +
+      encodeURIComponent(`"${created.title || "Event"}" is live on the calendar.`) +
+      "&toastType=success"
+  );
 }
 
 /** An event's stored pdf_paths JSON → array (tolerates null / bad JSON). */
@@ -487,7 +496,11 @@ export default function EventsAdminPage({ searchParams }) {
       <h2 className="mt-10 text-xl font-semibold text-ink">
         Create an Alley event
       </h2>
-      <details className="mt-3 card p-5">
+      {/* Keyed on the last-created id so a successful publish REMOUNTS this
+          block: the <details> collapses and every field clears. Without the
+          key, React reconciles the same DOM nodes and the just-submitted values
+          sit there looking like the publish didn't take. */}
+      <details className="mt-3 card p-5" key={`new-event-${focusedEv || "blank"}`}>
         <summary className="cursor-pointer font-semibold text-ink">+ New event</summary>
         <form action={createEvent} className="mt-4 grid gap-3">
           <div className="grid gap-3 sm:grid-cols-2">

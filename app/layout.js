@@ -10,21 +10,22 @@ const ui = Inter({
   variable: "--font-ui",
 });
 
-// Brand typeface (TheAlley_BrandGuide.pdf): Josefin Sans.
-// Display = Semibold/Bold; body = Light/Regular. Both exposed as CSS variables
-// so the existing --font-display / --font-archivo references keep working.
+// Brand typeface (TheAlley_BrandGuide.pdf): Josefin Sans, Light through Bold —
+// display weights (600/700) and body weights (300/400) come from this ONE
+// instance.
+//
+// ⚠️ This was previously TWO Josefin_Sans() calls, one per CSS variable. Calling
+// the same Google font twice makes next/font emit two separately-hashed font
+// classes, and a build that reuses a partial cache can emit the class name from
+// one hash and the @font-face CSS from the other. When that happened in
+// production, `--font-archivo` resolved to EMPTY, which made
+// `--font-body: var(--font-archivo), ...` invalid at computed-value time and
+// dropped the whole site to Times. One instance can't desync with itself.
 const display = Josefin_Sans({
   subsets: ["latin"],
   display: "swap",
-  weight: ["400", "500", "600", "700"],
+  weight: ["300", "400", "500", "600", "700"],
   variable: "--font-display",
-});
-
-const archivo = Josefin_Sans({
-  subsets: ["latin"],
-  display: "swap",
-  weight: ["300", "400", "500", "600"],
-  variable: "--font-archivo",
 });
 
 export const metadata = {
@@ -38,7 +39,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${display.variable} ${archivo.variable} ${ui.variable}`}>
+    <html lang="en" className={`${display.variable} ${ui.variable}`}>
       <body>{children}</body>
     </html>
   );
