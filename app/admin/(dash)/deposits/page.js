@@ -65,7 +65,7 @@ export default function DepositsPage() {
     <div>
       <PageHeader
         title="Deposits to refund"
-        subtitle="Events that have passed with a cleaning deposit still to resolve. Inspect the space, then refund all, part, or none of it. Reminders go out at 9am on days 1–3 until resolved."
+        subtitle="Events that have finished with a cleaning deposit still to resolve. A booking appears here as soon as its end time passes, so you can settle up before you leave. Inspect the space, then refund all, part, or none of it. If you don't, a reminder goes out at 9am each day until it's resolved."
       />
 
       {items.length === 0 ? (
