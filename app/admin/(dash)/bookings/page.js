@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { nanoid } from "nanoid";
 import {
   listBookings,
   getBooking,
+  getSeries,
   findRestoreConflict,
   restoreBooking,
   archiveBooking,
@@ -11,11 +13,18 @@ import {
   keepBookingOnCalendar,
   reArmHold,
   ensureRescheduleToken,
+  setBookingPublicFlag,
 } from "@/lib/bookings.js";
 import { confirmBookingPaid, releaseExpiredHolds, resendInvoice } from "@/lib/payments.js";
-import { listDirectory } from "@/lib/catalog.js";
+import {
+  listDirectory,
+  listingsByBooking,
+  getDraftEventForBooking,
+  createHostListingDraft,
+  setEventStatus,
+} from "@/lib/catalog.js";
 import { getInvoiceStatus } from "@/lib/square.js";
-import { emailClientRescheduleLink } from "@/lib/email.js";
+import { emailClientRescheduleLink, emailHostInvite } from "@/lib/email.js";
 import { logActivity, logEmail } from "@/lib/activity.js";
 import { getActor, getCurrentUser, canManageBookings, requireBookingManager } from "@/lib/auth.js";
 import {
@@ -138,6 +147,94 @@ async function keepOnCalendar(formData) {
 }
 
 // Re-email the client their existing payment link.
+/**
+ * Put a booking on the public calendar, or take it off.
+ *
+ * The client ticks "list this on the public calendar" (or doesn't) when they
+ * book, and nothing could change that afterwards: a booking that came in
+ * private had no listing to edit and no way to get one. This fills that gap
+ * from the owner's side.
+ *
+ * Three shapes, depending on where the booking is:
+ *  - a listing already exists → just show or hide it (never delete: the host's
+ *    description, photo and payment details survive a round trip)
+ *  - paid, no listing → create it now and email the host their posting link,
+ *    exactly as payment would have
+ *  - not paid yet → set the flag only. confirmBookingPaid reads it, so payment
+ *    creates the listing and sends the invite itself, with the right wording.
+ */
+async function setBookingPublic(formData) {
+  "use server";
+  if (!(await requireBookingManager())) redirect(backTo(formData, { toast: NO_PERMISSION, toastType: "error" }));
+  const id = Number(formData.get("id"));
+  const makePublic = formData.get("public") === "1";
+  const clicked = getBooking(id);
+  if (!clicked) redirect(backTo(formData, { toast: "Booking not found.", toastType: "error" }));
+
+  // A series has ONE listing, hanging off its holder session and fanned out
+  // across the rest, so resolve to that row however the owner got here.
+  const booking = clicked.series_id
+    ? getSeries(clicked.series_id).find((r) => r.is_deposit_holder) || clicked
+    : clicked;
+
+  setBookingPublicFlag(booking.id, makePublic);
+  const actor = await getActor();
+  const existing = getDraftEventForBooking(booking.id);
+  const who = booking.client_name || `Booking #${booking.id}`;
+  let toast;
+  let toastType = "success";
+
+  if (!makePublic) {
+    if (existing) setEventStatus(existing.id, "private");
+    toast = `${who} is private — off the public calendar.`;
+    toastType = "neutral";
+  } else if (existing) {
+    setEventStatus(existing.id, "live");
+    toast = `${who} is on the public calendar.`;
+  } else if (booking.payment_status === "paid") {
+    const listing = createHostListingDraft(booking, nanoid(24));
+    toast = `${who} is on the public calendar.`;
+    if (booking.client_email) {
+      try {
+        const res = await emailHostInvite(booking, listing.host_token);
+        logEmail({
+          bookingId: booking.id,
+          eventType: "host_invite_sent",
+          description: "Host listing invite sent",
+          recipientEmail: booking.client_email,
+          sendResult: res,
+          ...actor,
+        });
+        toast = `${who} is on the public calendar — posting link emailed to them.`;
+      } catch (err) {
+        console.error(`[bookings] host invite failed for #${booking.id}:`, err.message);
+        toast = `${who} is on the calendar, but the posting link email failed — send it from Public Events.`;
+        toastType = "neutral";
+      }
+    } else {
+      toast = `${who} is on the public calendar. No email on file — copy their posting link from Public Events.`;
+      toastType = "neutral";
+    }
+  } else {
+    toast = `${who} will be listed publicly once they pay — their posting link goes out with the confirmation.`;
+    toastType = "neutral";
+  }
+
+  logActivity({
+    bookingId: booking.id,
+    eventType: "listing_visibility_changed",
+    description: makePublic ? "Put on the public calendar" : "Taken off the public calendar",
+    ...actor,
+  });
+  refresh();
+  // refresh() only covers the admin tree; this is the one booking action that
+  // changes what guests see, so the public pages need busting too.
+  revalidatePath("/calendar");
+  revalidatePath("/events");
+  revalidatePath("/");
+  redirect(backTo(formData, { toast, toastType }));
+}
+
 async function sendRescheduleLink(formData) {
   "use server";
   if (!(await requireBookingManager())) redirect(backTo(formData, { toast: NO_PERMISSION, toastType: "error" }));
@@ -323,6 +420,10 @@ export default async function BookingsPage({ searchParams }) {
     to: to || undefined,
     archived,
   });
+
+  // Which bookings already have a public listing, and whether it's showing —
+  // one query for the whole table, so the ⋯ menu can offer the right direction.
+  const listings = listingsByBooking();
 
   // `preset` here is the EXPLICIT one: links carry a range only when the owner
   // actually chose it, so each status keeps its own sensible default.
@@ -557,6 +658,8 @@ export default async function BookingsPage({ searchParams }) {
                         markPaidAction={markPaid}
                         checkPaymentAction={checkPayment}
                         resendAction={resend}
+                        listing={listings[b.id] || null}
+                        setPublicAction={setBookingPublic}
                         rescheduleLinkAction={sendRescheduleLink}
                         keepOnCalendarAction={keepOnCalendar}
                         restoreAction={restore}

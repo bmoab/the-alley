@@ -59,6 +59,8 @@ export default function BookingActionsMenu({
   markPaidAction,
   checkPaymentAction,
   resendAction,
+  listing,
+  setPublicAction,
   rescheduleLinkAction,
   keepOnCalendarAction,
   restoreAction,
@@ -200,6 +202,34 @@ export default function BookingActionsMenu({
             body: `This emails ${b.client_name} (${b.client_email}) a private link to move this booking to another day. They can't cancel with it.`,
             cta: "Send it",
             pending: "Sending…",
+          },
+        });
+      }
+      // Public calendar in or out. A series carries ONE listing, on its holder
+      // session, so the switch belongs there rather than on every session.
+      if (setPublicAction && (!b.series_id || b.is_deposit_holder)) {
+        const listingLive = listing?.status === "live";
+        // No listing row yet but the box is ticked: an unpaid booking whose
+        // listing is created when payment lands. Public as far as the decision
+        // goes, so the menu offers to undo it rather than repeat it.
+        const publicNow = listingLive || (!listing && !!b.is_public_event);
+        items.push({
+          key: "public",
+          label: publicNow ? "Take off the public calendar" : "Put on the public calendar",
+          hint: publicNow ? "Make it a private booking" : "List it for guests to find",
+          action: setPublicAction,
+          fields: { public: publicNow ? "0" : "1" },
+          confirm: {
+            title: publicNow
+              ? "Take this off the public calendar?"
+              : "Put this on the public calendar?",
+            body: publicNow
+              ? `${b.client_name}'s event stops showing on the calendar and the events page. The booking itself is untouched, and anything the host wrote on their listing is kept — you can put it back any time.`
+              : b.payment_status === "paid"
+                ? `This creates ${b.client_name}'s listing${b.client_email ? ` and emails them a private link to add their description, photo, and how guests pay them` : ""}. The date and time come straight from this booking.`
+                : `${b.client_name} hasn't paid yet, so their listing and posting link go out with the confirmation once they do. Nothing is emailed now.`,
+            cta: publicNow ? "Make it private" : "Put it on the calendar",
+            pending: "Saving…",
           },
         });
       }

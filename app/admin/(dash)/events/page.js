@@ -140,11 +140,29 @@ async function approveEvent(formData) {
   redirect("/admin/events");
 }
 
-async function unpublishEvent(formData) {
+// Show / hide a listing on the public calendar. 'private' rather than the old
+// 'pending': unpublishing used to drop the listing into "Awaiting review", which
+// read as though it needed a decision when the decision had just been made.
+// Every public surface filters on status = 'live', so 'private' is invisible to
+// guests while staying fully editable here — and nothing the host wrote is lost.
+async function setEventPublic(formData) {
   "use server";
-  setEventStatus(Number(formData.get("id")), "pending");
+  const id = Number(formData.get("id"));
+  const makePublic = formData.get("public") === "1";
+  const ev = setEventStatus(id, makePublic ? "live" : "private");
   refresh();
-  redirect("/admin/events");
+  // A bare "/admin/events" redirect is the page this form was submitted from,
+  // so it navigates nowhere and looks like nothing happened. The toast makes it
+  // a real navigation and confirms which way it went.
+  redirect(
+    "/admin/events?toast=" +
+      encodeURIComponent(
+        makePublic
+          ? `“${ev?.title || "Event"}” is on the public calendar.`
+          : `“${ev?.title || "Event"}” is hidden from the public calendar.`
+      ) +
+      `&toastType=${makePublic ? "success" : "neutral"}#ev-${id}`
+  );
 }
 
 async function removeEvent(formData) {
@@ -279,10 +297,25 @@ function EventEditor({ ev }) {
   );
 }
 
+/** Public/private switch for one listing, pointing whichever way it isn't. */
+function VisibilityButton({ ev }) {
+  const makePublic = ev.status === "private";
+  return (
+    <form action={setEventPublic}>
+      <input type="hidden" name="id" value={ev.id} />
+      <input type="hidden" name="public" value={makePublic ? "1" : "0"} />
+      <Button type="submit" variant={makePublic ? "accent" : "ghost"} size="sm">
+        {makePublic ? "Make public" : "Make private"}
+      </Button>
+    </form>
+  );
+}
+
 function EventCard({ ev, children, focused = false }) {
   // A live listing with a host link the host hasn't filled in yet — on the
   // calendar as a title-only placeholder.
   const placeholder = ev.status === "live" && ev.host_token && !ev.host_posted;
+  const isHidden = ev.status === "private";
   return (
     // The id is what the calendar's #ev-<id> link scrolls to; arriving from the
     // calendar also opens the card and rings it, so it's clear which one it is.
@@ -297,6 +330,11 @@ function EventCard({ ev, children, focused = false }) {
           {placeholder ? (
             <span className="ml-2 rounded-full border border-gold/40 bg-gold/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-soft">
               Placeholder · host hasn’t posted
+            </span>
+          ) : null}
+          {isHidden ? (
+            <span className="ml-2 rounded-full border border-ink/20 bg-ink/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-soft">
+              Private · not on the calendar
             </span>
           ) : null}
           <span className="ml-2 text-xs text-ink-muted">
@@ -354,7 +392,12 @@ export default function EventsAdminPage({ searchParams }) {
   };
   const pending = all.filter((e) => e.status === "pending");
   const live = all.filter((e) => e.status === "live" && !isPast(e));
-  const past = all.filter((e) => e.status === "live" && isPast(e)).reverse();
+  // Deliberately hidden and still ahead — kept in its own section so it doesn't
+  // read as waiting on a decision, and stays one click from going public.
+  const hidden = all.filter((e) => e.status === "private" && !isPast(e));
+  const past = all
+    .filter((e) => (e.status === "live" || e.status === "private") && isPast(e))
+    .reverse();
   const drafts = all.filter((e) => e.status === "draft");
 
   return (
@@ -415,12 +458,34 @@ export default function EventsAdminPage({ searchParams }) {
         <div className="mt-3 space-y-3">
           {live.map((ev) => (
             <EventCard key={ev.id} ev={ev} focused={String(ev.id) === focusedEv}>
-              <form action={unpublishEvent}><input type="hidden" name="id" value={ev.id} /><Button type="submit" variant="ghost" size="sm">Unpublish</Button></form>
+              <VisibilityButton ev={ev} />
               <form action={removeEvent}><input type="hidden" name="id" value={ev.id} /><button className="text-sm font-semibold text-rust hover:underline">Remove</button></form>
             </EventCard>
           ))}
         </div>
       )}
+
+      {/* Deliberately hidden — not awaiting anything, just not public. */}
+      {hidden.length ? (
+        <>
+          <h2 className="mt-8 text-xl font-semibold text-ink">
+            Private <span className="text-ink-muted">({hidden.length})</span>
+          </h2>
+          <p className="mt-2 text-sm text-ink-muted">
+            Booked and coming up, but not on the public calendar — either the host
+            keeps it private, or you took it down. The details are all still here;
+            &ldquo;Make public&rdquo; puts it on the calendar whenever you like.
+          </p>
+          <div className="mt-3 space-y-3">
+            {hidden.map((ev) => (
+              <EventCard key={ev.id} ev={ev} focused={String(ev.id) === focusedEv}>
+                <VisibilityButton ev={ev} />
+                <form action={removeEvent}><input type="hidden" name="id" value={ev.id} /><button className="text-sm font-semibold text-rust hover:underline">Remove</button></form>
+              </EventCard>
+            ))}
+          </div>
+        </>
+      ) : null}
 
       {/* Past — still editable, just out of the way. */}
       {past.length ? (
@@ -437,7 +502,7 @@ export default function EventsAdminPage({ searchParams }) {
           <div className="mt-3 space-y-3">
             {past.map((ev) => (
               <EventCard key={ev.id} ev={ev} focused={String(ev.id) === focusedEv}>
-                <form action={unpublishEvent}><input type="hidden" name="id" value={ev.id} /><Button type="submit" variant="ghost" size="sm">Unpublish</Button></form>
+                <VisibilityButton ev={ev} />
                 <form action={removeEvent}><input type="hidden" name="id" value={ev.id} /><button className="text-sm font-semibold text-rust hover:underline">Remove</button></form>
               </EventCard>
             ))}

@@ -23,7 +23,11 @@ async function uploadFile(file, kind) {
   return data.path;
 }
 
-export default function HostListingForm({ event, saveAction, alreadyLive, lastEvent, sessions = [], bookingWindow = null }) {
+export default function HostListingForm({ event, saveAction, alreadyLive, canSetVisibility = false, needsReview = true, lastEvent, sessions = [], bookingWindow = null }) {
+  // Show/hide on The Alley's public calendar. Only offered once the listing has
+  // been through review (see canSetVisibility) — before that it isn't public
+  // yet, so there's nothing to hide.
+  const [isPublic, setIsPublic] = useState(event.status !== "private");
   const [form, setForm] = useState({
     title: event.title || "",
     description: event.description || "",
@@ -118,6 +122,9 @@ export default function HostListingForm({ event, saveAction, alreadyLive, lastEv
       pdf_paths: pdfs,
       links,
       session_content: isSeries ? sessionContent : { fields: [], sessions: {} },
+      // Omitted entirely when the switch isn't on offer, so the server leaves
+      // visibility exactly as it found it.
+      ...(canSetVisibility ? { is_public: isPublic } : {}),
       submit,
     });
     setBusy(false);
@@ -126,9 +133,13 @@ export default function HostListingForm({ event, saveAction, alreadyLive, lastEv
       setToast({
         msg: !submit
           ? "Draft saved — keep editing whenever you like."
-          : alreadyLive
-            ? "Changes saved — your listing is updated."
-            : "Submitted! The Alley will take a quick look, then it goes live. You can keep editing from this link.",
+          : canSetVisibility
+            ? isPublic
+              ? "Changes saved — your listing is live on The Alley's calendar."
+              : "Saved and hidden — your listing is off the public calendar. Switch it back on any time."
+            : needsReview
+              ? "Submitted! The Alley will take a quick look, then it goes live. You can keep editing from this link."
+              : "Posted! Your listing is on The Alley's calendar. You can keep editing from this link.",
         at: new Date(),
       });
     } else {
@@ -336,12 +347,47 @@ export default function HostListingForm({ event, saveAction, alreadyLive, lastEv
         </div>
       </div>
 
+      {canSetVisibility ? (
+        <div className="card p-5">
+          <h3 className="font-display text-lg font-semibold text-ink">Who can see this</h3>
+          <label className="mt-3 flex cursor-pointer items-start gap-3 text-sm text-ink">
+            <input
+              type="checkbox"
+              checked={isPublic}
+              onChange={(e) => setIsPublic(e.target.checked)}
+              className="mt-1 h-4 w-4 shrink-0"
+            />
+            <span>
+              <strong>Show this event on The Alley&apos;s public calendar</strong>
+              <span className="mt-1 block text-ink-muted">
+                On, and anyone browsing the site can find your event and sign up. Off,
+                and it&apos;s a private booking — your room and time are unchanged, but
+                nothing about it appears publicly. You can switch this whenever you like.
+              </span>
+            </span>
+          </label>
+          {!isPublic ? (
+            <p className="mt-3 rounded-lg border border-gold/40 bg-gold/10 px-4 py-2 text-sm text-ink-soft">
+              Hidden — save below and your listing comes off the public calendar. Your
+              booking itself isn&apos;t affected, and nothing you&apos;ve written here is lost.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button onClick={() => handleSubmit(false)} disabled={busy || uploading} className="btn-ghost">
           Save draft
         </button>
         <button onClick={() => handleSubmit(true)} disabled={busy || uploading || !form.title} className="btn-accent disabled:opacity-50">
-          {alreadyLive ? "Save & update listing" : "Submit for review →"}
+          {/* A reviewed listing is never "submitted" again, whether it's
+              currently showing or hidden — and there's no review to submit to
+              when the owner has auto-publish on. */}
+          {canSetVisibility
+            ? "Save & update listing"
+            : needsReview
+              ? "Submit for review →"
+              : "Post my listing →"}
         </button>
       </div>
 
