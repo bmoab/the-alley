@@ -9,6 +9,9 @@ import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
 import Button from "@/components/admin/ui/Button.js";
 import CancellationPolicyForm from "@/components/admin/CancellationPolicyForm.js";
+import { previewAnnouncement, runPortalAnnouncement, ANNOUNCE_BATCH } from "@/lib/announce.js";
+import { requireBookingManager } from "@/lib/auth.js";
+import ConfirmButton from "@/components/admin/ui/ConfirmButton.js";
 
 export const metadata = { title: "Settings" };
 
@@ -133,6 +136,28 @@ async function save(formData) {
   redirect("/admin/settings?saved=1");
 }
 
+/**
+ * Send the next batch of "your dashboard exists" emails to past clients.
+ *
+ * Real mail to real people, so it's owner/admin only and the button that calls
+ * it asks first. Everything about who gets it, once-only, and batching lives in
+ * lib/announce.js.
+ */
+async function sendPortalAnnouncement() {
+  "use server";
+  if (!(await requireBookingManager())) {
+    redirect(`/admin/settings?toast=${encodeURIComponent("You don't have permission to email clients.")}&toastType=error`);
+  }
+  const { sent, failed, remaining } = await runPortalAnnouncement({ actor: await getActor() });
+  revalidatePath("/admin/settings");
+  const parts = [`Sent to ${sent} client${sent === 1 ? "" : "s"}.`];
+  if (failed.length) parts.push(`${failed.length} couldn't be delivered — they'll be retried next time.`);
+  if (remaining) parts.push(`${remaining} still to go — press again to send the next batch.`);
+  redirect(
+    `/admin/settings?toast=${encodeURIComponent(parts.join(" "))}&toastType=${failed.length ? "neutral" : "success"}`
+  );
+}
+
 const REFUND_VALUES = ["full", "deposit_only", "none"];
 
 async function saveCancellationPolicy(formData) {
@@ -155,6 +180,9 @@ async function saveCancellationPolicy(formData) {
 export default function SettingsPage() {
   const s = getSettings();
   const calendarShareUrl = getContentValue("calendar_share_url", "");
+  // Who still hasn't been told their bookings dashboard exists. Read-only —
+  // previewAnnouncement mints nothing and sends nothing.
+  const announce = previewAnnouncement();
 
   return (
     <div>
@@ -394,6 +422,70 @@ export default function SettingsPage() {
       <div className="mt-5">
         <CancellationPolicyForm action={saveCancellationPolicy} values={s} />
       </div>
+
+      {/* Its own form, deliberately OUTSIDE the settings form above — nesting
+          forms is invalid, and "Save changes" must never be able to email
+          anybody. */}
+      <form action={sendPortalAnnouncement} className="mt-5">
+        <Card pad="md">
+          <h2 className="text-lg font-semibold text-ink">Tell past clients about their dashboard</h2>
+          <p className="mt-1 text-sm text-ink-muted">
+            Everyone who has booked with you gets a private link to their own page —
+            every booking they&apos;ve made, what&apos;s paid, what isn&apos;t, and a
+            button to pay anything outstanding. This emails them once to explain it,
+            and invites them to book again. Nobody is emailed twice.
+          </p>
+
+          {announce.total === 0 ? (
+            <p className="mt-4 rounded-xl border border-verde-deep/30 bg-verde/30 px-4 py-3 text-sm text-ink">
+              Everyone&apos;s been told — there&apos;s nobody left to email. New clients
+              get their link automatically in their booking emails.
+            </p>
+          ) : (
+            <>
+              <div className="mt-4 rounded-xl border border-line bg-paper-dim px-4 py-3 text-sm">
+                <p className="font-semibold text-ink">
+                  {announce.total} {announce.total === 1 ? "person" : "people"} to email
+                  {announce.total > ANNOUNCE_BATCH
+                    ? ` · ${ANNOUNCE_BATCH} per press, so it\u2019ll take ${Math.ceil(announce.total / ANNOUNCE_BATCH)} presses`
+                    : ""}
+                </p>
+                <ul className="mt-2 space-y-0.5 text-ink-muted">
+                  {announce.sample.map((r) => (
+                    <li key={r.email}>
+                      {r.name || "(no name)"} · {r.email}
+                      <span className="text-ink-muted/70">
+                        {" "}
+                        · {r.bookings} booking{r.bookings === 1 ? "" : "s"}
+                      </span>
+                    </li>
+                  ))}
+                  {announce.total > announce.sample.length ? (
+                    <li className="text-ink-muted/70">
+                      …and {announce.total - announce.sample.length} more
+                    </li>
+                  ) : null}
+                </ul>
+              </div>
+              <div className="mt-4">
+                <ConfirmButton
+                  label={`Email ${Math.min(announce.total, ANNOUNCE_BATCH)} ${
+                    Math.min(announce.total, ANNOUNCE_BATCH) === 1 ? "client" : "clients"
+                  }`}
+                  confirmLabel="Send it"
+                  pendingLabel="Sending…"
+                  question={`This sends a real email to ${Math.min(
+                    announce.total,
+                    ANNOUNCE_BATCH
+                  )} past ${
+                    Math.min(announce.total, ANNOUNCE_BATCH) === 1 ? "client" : "clients"
+                  } right now. It can't be unsent. Each one gets their own private link and is never emailed about this again.`}
+                />
+              </div>
+            </>
+          )}
+        </Card>
+      </form>
     </div>
   );
 }
