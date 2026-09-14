@@ -9,7 +9,13 @@ import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
 import Button from "@/components/admin/ui/Button.js";
 import CancellationPolicyForm from "@/components/admin/CancellationPolicyForm.js";
-import { previewAnnouncement, runPortalAnnouncement, ANNOUNCE_BATCH } from "@/lib/announce.js";
+import {
+  previewAnnouncement,
+  runPortalAnnouncement,
+  previewTenantAnnouncement,
+  runTenantEventsAnnouncement,
+  ANNOUNCE_BATCH,
+} from "@/lib/announce.js";
 import { requireBookingManager } from "@/lib/auth.js";
 import ConfirmButton from "@/components/admin/ui/ConfirmButton.js";
 
@@ -158,6 +164,22 @@ async function sendPortalAnnouncement() {
   );
 }
 
+/** Tell directory tenants they can post their own events. Same rules as above. */
+async function sendTenantEventsAnnouncement() {
+  "use server";
+  if (!(await requireBookingManager())) {
+    redirect(`/admin/settings?toast=${encodeURIComponent("You don't have permission to email tenants.")}&toastType=error`);
+  }
+  const { sent, failed, remaining } = await runTenantEventsAnnouncement({ actor: await getActor() });
+  revalidatePath("/admin/settings");
+  const parts = [`Sent to ${sent} tenant${sent === 1 ? "" : "s"}.`];
+  if (failed.length) parts.push(`${failed.length} couldn't be delivered — they'll be retried next time.`);
+  if (remaining) parts.push(`${remaining} still to go — press again to send the next batch.`);
+  redirect(
+    `/admin/settings?toast=${encodeURIComponent(parts.join(" "))}&toastType=${failed.length ? "neutral" : "success"}`
+  );
+}
+
 const REFUND_VALUES = ["full", "deposit_only", "none"];
 
 async function saveCancellationPolicy(formData) {
@@ -183,6 +205,7 @@ export default function SettingsPage() {
   // Who still hasn't been told their bookings dashboard exists. Read-only —
   // previewAnnouncement mints nothing and sends nothing.
   const announce = previewAnnouncement();
+  const tenantAnnounce = previewTenantAnnouncement();
 
   return (
     <div>
@@ -480,6 +503,60 @@ export default function SettingsPage() {
                   )} past ${
                     Math.min(announce.total, ANNOUNCE_BATCH) === 1 ? "client" : "clients"
                   } right now. It can't be unsent. Each one gets their own private link and is never emailed about this again.`}
+                />
+              </div>
+            </>
+          )}
+        </Card>
+      </form>
+
+      <form action={sendTenantEventsAnnouncement} className="mt-5">
+        <Card pad="md">
+          <h2 className="text-lg font-semibold text-ink">Tell tenants they can post events</h2>
+          <p className="mt-1 text-sm text-ink-muted">
+            Businesses in the directory can now add their own events to the public
+            calendar from their listing link — a book signing, a regular evening, a
+            late opening. Their page spells out that it&apos;s a listing, not a booking,
+            and doesn&apos;t reserve any space. This tells them once. Nobody is emailed twice.
+          </p>
+
+          {tenantAnnounce.total === 0 ? (
+            <p className="mt-4 rounded-xl border border-verde-deep/30 bg-verde/30 px-4 py-3 text-sm text-ink">
+              Every tenant with an email on file has been told. Add a new tenant and
+              they&apos;ll show up here.
+            </p>
+          ) : (
+            <>
+              <div className="mt-4 rounded-xl border border-line bg-paper-dim px-4 py-3 text-sm">
+                <p className="font-semibold text-ink">
+                  {tenantAnnounce.total} {tenantAnnounce.total === 1 ? "tenant" : "tenants"} to email
+                </p>
+                <ul className="mt-2 space-y-0.5 text-ink-muted">
+                  {tenantAnnounce.sample.map((t) => (
+                    <li key={t.email}>
+                      {t.name} · {t.email}
+                    </li>
+                  ))}
+                  {tenantAnnounce.total > tenantAnnounce.sample.length ? (
+                    <li className="text-ink-muted/70">
+                      …and {tenantAnnounce.total - tenantAnnounce.sample.length} more
+                    </li>
+                  ) : null}
+                </ul>
+              </div>
+              <div className="mt-4">
+                <ConfirmButton
+                  label={`Email ${Math.min(tenantAnnounce.total, ANNOUNCE_BATCH)} ${
+                    Math.min(tenantAnnounce.total, ANNOUNCE_BATCH) === 1 ? "tenant" : "tenants"
+                  }`}
+                  confirmLabel="Send it"
+                  pendingLabel="Sending…"
+                  question={`This sends a real email to ${Math.min(
+                    tenantAnnounce.total,
+                    ANNOUNCE_BATCH
+                  )} ${
+                    Math.min(tenantAnnounce.total, ANNOUNCE_BATCH) === 1 ? "tenant" : "tenants"
+                  } right now. It can't be unsent, and each one is never emailed about this again.`}
                 />
               </div>
             </>
