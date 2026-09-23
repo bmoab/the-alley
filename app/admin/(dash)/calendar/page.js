@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import AdminCalendar from "@/components/AdminCalendar.js";
 import { listBookings } from "@/lib/bookings.js";
-import { listLiveEvents } from "@/lib/catalog.js";
+import { listAdminCalendarEvents } from "@/lib/catalog.js";
 import { listClosures, createClosure, deleteClosure } from "@/lib/closures.js";
 import { SPACES, spaceName, formatDate, formatTime } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
@@ -47,11 +47,23 @@ const SPACE_LABEL = {
   ...Object.fromEntries(SPACES.map((s) => [s.id, s.name])),
 };
 
+// Why a listing isn't on the public calendar, in the owner's words. Keys are the
+// reasons listAdminCalendarEvents() returns: 'private' is a deliberate choice,
+// every other value is the booking status that took the listing down with it.
+const HIDDEN_REASON = {
+  private: "hidden — set to private",
+  archived: "not showing — its booking was archived",
+  cancelled: "not showing — its booking was cancelled",
+  denied: "not showing — its booking was denied",
+  expired: "not showing — its hold expired",
+  pending: "not showing — its booking isn't approved yet",
+};
+
 export default function CalendarPage() {
   const held = listBookings({ status: "held" });
   const confirmed = listBookings({ status: "confirmed" });
   const cancelled = listBookings({ status: "cancelled" });
-  const events = listLiveEvents();
+  const events = listAdminCalendarEvents();
   const closures = listClosures();
   // Full-day closures → calendar markers (date → labels).
   const closedDates = {};
@@ -81,13 +93,21 @@ export default function CalendarPage() {
     href: `/admin/bookings?status=all&preset=all&focus=${b.id}&b=${b.id}#b-${b.id}`,
   }));
 
+  // Listings guests can't see still belong on the OWNER's calendar — otherwise
+  // making one private makes it unfindable, and a listing killed by a cancelled
+  // booking disappears with nothing to show for it. Both land on the same card
+  // under Events, where the public/private switch lives.
   const eventItems = events.map((e) => ({
     id: e.id,
     date: e.date,
     time: e.time,
-    kind: "event",
-    title: e.title || "Public event",
-    meta: e.host_name ? `Hosted by ${e.host_name}` : "",
+    kind: e.hiddenReason ? "eventHidden" : "event",
+    title: e.title || (e.hiddenReason ? "Hidden listing" : "Public event"),
+    meta: e.hiddenReason
+      ? HIDDEN_REASON[e.hiddenReason] || `not on the public calendar (${e.hiddenReason})`
+      : e.host_name
+        ? `Hosted by ${e.host_name}`
+        : "",
     href: `/admin/events?ev=${e.id}#ev-${e.id}`,
   }));
 
@@ -110,7 +130,7 @@ export default function CalendarPage() {
     <div>
       <PageHeader
         title="Calendar"
-        subtitle="Held and confirmed bookings plus live public events, color-coded by space."
+        subtitle="Held and confirmed bookings plus every event listing, color-coded by space. Listings guests can’t see are outlined — click one to publish it."
       />
 
       <div className="mb-6 rounded-xl border border-verde-deep/25 bg-verde/40 p-4 text-sm">

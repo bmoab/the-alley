@@ -13,6 +13,9 @@ const KIND_STYLES = {
     SPACES.map((s, i) => [s.id, SPACE_SWATCHES[i % SPACE_SWATCHES.length]])
   ),
   event: "bg-rust text-paper",
+  // Same rust family as a public event, drained of fill: reads as "this one is
+  // an event, but guests aren't seeing it" rather than as a separate species.
+  eventHidden: "bg-rust/15 text-rust ring-1 ring-inset ring-rust/40",
   cancelled: "bg-ink/15 text-ink-muted line-through",
 };
 
@@ -21,6 +24,7 @@ const KIND_LABELS = {
     SPACES.map((s) => [s.id, `${s.name.replace("The Alley ", "")} booking`])
   ),
   event: "Public event",
+  eventHidden: "Not on public calendar",
   cancelled: "Cancelled",
 };
 
@@ -35,7 +39,8 @@ function fmtTime(hhmm) {
 }
 
 /**
- * Month view of all held/confirmed bookings plus live public events.
+ * Month view of all held/confirmed bookings plus every event listing — public
+ * ones solid, ones guests can't see outlined (the `meta` says why).
  * `items` is a flat list of { id, date: "YYYY-MM-DD", title, kind, time, meta }.
  */
 export default function AdminCalendar({ items = [], closedDates = {} }) {
