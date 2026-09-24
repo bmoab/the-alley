@@ -2,33 +2,69 @@
 import { useMemo, useState } from "react";
 import { SPACES } from "@/lib/constants.js";
 
-// Swatches handed out in SPACES order, so adding a space gives it a distinct
-// color here without editing this file. (Order today: Main Floor = charcoal,
-// Loft = verde chiaro, Conference Room = sage — the first two unchanged.)
-const SPACE_SWATCHES = ["bg-ink text-paper", "bg-brass text-ink", "bg-verde-deep text-paper"];
+/**
+ * Two things matter about a night at a glance: WHICH ROOM, and WHETHER GUESTS
+ * CAN SEE IT. So hue carries the room and fill carries the visibility — filled
+ * means it's on the public calendar, outlined means it isn't. Two treatments
+ * across three rooms is a system you learn once; six unrelated colours is a
+ * legend you re-read every time.
+ *
+ * Paired [filled, outlined] in SPACES order. The Loft takes sage rather than the
+ * pale verde chiaro it used to have: it's by far the busiest room, and an
+ * OUTLINE in a near-white tint would be invisible on a white cell. The
+ * Conference Room, the quietest and rarely public, takes the pale one.
+ */
+const SPACE_SWATCHES = [
+  ["bg-ink text-paper", "border border-dashed border-ink/60 bg-ink/5 text-ink"],
+  [
+    "bg-verde-deep text-paper",
+    "border border-dashed border-verde-deep bg-verde-deep/10 text-verde-deep",
+  ],
+  ["bg-verde-mid text-ink", "border border-dashed border-verde-mid bg-verde-mid/25 text-ink-soft"],
+];
 
-// Color treatment per item kind, color-coded by space (plus public events).
+// A room's "not public" kind is its id + this suffix; the page builds the same.
+const PRIVATE_SUFFIX = "-private";
+
 const KIND_STYLES = {
   ...Object.fromEntries(
-    SPACES.map((s, i) => [s.id, SPACE_SWATCHES[i % SPACE_SWATCHES.length]])
+    SPACES.flatMap((s, i) => {
+      const [filled, outlined] = SPACE_SWATCHES[i % SPACE_SWATCHES.length];
+      return [
+        [s.id, filled],
+        [`${s.id}${PRIVATE_SUFFIX}`, outlined],
+      ];
+    })
   ),
+  // The Alley's own events book no room, so they can't be coloured by one.
   event: "bg-rust text-paper",
-  // Outlined rather than filled, and dashed — at phone size every chip is a
-  // truncated blob of colour, so a pale FILL just reads as another pale booking
-  // swatch (brass Loft bookings got mistaken for this one). A dashed outline is
-  // structurally different from every solid chip, not just a different tint.
   eventHidden: "border border-dashed border-rust bg-rust/10 text-rust",
   cancelled: "bg-ink/15 text-ink-muted line-through",
 };
 
+// Tooltip prefixes. Both states of a room read the same here — the chip's `meta`
+// already spells out whether guests can see it.
 const KIND_LABELS = {
   ...Object.fromEntries(
-    SPACES.map((s) => [s.id, `${s.name.replace("The Alley ", "")} booking`])
+    SPACES.flatMap((s) => {
+      const room = s.name.replace("The Alley ", "");
+      return [
+        [s.id, room],
+        [`${s.id}${PRIVATE_SUFFIX}`, room],
+      ];
+    })
   ),
-  event: "Public event",
-  eventHidden: "Not on public calendar",
+  event: "The Alley's own event",
+  eventHidden: "The Alley's own event",
   cancelled: "Cancelled",
 };
+
+// One swatch per room + the Alley's own, then a line explaining fill vs outline.
+// Listing every room x state combination would be eight swatches nobody reads.
+const LEGEND = [
+  ...SPACES.map((s) => ({ kind: s.id, label: s.name.replace("The Alley ", "") })),
+  { kind: "event", label: "The Alley's own" },
+];
 
 function fmtTime(hhmm) {
   if (!hhmm) return "";
@@ -41,8 +77,9 @@ function fmtTime(hhmm) {
 }
 
 /**
- * Month view of all held/confirmed bookings plus every event listing — public
- * ones solid, ones guests can't see outlined (the `meta` says why).
+ * Month view of all held/confirmed bookings plus every event listing, one chip
+ * per night: coloured by room, filled when guests can see it and outlined when
+ * they can't (the `meta` says why).
  * `items` is a flat list of { id, date: "YYYY-MM-DD", title, kind, time, meta }.
  */
 export default function AdminCalendar({ items = [], closedDates = {} }) {
@@ -116,14 +153,18 @@ export default function AdminCalendar({ items = [], closedDates = {} }) {
       </div>
 
       {/* Legend */}
-      <div className="mb-4 flex flex-wrap gap-3 text-xs text-ink-muted">
-        {Object.entries(KIND_LABELS).map(([kind, label]) => (
+      <div className="mb-1.5 flex flex-wrap gap-3 text-xs text-ink-muted">
+        {LEGEND.map(({ kind, label }) => (
           <span key={kind} className="inline-flex items-center gap-1.5">
             <span className={`inline-block h-2.5 w-2.5 rounded-sm ${KIND_STYLES[kind]}`} />
             {label}
           </span>
         ))}
       </div>
+      <p className="mb-4 text-xs text-ink-muted">
+        Filled = on the public calendar · Outlined = not public ·{" "}
+        <span className="line-through">Grey</span> = cancelled
+      </p>
 
       <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold uppercase tracking-wider text-ink-muted">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (

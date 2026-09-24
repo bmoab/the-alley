@@ -47,6 +47,9 @@ const SPACE_LABEL = {
   ...Object.fromEntries(SPACES.map((s) => [s.id, s.name])),
 };
 
+// Room ids the calendar can colour by.
+const SPACE_IDS = new Set(SPACES.map((s) => s.id));
+
 // Why a listing isn't on the public calendar, in the owner's words. Keys are the
 // reasons listAdminCalendarEvents() returns: 'private' is a deliberate choice,
 // every other value is the booking status that took the listing down with it.
@@ -103,17 +106,22 @@ export default function CalendarPage() {
 
   const bookingItems = [...held, ...confirmed].map((b) => {
     const listing = listingFor(b);
-    const hidden = Boolean(listing) && listing.status !== "live";
-    const room = spaceName(b.space);
+    // Filled when guests can see it, outlined when they can't — and "can't"
+    // covers both a listing you've hidden and a booking that never had one.
+    const isPublic = listing?.status === "live";
     return {
       id: b.id,
       date: b.date,
       time: b.start_time,
-      kind: listing ? (hidden ? "eventHidden" : "event") : b.space,
-      title: listing?.title || b.client_name || room,
+      kind: isPublic ? b.space : `${b.space}-private`,
+      title: listing?.title || b.client_name || spaceName(b.space),
       meta:
-        `${room} · ${b.status} · ${b.hours}h${b.event_type ? ` · ${b.event_type}` : ""}` +
-        (listing ? (hidden ? ` · ${HIDDEN_REASON.private}` : " · on the public calendar") : ""),
+        `${b.status} · ${b.hours}h${b.event_type ? ` · ${b.event_type}` : ""}` +
+        (isPublic
+          ? " · on the public calendar"
+          : listing
+            ? ` · ${HIDDEN_REASON.private}`
+            : " · no public listing"),
       // Open THIS booking, not just the list: ?b= pops the booking drawer, ?focus=
       // highlights the row (and outlives the drawer, which clears ?b= on close),
       // and the hash scrolls to it. status/preset are forced wide so the row is
@@ -132,7 +140,15 @@ export default function CalendarPage() {
     id: e.id,
     date: e.date,
     time: e.time,
-    kind: e.hiddenReason ? "eventHidden" : "event",
+    // A listing whose booking isn't drawn still knows its room; only The Alley's
+    // own events (no booking, no room) fall back to rust.
+    kind: SPACE_IDS.has(e.space)
+      ? e.hiddenReason
+        ? `${e.space}-private`
+        : e.space
+      : e.hiddenReason
+        ? "eventHidden"
+        : "event",
     title: e.title || (e.hiddenReason ? "Hidden listing" : "Public event"),
     meta: e.hiddenReason
       ? HIDDEN_REASON[e.hiddenReason] || `not on the public calendar (${e.hiddenReason})`
@@ -161,7 +177,7 @@ export default function CalendarPage() {
     <div>
       <PageHeader
         title="Calendar"
-        subtitle="One chip per night. Bookings are coloured by room; a night that’s on the public calendar is rust, and one guests can’t see is outlined. Tap any chip for the booking, its history and its listing."
+        subtitle="One chip per night, coloured by room: filled when it’s on the public calendar, outlined when it isn’t. Tap any chip for the booking, its history and its listing."
       />
 
       <div className="mb-6 rounded-xl border border-verde-deep/25 bg-verde/40 p-4 text-sm">
