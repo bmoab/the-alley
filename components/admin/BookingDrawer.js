@@ -33,6 +33,7 @@ export default function BookingDrawer() {
   const [loading, setLoading] = useState(false);
   const [listingBusy, setListingBusy] = useState(false);
   const [listingError, setListingError] = useState(null);
+  const [listingNote, setListingNote] = useState(null);
 
   const close = useCallback(() => {
     const next = new URLSearchParams(params.toString());
@@ -41,21 +42,28 @@ export default function BookingDrawer() {
     router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }, [params, pathname, router]);
 
-  // Fetch the booking + its activity whenever the open id changes.
+  // Fetch the booking + its activity whenever the open id changes. Also re-run
+  // after creating a listing, which changes what this booking HAS.
+  const load = useCallback(
+    (signal) =>
+      fetch(`/api/admin/activity?bookingId=${bookingId}`, { signal })
+        .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+        .then((json) => setData(json))
+        .catch(() => {}),
+    [bookingId]
+  );
+
   useEffect(() => {
     if (!bookingId) return;
     setTab("activity");
     setData(null);
     setListingError(null);
+    setListingNote(null);
     setLoading(true);
     const ctrl = new AbortController();
-    fetch(`/api/admin/activity?bookingId=${bookingId}`, { signal: ctrl.signal })
-      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-      .then((json) => setData(json))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    load(ctrl.signal).finally(() => setLoading(false));
     return () => ctrl.abort();
-  }, [bookingId]);
+  }, [bookingId, load]);
 
   // Esc to close + lock body scroll while open.
   useEffect(() => {
@@ -80,25 +88,38 @@ export default function BookingDrawer() {
   // so the bar updates immediately, then refreshes the page behind it (the
   // calendar chip changes colour, the events list regroups).
   const toggleListing = useCallback(async () => {
-    if (!listing || listingBusy) return;
+    if (listingBusy || !booking) return;
     setListingBusy(true);
     setListingError(null);
     try {
       const res = await fetch("/api/admin/listing-visibility", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventId: listing.id, public: listing.status !== "live" }),
+        // No listing yet? Go through the BOOKING, which creates one (and emails
+        // the host their posting link) rather than failing on a missing id.
+        body: JSON.stringify(
+          listing
+            ? { eventId: listing.id, public: listing.status !== "live" }
+            : { bookingId: booking.id, public: true }
+        ),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.error || "Couldn't change that just now.");
-      setData((d) => (d ? { ...d, listing: { ...d.listing, status: json.status } } : d));
+      if (listing) {
+        setData((d) => (d ? { ...d, listing: { ...d.listing, status: json.status } } : d));
+      } else {
+        // A listing was just created (or wasn't, if they haven't paid) — re-read
+        // rather than guessing, and show whatever the server decided happened.
+        await load();
+        if (json.message) setListingNote(json.message);
+      }
       router.refresh();
     } catch (err) {
       setListingError(err.message);
     } finally {
       setListingBusy(false);
     }
-  }, [listing, listingBusy, router]);
+  }, [booking, listing, listingBusy, load, router]);
 
   return (
     <>
@@ -147,8 +168,10 @@ export default function BookingDrawer() {
           </div>
         </div>
 
-        {/* Public listing — only when this booking actually has one. */}
-        {listing ? (
+        {/* Public listing. Shown even when there ISN'T one: a booking with no
+            listing appears nowhere on the Public Events page, so without this
+            there was no screen anywhere that offered to put it on the calendar. */}
+        {booking ? (
           <div className="border-b border-line bg-paper-warm px-5 py-3">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
@@ -169,19 +192,32 @@ export default function BookingDrawer() {
                   disabled={listingBusy}
                   className="rounded-lg border border-line-strong px-3 py-1.5 text-xs font-semibold text-ink transition hover:bg-paper-dim disabled:opacity-50"
                 >
-                  {listingBusy ? "…" : listingLive ? "Make private" : "Make public"}
+                  {listingBusy
+                    ? "…"
+                    : listingLive
+                      ? "Make private"
+                      : listing
+                        ? "Make public"
+                        : "Add to public calendar"}
                 </button>
-                <a
-                  href={`/admin/events?ev=${listing.id}#ev-${listing.id}`}
-                  className="rounded-lg px-2 py-1.5 text-xs font-semibold text-ink-muted transition hover:text-ink"
-                >
-                  Edit
-                </a>
+                {listing ? (
+                  <a
+                    href={`/admin/events?ev=${listing.id}#ev-${listing.id}`}
+                    className="rounded-lg px-2 py-1.5 text-xs font-semibold text-ink-muted transition hover:text-ink"
+                  >
+                    Edit
+                  </a>
+                ) : null}
               </div>
             </div>
-            {listing.title ? (
+            {listing?.title ? (
               <p className="mt-1 truncate text-xs text-ink-muted">{listing.title}</p>
+            ) : !listing ? (
+              <p className="mt-1 text-xs text-ink-muted">
+                This booking has no listing yet, so it isn&apos;t on the Public Events page at all.
+              </p>
             ) : null}
+            {listingNote ? <p className="mt-1 text-xs text-ink-soft">{listingNote}</p> : null}
             {listingError ? <p className="mt-1 text-xs text-rust">{listingError}</p> : null}
           </div>
         ) : null}

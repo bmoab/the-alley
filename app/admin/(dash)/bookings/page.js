@@ -27,6 +27,7 @@ import { getInvoiceStatus } from "@/lib/square.js";
 import { emailClientRescheduleLink, emailHostInvite } from "@/lib/email.js";
 import { logActivity, logEmail } from "@/lib/activity.js";
 import { getActor, getCurrentUser, canManageBookings, requireBookingManager } from "@/lib/auth.js";
+import { setBookingListingPublic } from "@/lib/listing-visibility.js";
 import {
   SPACES,
   DATE_PRESETS,
@@ -171,61 +172,16 @@ async function setBookingPublic(formData) {
   const clicked = getBooking(id);
   if (!clicked) redirect(backTo(formData, { toast: "Booking not found.", toastType: "error" }));
 
-  // A series has ONE listing, hanging off its holder session and fanned out
-  // across the rest, so resolve to that row however the owner got here.
-  const booking = clicked.series_id
-    ? getSeries(clicked.series_id).find((r) => r.is_deposit_holder) || clicked
-    : clicked;
-
-  setBookingPublicFlag(booking.id, makePublic);
-  const actor = await getActor();
-  const existing = getDraftEventForBooking(booking.id);
-  const who = booking.client_name || `Booking #${booking.id}`;
-  let toast;
-  let toastType = "success";
-
-  if (!makePublic) {
-    if (existing) setEventStatus(existing.id, "private", { actor, via: "booking menu" });
-    toast = `${who} is private — off the public calendar.`;
-    toastType = "neutral";
-  } else if (existing) {
-    setEventStatus(existing.id, "live", { actor, via: "booking menu" });
-    toast = `${who} is on the public calendar.`;
-  } else if (booking.payment_status === "paid") {
-    const listing = createHostListingDraft(booking, nanoid(24));
-    toast = `${who} is on the public calendar.`;
-    if (booking.client_email) {
-      try {
-        const res = await emailHostInvite(booking, listing.host_token);
-        logEmail({
-          bookingId: booking.id,
-          eventType: "host_invite_sent",
-          description: "Host listing invite sent",
-          recipientEmail: booking.client_email,
-          sendResult: res,
-          ...actor,
-        });
-        toast = `${who} is on the public calendar — posting link emailed to them.`;
-      } catch (err) {
-        console.error(`[bookings] host invite failed for #${booking.id}:`, err.message);
-        toast = `${who} is on the calendar, but the posting link email failed — send it from Public Events.`;
-        toastType = "neutral";
-      }
-    } else {
-      toast = `${who} is on the public calendar. No email on file — copy their posting link from Public Events.`;
-      toastType = "neutral";
-    }
-  } else {
-    toast = `${who} will be listed publicly once they pay — their posting link goes out with the confirmation.`;
-    toastType = "neutral";
-  }
-
-  logActivity({
-    bookingId: booking.id,
-    eventType: "listing_visibility_changed",
-    description: makePublic ? "Put on the public calendar" : "Taken off the public calendar",
-    ...actor,
+  const result = await setBookingListingPublic({
+    bookingId: clicked.id,
+    makePublic,
+    actor: await getActor(),
+    via: "booking menu",
   });
+  if (!result.ok) redirect(backTo(formData, { toast: result.error, toastType: "error" }));
+  const toast = result.message;
+  const toastType = result.tone;
+
   refresh();
   // refresh() only covers the admin tree; this is the one booking action that
   // changes what guests see, so the public pages need busting too.
