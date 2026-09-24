@@ -135,7 +135,10 @@ async function remindHost(formData) {
 
 async function approveEvent(formData) {
   "use server";
-  setEventStatus(Number(formData.get("id")), "live");
+  setEventStatus(Number(formData.get("id")), "live", {
+    actor: await getActor(),
+    via: "approved from Public Events",
+  });
   refresh();
   redirect("/admin/events");
 }
@@ -149,7 +152,10 @@ async function setEventPublic(formData) {
   "use server";
   const id = Number(formData.get("id"));
   const makePublic = formData.get("public") === "1";
-  const ev = setEventStatus(id, makePublic ? "live" : "private");
+  const ev = setEventStatus(id, makePublic ? "live" : "private", {
+    actor: await getActor(),
+    via: "Public Events",
+  });
   refresh();
   // A bare "/admin/events" redirect is the page this form was submitted from,
   // so it navigates nowhere and looks like nothing happened. The toast makes it

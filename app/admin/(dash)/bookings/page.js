@@ -185,11 +185,11 @@ async function setBookingPublic(formData) {
   let toastType = "success";
 
   if (!makePublic) {
-    if (existing) setEventStatus(existing.id, "private");
+    if (existing) setEventStatus(existing.id, "private", { actor, via: "booking menu" });
     toast = `${who} is private — off the public calendar.`;
     toastType = "neutral";
   } else if (existing) {
-    setEventStatus(existing.id, "live");
+    setEventStatus(existing.id, "live", { actor, via: "booking menu" });
     toast = `${who} is on the public calendar.`;
   } else if (booking.payment_status === "paid") {
     const listing = createHostListingDraft(booking, nanoid(24));
