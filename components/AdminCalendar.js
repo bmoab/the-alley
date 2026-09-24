@@ -13,9 +13,11 @@ const KIND_STYLES = {
     SPACES.map((s, i) => [s.id, SPACE_SWATCHES[i % SPACE_SWATCHES.length]])
   ),
   event: "bg-rust text-paper",
-  // Same rust family as a public event, drained of fill: reads as "this one is
-  // an event, but guests aren't seeing it" rather than as a separate species.
-  eventHidden: "bg-rust/15 text-rust ring-1 ring-inset ring-rust/40",
+  // Outlined rather than filled, and dashed — at phone size every chip is a
+  // truncated blob of colour, so a pale FILL just reads as another pale booking
+  // swatch (brass Loft bookings got mistaken for this one). A dashed outline is
+  // structurally different from every solid chip, not just a different tint.
+  eventHidden: "border border-dashed border-rust bg-rust/10 text-rust",
   cancelled: "bg-ink/15 text-ink-muted line-through",
 };
 
