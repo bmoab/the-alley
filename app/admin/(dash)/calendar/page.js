@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import AdminCalendar from "@/components/AdminCalendar.js";
 import { listBookings } from "@/lib/bookings.js";
-import { listAdminCalendarEvents } from "@/lib/catalog.js";
+import { listAdminCalendarEvents, listingIndex } from "@/lib/catalog.js";
 import { listClosures, createClosure, deleteClosure } from "@/lib/closures.js";
 import { SPACES, spaceName, formatDate, formatTime } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
@@ -79,25 +79,56 @@ export default function CalendarPage() {
     }
   }
 
-  const bookingItems = [...held, ...confirmed].map((b) => ({
-    id: b.id,
-    date: b.date,
-    time: b.start_time,
-    kind: b.space, // AdminCalendar colors each space from SPACES
-    title: b.client_name || spaceName(b.space),
-    meta: `${b.status} · ${b.hours}h${b.event_type ? ` · ${b.event_type}` : ""}`,
-    // Open THIS booking, not just the list: ?b= pops the booking drawer, ?focus=
-    // highlights the row (and outlives the drawer, which clears ?b= on close),
-    // and the hash scrolls to it. status/preset are forced wide so the row is
-    // actually present in the list behind the drawer.
-    href: `/admin/bookings?status=all&preset=all&focus=${b.id}&b=${b.id}#b-${b.id}`,
-  }));
+  // ONE CHIP PER NIGHT. A booked public event is two records — the booking (the
+  // room, the money, the client) and the listing (what guests see) — and drawing
+  // both put two chips on one evening, which reads as two different events. The
+  // booking chip absorbs its listing: it takes the listing's title and its
+  // public/hidden colour, and still opens the booking, where the listing is now
+  // a block of its own. A booking with no listing keeps its room colour, which
+  // is what the room coding is for.
+  const { byBooking, bySeries } = listingIndex();
+  // A series has ONE listing, on the session holding it, so a plain session of
+  // that series has to fall back to the series.
+  const listingFor = (b) => byBooking[b.id] || (b.series_id != null ? bySeries[b.series_id] : null);
+
+  // Every listing some booking chip already stands for, as `${listingId}|${date}`.
+  // Built from cancelled bookings too — a cancelled night says enough on its own
+  // without its listing drawn beside it — and built BEFORE the event items so
+  // the filter below sees all of it.
+  const covered = new Set();
+  for (const b of [...held, ...confirmed, ...cancelled]) {
+    const listing = listingFor(b);
+    if (listing) covered.add(`${listing.id}|${b.date}`);
+  }
+
+  const bookingItems = [...held, ...confirmed].map((b) => {
+    const listing = listingFor(b);
+    const hidden = Boolean(listing) && listing.status !== "live";
+    const room = spaceName(b.space);
+    return {
+      id: b.id,
+      date: b.date,
+      time: b.start_time,
+      kind: listing ? (hidden ? "eventHidden" : "event") : b.space,
+      title: listing?.title || b.client_name || room,
+      meta:
+        `${room} · ${b.status} · ${b.hours}h${b.event_type ? ` · ${b.event_type}` : ""}` +
+        (listing ? (hidden ? ` · ${HIDDEN_REASON.private}` : " · on the public calendar") : ""),
+      // Open THIS booking, not just the list: ?b= pops the booking drawer, ?focus=
+      // highlights the row (and outlives the drawer, which clears ?b= on close),
+      // and the hash scrolls to it. status/preset are forced wide so the row is
+      // actually present in the list behind the drawer.
+      href: `/admin/bookings?status=all&preset=all&focus=${b.id}&b=${b.id}#b-${b.id}`,
+    };
+  });
 
   // Listings guests can't see still belong on the OWNER's calendar — otherwise
   // making one private makes it unfindable, and a listing killed by a cancelled
   // booking disappears with nothing to show for it. Both land on the same card
   // under Events, where the public/private switch lives.
-  const eventItems = events.map((e) => ({
+  // Only the listings no booking chip above already stands for: The Alley's own
+  // events, and anything whose booking isn't drawn on the calendar.
+  const eventItems = events.filter((e) => !covered.has(`${e.id}|${e.date}`)).map((e) => ({
     id: e.id,
     date: e.date,
     time: e.time,
@@ -130,7 +161,7 @@ export default function CalendarPage() {
     <div>
       <PageHeader
         title="Calendar"
-        subtitle="Held and confirmed bookings plus every event listing, color-coded by space. Listings guests can’t see are outlined — click one to publish it."
+        subtitle="One chip per night. Bookings are coloured by room; a night that’s on the public calendar is rust, and one guests can’t see is outlined. Tap any chip for the booking, its history and its listing."
       />
 
       <div className="mb-6 rounded-xl border border-verde-deep/25 bg-verde/40 p-4 text-sm">

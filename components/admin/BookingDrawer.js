@@ -14,6 +14,11 @@ import { spaceName, formatDate, formatTime, formatMoney } from "@/lib/constants.
  * Booking activity drawer. Slides in from the right (full-screen on mobile)
  * whenever the URL carries ?b=<bookingId> — set by clicking a booking in any
  * admin list. Two tabs: Activity (a day-grouped vertical timeline) and Details.
+ *
+ * A booked public event is one evening kept as two records — this booking, and
+ * the listing guests see. The bar under the header carries the listing here, so
+ * the room, the money, the history and "is this on the public calendar" are all
+ * one tap from the calendar instead of two chips going two different places.
  * Styled to match the current admin (Inter + sage-verde + ink), following the
  * prototype's structure and dot color-coding.
  */
@@ -26,6 +31,8 @@ export default function BookingDrawer() {
   const [tab, setTab] = useState("activity");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [listingBusy, setListingBusy] = useState(false);
+  const [listingError, setListingError] = useState(null);
 
   const close = useCallback(() => {
     const next = new URLSearchParams(params.toString());
@@ -39,6 +46,7 @@ export default function BookingDrawer() {
     if (!bookingId) return;
     setTab("activity");
     setData(null);
+    setListingError(null);
     setLoading(true);
     const ctrl = new AbortController();
     fetch(`/api/admin/activity?bookingId=${bookingId}`, { signal: ctrl.signal })
@@ -64,7 +72,33 @@ export default function BookingDrawer() {
 
   const open = Boolean(bookingId);
   const booking = data?.booking;
+  const listing = data?.listing;
+  const listingLive = listing?.status === "live";
   const groups = groupByDay(data?.activity || []);
+
+  // Flip the listing without leaving the booking. Patches the drawer's own copy
+  // so the bar updates immediately, then refreshes the page behind it (the
+  // calendar chip changes colour, the events list regroups).
+  const toggleListing = useCallback(async () => {
+    if (!listing || listingBusy) return;
+    setListingBusy(true);
+    setListingError(null);
+    try {
+      const res = await fetch("/api/admin/listing-visibility", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId: listing.id, public: listing.status !== "live" }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || "Couldn't change that just now.");
+      setData((d) => (d ? { ...d, listing: { ...d.listing, status: json.status } } : d));
+      router.refresh();
+    } catch (err) {
+      setListingError(err.message);
+    } finally {
+      setListingBusy(false);
+    }
+  }, [listing, listingBusy, router]);
 
   return (
     <>
@@ -112,6 +146,45 @@ export default function BookingDrawer() {
             </button>
           </div>
         </div>
+
+        {/* Public listing — only when this booking actually has one. */}
+        {listing ? (
+          <div className="border-b border-line bg-paper-warm px-5 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+                  Public listing
+                </p>
+                <p
+                  className={`mt-0.5 truncate text-sm font-semibold ${
+                    listingLive ? "text-verde-deep" : "text-rust"
+                  }`}
+                >
+                  {listingLive ? "On the public calendar" : "Not on the public calendar"}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  onClick={toggleListing}
+                  disabled={listingBusy}
+                  className="rounded-lg border border-line-strong px-3 py-1.5 text-xs font-semibold text-ink transition hover:bg-paper-dim disabled:opacity-50"
+                >
+                  {listingBusy ? "…" : listingLive ? "Make private" : "Make public"}
+                </button>
+                <a
+                  href={`/admin/events?ev=${listing.id}#ev-${listing.id}`}
+                  className="rounded-lg px-2 py-1.5 text-xs font-semibold text-ink-muted transition hover:text-ink"
+                >
+                  Edit
+                </a>
+              </div>
+            </div>
+            {listing.title ? (
+              <p className="mt-1 truncate text-xs text-ink-muted">{listing.title}</p>
+            ) : null}
+            {listingError ? <p className="mt-1 text-xs text-rust">{listingError}</p> : null}
+          </div>
+        ) : null}
 
         {/* Tabs */}
         <div className="flex border-b border-line bg-paper-warm">
