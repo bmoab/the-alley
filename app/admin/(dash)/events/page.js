@@ -10,6 +10,7 @@ import {
   getEvent,
   parseEventLinks,
   eventLastDate,
+  getEventSessions,
 } from "@/lib/catalog.js";
 import LinksEditor from "@/components/LinksEditor.js";
 import EventMediaField from "@/components/admin/EventMediaField.js";
@@ -322,6 +323,16 @@ function EventCard({ ev, children, focused = false }) {
   // calendar as a title-only placeholder.
   const placeholder = ev.status === "live" && ev.host_token && !ev.host_posted;
   const isHidden = ev.status === "private";
+
+  // Recurring shows: how many dates are left and when the next one is.
+  const today = venueToday();
+  const sessions = getEventSessions(ev);
+  const upcoming = sessions.filter((session) => session.date >= today);
+  const seriesLabel = sessions.length
+    ? upcoming.length
+      ? `${upcoming.length} date${upcoming.length === 1 ? "" : "s"} left · next ${formatDate(upcoming[0].date)}`
+      : `${sessions.length} dates · all past`
+    : null;
   return (
     // The id is what the calendar's #ev-<id> link scrolls to; arriving from the
     // calendar also opens the card and rings it, so it's clear which one it is.
@@ -350,9 +361,31 @@ function EventCard({ ev, children, focused = false }) {
             {eventTimeLabel(ev) ? ` · ${eventTimeLabel(ev)}` : ""}
             {ev.space ? ` · ${spaceName(ev.space)}` : ""}
           </span>
+          {/* A recurring show keeps ONE listing, dated to the session that holds
+              the series — so a card for a show running again tomorrow reads as
+              a date months ago unless the repeat is spelled out. */}
+          {seriesLabel ? (
+            <span className="ml-2 rounded-full border border-verde-deep/30 bg-verde/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-soft">
+              {seriesLabel}
+            </span>
+          ) : null}
         </span>
         <span className="shrink-0 text-xs text-ink-muted">edit ▾</span>
       </summary>
+      {/* Status and the buttons FIRST. These used to sit under the whole edit
+          form, so on a phone "how do I put this on the calendar?" meant
+          scrolling past every field to find out. */}
+      <div className="mt-3 flex flex-wrap items-center gap-3 border-b border-line pb-3">
+        <span
+          className={cx(
+            "rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide",
+            isHidden ? "bg-rust/10 text-rust" : "bg-verde/60 text-ink-soft"
+          )}
+        >
+          {isHidden ? "Not on the public calendar" : "On the public calendar"}
+        </span>
+        {children}
+      </div>
       <EventEditor ev={ev} />
       {ev.host_token ? (
         <div className="mt-3 border-t border-line pt-3">
@@ -378,7 +411,6 @@ function EventCard({ ev, children, focused = false }) {
           </div>
         </div>
       ) : null}
-      <div className="mt-3 flex flex-wrap gap-3 border-t border-line pt-3">{children}</div>
     </details>
   );
 }
