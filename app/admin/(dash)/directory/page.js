@@ -130,7 +130,7 @@ function TenantFields({ entry = {}, suites = [], occupiedIds = [], suiteTenants 
   const isNew = !entry.id;
   return (
     <>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label className="label">Business name</label>
           <input name="business_name" required defaultValue={entry.business_name || ""} className="field" />
@@ -140,7 +140,7 @@ function TenantFields({ entry = {}, suites = [], occupiedIds = [], suiteTenants 
           <input name="contact_email" type="email" defaultValue={entry.contact_email || ""} placeholder="owner@shop.com" className="field" />
         </div>
       </div>
-      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <label className="flex items-center gap-2 self-end pb-2">
           <input type="checkbox" name="active" defaultChecked={isNew ? true : Number(entry.active) === 1} />
           <span className="text-sm font-semibold text-ink-soft">Active (show on the website)</span>
@@ -232,7 +232,7 @@ function SuiteRow({ suite, tenants = [] }) {
         </span>
         <span className="shrink-0 text-xs text-ink-muted">zone {suite.zone} · edit ▾</span>
       </summary>
-      <form action={saveSuite} className="mt-3 grid gap-3">
+      <form action={saveSuite} className="mt-3 grid grid-cols-1 gap-3">
         <input type="hidden" name="id" value={suite.id} />
         <div>
           <label className="label">Suite name / number</label>

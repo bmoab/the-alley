@@ -220,7 +220,7 @@ export default async function SettingsPage() {
       <form action={save} className="space-y-5">
         <Card pad="md">
           <h2 className="text-lg font-semibold text-ink">Pricing</h2>
-          <div className="mt-4 grid gap-5 sm:grid-cols-2">
+          <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
             {NUMBER_FIELDS.filter((f) =>
               ["standard_rate", "deposit"].includes(f.key)
             ).map((f) => (
@@ -231,7 +231,7 @@ export default async function SettingsPage() {
 
         <Card pad="md">
           <h2 className="text-lg font-semibold text-ink">Booking rules</h2>
-          <div className="mt-4 grid gap-5 sm:grid-cols-2">
+          <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
             {NUMBER_FIELDS.filter((f) =>
               ["min_lead_hours", "payment_window_days"].includes(f.key)
             ).map((f) => (
@@ -285,7 +285,7 @@ export default async function SettingsPage() {
             {SPACES.map((sp) => (
               <div key={sp.id} className="rounded-lg border border-line bg-paper-dim p-4">
                 <h3 className="text-sm font-semibold text-ink">{sp.name}</h3>
-                <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {SPACE_FIELDS.map((f) => {
                     const name = spaceSettingKey(sp.id, f.key);
                     return (
@@ -331,7 +331,7 @@ export default async function SettingsPage() {
             For a recurring series, one cleaning deposit covers the whole series and each
             session is billed on its own invoice (so cancelling one session is a clean refund).
           </p>
-          <div className="mt-4 grid gap-5 sm:grid-cols-2">
+          <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
             {NUMBER_FIELDS.filter((f) =>
               ["series_invoice_lead_days", "series_max_occurrences", "series_max_span_days"].includes(f.key)
             ).map((f) => (

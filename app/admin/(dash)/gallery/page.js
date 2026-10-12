@@ -76,13 +76,13 @@ export default async function GalleryAdminPage() {
 
       <Card pad="md">
         <h2 className="font-semibold text-ink">Add a photo</h2>
-        <form action={addImage} className="mt-4 grid gap-3">
+        <form action={addImage} className="mt-4 grid grid-cols-1 gap-3">
           <ContentImageField
             name="image_path"
             label="Photo"
             hint="Upload a JPG/PNG/WEBP. (You can also paste a path below instead.)"
           />
-          <div className="grid gap-3 sm:grid-cols-12">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
             <input name="caption" placeholder="Caption (e.g. First Friday opening)" className="field sm:col-span-6" />
             <input name="tags" placeholder="Tags, comma-separated (The Loft, Live Music)" className="field sm:col-span-5" />
             <input name="sort_order" type="number" defaultValue={0} className="field sm:col-span-1" title="Sort order" />
@@ -94,7 +94,7 @@ export default async function GalleryAdminPage() {
       {images.length === 0 ? (
         <Card pad="lg" className="mt-6 py-12 text-center text-ink-muted">No photos yet.</Card>
       ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {images.map((img, i) => (
             <div key={img.id} className="card overflow-hidden">
               <Placeholder src={img.image_path} label={img.caption || "Photo"} seed={i} className="h-32 w-full" rounded="rounded-none" />

@@ -79,7 +79,7 @@ export default function ReceiveStockForm({
             receive it.
           </p>
         ) : null}
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="label">Maker</label>
             {dropoff ? <input type="hidden" name="vendor_id" value={vendorId} /> : null}
@@ -111,7 +111,7 @@ export default function ReceiveStockForm({
           </div>
         </div>
         {isNewVendor ? (
-          <div className="mt-3 grid gap-3 rounded-lg bg-paper-dim p-3 sm:grid-cols-2">
+          <div className="mt-3 grid grid-cols-1 gap-3 rounded-lg bg-paper-dim p-3 sm:grid-cols-2">
             <div>
               <label className="label">Their name / shop name</label>
               <input name="new_vendor_name" required className="field" />
@@ -143,7 +143,7 @@ export default function ReceiveStockForm({
           <h2 className="text-base font-semibold text-ink">What came in</h2>
           <div className="mt-3 space-y-3">
             {rows.map((r, idx) => (
-              <div key={r.key} className="grid gap-2 rounded-lg border border-line p-3 sm:grid-cols-12 sm:items-end">
+              <div key={r.key} className="grid grid-cols-1 gap-2 rounded-lg border border-line p-3 sm:grid-cols-12 sm:items-end">
                 <div className="sm:col-span-4">
                   <label className="label">Item {idx + 1}</label>
                   {items.length ? (
@@ -212,7 +212,7 @@ export default function ReceiveStockForm({
 
       {vendorId ? (
         <div className="card p-5">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="label">Signed for by (the person dropping it off)</label>
               <input name="signed_name" className="field" placeholder="Type their name" />

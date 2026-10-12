@@ -148,7 +148,7 @@ export default async function IntakePage({ params }) {
         </table>
 
         {intake.notes ? <p className="mt-4 text-sm text-ink-soft">Notes: {intake.notes}</p> : null}
-        <div className="mt-8 grid gap-6 text-sm sm:grid-cols-2">
+        <div className="mt-8 grid grid-cols-1 gap-6 text-sm sm:grid-cols-2">
           <div>
             <p className="border-b border-ink/40 pb-1 text-ink">{intake.signed_name || " "}</p>
             <p className="mt-1 text-xs text-ink-muted">{consigned ? "Consignor" : "Delivered by"}</p>

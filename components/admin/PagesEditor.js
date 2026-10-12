@@ -27,7 +27,7 @@ export default function PagesEditor({ slug, route, label, fields, values, saved,
   const previewSrc = `${route}${sep}preview=1&_=${saved || "0"}`;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       {/* Left — fields */}
       <form action={save} className="space-y-4">
         <input type="hidden" name="__slug" value={slug} />

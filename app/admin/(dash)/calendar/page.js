@@ -232,8 +232,8 @@ export default async function CalendarPage() {
           Existing bookings aren&apos;t affected.
         </p>
 
-        <form action={addClosure} className="mt-4 grid gap-3">
-          <div className="grid gap-3 sm:grid-cols-3">
+        <form action={addClosure} className="mt-4 grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="label">Space</label>
               <select name="space" className="field" defaultValue="all">
@@ -256,7 +256,7 @@ export default async function CalendarPage() {
             <input type="checkbox" name="all_day" defaultChecked />
             <span className="text-sm font-semibold text-ink-soft">All day</span>
           </label>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="label">From time (if not all day)</label>
               <input name="start_time" type="time" className="field" />

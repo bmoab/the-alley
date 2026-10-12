@@ -221,7 +221,7 @@ export default async function SchedulePage({ searchParams }) {
       <Card pad="md" className="mt-6">
         <h2 className="text-base font-semibold text-ink">Hours this week</h2>
         {employees.length ? (
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {employees.map((e) => {
               const h = Math.round((hours[e.id] || 0) * 100) / 100;
               return (

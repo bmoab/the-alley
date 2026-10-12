@@ -229,7 +229,7 @@ export default function MakerHome({ vendorId, hidden }) {
 
       <Card pad="md" id="details">
         <h2 className="text-base font-semibold text-ink">Your details</h2>
-        <form action={saveMakerDetails} className="mt-3 grid gap-3 sm:grid-cols-2">
+        <form action={saveMakerDetails} className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {hiddenFields}
           <div>
             <label className="label">Your name</label>

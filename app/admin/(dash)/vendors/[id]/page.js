@@ -227,7 +227,7 @@ export default async function VendorPage({ params }) {
         </div>
       </Card>
 
-      <div className="mb-6 grid gap-3 sm:grid-cols-3">
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Card pad="md">
           <p className="text-2xl font-semibold tabular-nums text-ink">{items.reduce((t, i) => t + i.qty_on_hand, 0)}</p>
           <p className="text-xs text-ink-muted">on the shelf now</p>
@@ -281,7 +281,7 @@ export default async function VendorPage({ params }) {
                 </tbody>
               </table>
               {canManageStaff(me) ? (
-                <form action={pay} className="mt-4 grid gap-3 rounded-lg bg-paper-dim p-3 sm:grid-cols-4">
+                <form action={pay} className="mt-4 grid grid-cols-1 gap-3 rounded-lg bg-paper-dim p-3 sm:grid-cols-4">
                   <input type="hidden" name="id" value={vendor.id} />
                   <div>
                     <label className="label">Covers sales up to</label>
@@ -367,7 +367,7 @@ export default async function VendorPage({ params }) {
 
       <details className="card p-5">
         <summary className="cursor-pointer font-semibold text-ink">Edit details</summary>
-        <form action={saveVendor} className="mt-4 grid gap-3 sm:grid-cols-2">
+        <form action={saveVendor} className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <input type="hidden" name="id" value={vendor.id} />
           <div>
             <label className="label">Name</label>

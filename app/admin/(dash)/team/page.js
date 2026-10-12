@@ -102,7 +102,7 @@ export default async function TeamPage() {
       {/* Add user */}
       <Card pad="md" className="mb-6">
         <h2 className="text-lg font-semibold text-ink">Add a team member</h2>
-        <form action={addUser} className="mt-4 grid gap-4 sm:grid-cols-2">
+        <form action={addUser} className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="label" htmlFor="name">Name</label>
             <input id="name" name="name" required className="field" placeholder="Full name" />

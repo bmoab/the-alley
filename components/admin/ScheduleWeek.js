@@ -180,7 +180,7 @@ export default function ScheduleWeek({
 
   return (
     <>
-      <div className="grid gap-3 lg:grid-cols-7 lg:gap-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-7 lg:gap-2">
         {dates.map((d) => {
           const { dow, date } = dayLabel(d);
           const dayShifts = shifts.filter((s) => s.date === d);

@@ -25,7 +25,7 @@ export default function CancellationPolicyForm({ action, values }) {
         Controls the owner-initiated cancellation flow. Defaults match the rental agreement.
       </p>
 
-      <div className="mt-4 grid gap-5 sm:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-3">
         <div>
           <label className="label" htmlFor="cancellation_cutoff_hours">
             Cancellation cutoff (hours before event)

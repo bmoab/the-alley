@@ -91,7 +91,7 @@ export default async function VendorsPage() {
 
       <details className="card mb-6 p-5">
         <summary className="cursor-pointer font-semibold text-ink">+ Add a maker</summary>
-        <form action={addVendor} className="mt-4 grid gap-3 sm:grid-cols-2">
+        <form action={addVendor} className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="label">Name / shop name</label>
             <input name="name" required className="field" />

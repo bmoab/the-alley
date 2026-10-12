@@ -95,7 +95,7 @@ export default async function SpacesAdminPage() {
 
             <details className="mt-3 card p-5">
               <summary className="cursor-pointer font-semibold text-ink">+ Add a photo to {space.name}</summary>
-              <form action={addPhoto} className="mt-4 grid gap-3">
+              <form action={addPhoto} className="mt-4 grid grid-cols-1 gap-3">
                 <input type="hidden" name="space" value={space.id} />
                 <ContentImageField name="image_path" label="Photo" hint="Upload a JPG/PNG/WEBP of this space." />
                 <div className="flex items-center gap-2">

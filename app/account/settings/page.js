@@ -28,7 +28,7 @@ export default async function SettingsPage({ searchParams }) {
             <p className="text-sm text-ink">{account.email}</p>
             <p className="text-xs text-ink-muted">Everything in your account is matched by this address. To change it, ask us.</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="label" htmlFor="password">{account.password_hash ? "New password" : "Add a password"} (10+ characters)</label>
               <input id="password" name="password" type="password" autoComplete="new-password" minLength={10} className="field" />

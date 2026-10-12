@@ -279,20 +279,20 @@ function parsePdfPaths(ev) {
 
 function EventEditor({ ev }) {
   return (
-    <form action={saveEvent} className="mt-3 grid gap-3 border-t border-line pt-3">
+    <form action={saveEvent} className="mt-3 grid grid-cols-1 gap-3 border-t border-line pt-3">
       <input type="hidden" name="id" value={ev.id} />
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div><label className="label">Title</label><input name="title" defaultValue={ev.title || ""} className="field" /></div>
         <div><label className="label">Host name</label><input name="host_name" defaultValue={ev.host_name || ""} className="field" /></div>
       </div>
       <div><label className="label">Description</label><textarea name="description" rows={3} defaultValue={ev.description || ""} className="field" /></div>
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
         <div><label className="label">Date</label><input type="date" name="date" defaultValue={ev.date || ""} className="field" /></div>
         <div><label className="label">Booking time</label><input type="time" name="time" defaultValue={ev.time || ""} className="field" /></div>
         <div><label className="label">Spots</label><input type="number" name="tickets" defaultValue={ev.tickets ?? ""} className="field" /></div>
         <div><label className="label">Price</label><input name="price" defaultValue={ev.price || ""} className="field" /></div>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div><label className="label">Guests arrive at</label><input type="time" name="public_time" defaultValue={ev.public_time || ""} className="field" /></div>
         <div><label className="label">Ends at</label><input type="time" name="public_end_time" defaultValue={ev.public_end_time || ""} className="field" /></div>
       </div>
@@ -301,7 +301,7 @@ function EventEditor({ ev }) {
         so guests see the real event time. Blank falls back to the booking time.
         Changing them never moves the reservation.
       </p>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div><label className="label">Payment instructions</label><input name="payment_instructions" defaultValue={ev.payment_instructions || ""} className="field" /></div>
         <div><label className="label">Payment link</label><input name="payment_link" defaultValue={ev.payment_link || ""} className="field" /></div>
       </div>
@@ -561,8 +561,8 @@ export default async function EventsAdminPage({ searchParams }) {
       {/* Invite a host */}
       <details className="card p-5" open={drafts.length === 0 && pending.length === 0 && live.length === 0}>
         <summary className="cursor-pointer font-semibold text-ink">+ Invite a host to post an event</summary>
-        <form action={inviteHost} className="mt-4 grid gap-3">
-          <div className="grid gap-3 sm:grid-cols-2">
+        <form action={inviteHost} className="mt-4 grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div><label className="label">Host name</label><input name="host_name" required placeholder="Jane Maker" className="field" /></div>
             <div><label className="label">Host email (sends them the link)</label><input name="host_email" type="email" placeholder="host@email.com" className="field" /></div>
           </div>
@@ -570,7 +570,7 @@ export default async function EventsAdminPage({ searchParams }) {
             <label className="label">Event title (optional)</label>
             <input name="title" placeholder="e.g. Saturday Improv Night" className="field" />
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div><label className="label">Event date (optional)</label><input name="date" type="date" className="field" /></div>
             <div><label className="label">Through (optional, multi-day)</label><input name="active_until" type="date" className="field" /></div>
           </div>
@@ -718,13 +718,13 @@ export default async function EventsAdminPage({ searchParams }) {
           sit there looking like the publish didn't take. */}
       <details className="mt-3 card p-5" key={`new-event-${focusedEv || "blank"}`}>
         <summary className="cursor-pointer font-semibold text-ink">+ New event</summary>
-        <form action={createEvent} className="mt-4 grid gap-3">
-          <div className="grid gap-3 sm:grid-cols-2">
+        <form action={createEvent} className="mt-4 grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div><label className="label">Title</label><input name="title" required className="field" /></div>
             <div><label className="label">Host name</label><input name="host_name" defaultValue="The Alley On Center" className="field" /></div>
           </div>
           <div><label className="label">Description</label><textarea name="description" rows={3} className="field" /></div>
-          <div className="grid gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
             <div><label className="label">Date</label><input type="date" name="date" required className="field" /></div>
             <div><label className="label">Time</label><input type="time" name="time" className="field" /></div>
             <div>
@@ -736,11 +736,11 @@ export default async function EventsAdminPage({ searchParams }) {
             </div>
             <div><label className="label">Spots</label><input type="number" name="tickets" className="field" /></div>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div><label className="label">Guests arrive at (optional)</label><input type="time" name="public_time" className="field" /></div>
             <div><label className="label">Ends at (optional)</label><input type="time" name="public_end_time" className="field" /></div>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div><label className="label">Price</label><input name="price" className="field" /></div>
             <div><label className="label">Payment instructions</label><input name="payment_instructions" className="field" /></div>
             <div><label className="label">Payment link</label><input name="payment_link" className="field" /></div>

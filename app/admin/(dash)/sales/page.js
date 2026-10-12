@@ -119,7 +119,7 @@ export default async function SalesPage({ searchParams }) {
         </form>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card pad="md">
           <h2 className="text-base font-semibold text-ink">Shop sales</h2>
           <Row label="Sold (before discounts)" value={s.retail.gross} />

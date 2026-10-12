@@ -107,7 +107,7 @@ function ExhibitorFields({ ex = {} }) {
   const isNew = !ex.id;
   return (
     <>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label className="label">Name</label>
           <input name="name" required defaultValue={ex.name || ""} placeholder="Artist or studio name" className="field" />
@@ -117,7 +117,7 @@ function ExhibitorFields({ ex = {} }) {
           <input name="contact_email" type="email" defaultValue={ex.contact_email || ""} placeholder="artist@email.com" className="field" />
         </div>
       </div>
-      <div className="mt-3 grid gap-3 sm:grid-cols-4">
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-4">
         <label className="flex items-center gap-2 self-end pb-2">
           <input type="checkbox" name="active" defaultChecked={isNew ? true : Number(ex.active) === 1} />
           <span className="text-sm font-semibold text-ink-soft">Active</span>

@@ -219,7 +219,7 @@ function ColorPicker({ value }) {
 
 function EmployeeFields({ employee = {} }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <div>
         <label className="label">Name</label>
         <input name="name" required defaultValue={employee.name || ""} className="field" placeholder="Full name" />
@@ -279,7 +279,7 @@ export default async function EmployeesPage({ searchParams }) {
           <p className="mt-1 text-sm text-ink-soft">
             Send them these — they&apos;ll pick their own password the first time they sign in.
           </p>
-          <dl className="mt-3 grid gap-1 text-sm sm:grid-cols-[8rem_1fr]">
+          <dl className="mt-3 grid grid-cols-1 gap-1 text-sm sm:grid-cols-[8rem_1fr]">
             <dt className="text-ink-muted">Address</dt>
             <dd className="break-all font-mono text-ink">{APP_URL || ""}/admin/login</dd>
             <dt className="text-ink-muted">Email</dt>

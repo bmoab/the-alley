@@ -128,7 +128,7 @@ export default async function InventoryPage({ searchParams }) {
         </p>
       )}
 
-      <div className="mb-6 grid gap-3 sm:grid-cols-3">
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatCard label="Items on hand" value={units} hint={`${items.length} product${items.length === 1 ? "" : "s"}`} />
         <StatCard label="Shelf value" value={formatMoney(shelfValue)} hint="at full price" />
         <StatCard label="Drop-offs waiting" value={waiting} hint="listed by makers, not brought in yet" />
@@ -185,7 +185,7 @@ export default async function InventoryPage({ searchParams }) {
                   {terms} · {i.qty_received} received in total
                   {i.synced_at ? ` · count checked ${formatDateShort(i.synced_at.slice(0, 10))}` : ""}
                 </p>
-                <div className="mt-3 grid gap-4 lg:grid-cols-2">
+                <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
                   <form action={saveItem} className="rounded-lg bg-paper-dim p-3">
                     <input type="hidden" name="id" value={i.id} />
                     <label className="label">Name</label>

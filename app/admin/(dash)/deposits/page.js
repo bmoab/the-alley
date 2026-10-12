@@ -103,7 +103,7 @@ export default async function DepositsPage() {
 
                 <form action={resolve} className="mt-4 border-t border-line pt-4">
                   <input type="hidden" name="id" value={b.id} />
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
                       <label className="label" htmlFor={`amt-${b.id}`}>Refund amount</label>
                       <input

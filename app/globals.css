@@ -90,9 +90,26 @@ h1, h2, h3, .font-display {
     @apply mb-1 block text-sm font-semibold text-ink-soft;
   }
   .field {
-    @apply w-full rounded-lg border border-ink/15 bg-paper-card px-3.5 py-2.5 text-ink
+    @apply w-full min-w-0 rounded-lg border border-ink/15 bg-paper-card px-3.5 py-2.5 text-ink
            placeholder:text-ink-muted/60 focus:border-brass focus:outline-none
            focus:ring-2 focus:ring-brass/30;
+  }
+  /* A native "Choose file" box is as wide as its file name; keep it in its card. */
+  .admin-ui input[type="file"] {
+    max-width: 100%;
+  }
+  /* iPhone/iPad Safari gives date and time boxes a fixed width of their own
+     that ignores w-full and pushes past the card's edge. */
+  @supports (-webkit-touch-callout: none) {
+    input.field[type="date"],
+    input.field[type="time"],
+    input.field[type="datetime-local"] {
+      -webkit-appearance: none;
+      appearance: none;
+      display: block;
+      min-height: 2.75rem;
+      text-align: left;
+    }
   }
 
   .card {

@@ -74,7 +74,7 @@ export default function EventMediaField({ photo = "", pdfs = [] }) {
         </div>
       )}
       <div className="flex items-center gap-3">
-        <input type="file" accept="image/*" onChange={onPhoto} className="block text-sm" />
+        <input type="file" accept="image/*" onChange={onPhoto} className="block max-w-full text-sm" />
         {path ? (
           <button type="button" onClick={() => setPath("")} className="text-xs font-semibold text-rust hover:underline">
             Remove
@@ -103,7 +103,7 @@ export default function EventMediaField({ photo = "", pdfs = [] }) {
             ))}
           </ul>
         ) : null}
-        <input type="file" accept="application/pdf" onChange={onPdf} className="block text-sm" />
+        <input type="file" accept="application/pdf" onChange={onPdf} className="block max-w-full text-sm" />
         {uploading === "pdf" ? <p className="mt-1 text-xs text-ink-muted">Uploading…</p> : null}
       </div>
 
