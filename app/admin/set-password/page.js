@@ -1,14 +1,14 @@
 import { redirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { getCurrentUser, setPassword, clearSessionCookie } from "@/lib/auth.js";
+import { getSignedInUser, setPassword, clearSessionCookie, homeFor } from "@/lib/auth.js";
 import Button from "@/components/admin/ui/Button.js";
 
 export const metadata = { title: "Set your password" };
 
 async function submit(formData) {
   "use server";
-  const user = await getCurrentUser();
+  const user = await getSignedInUser();
   if (!user) redirect("/admin/login");
 
   const password = (formData.get("password") || "").toString();
@@ -20,7 +20,7 @@ async function submit(formData) {
     redirect("/admin/set-password?error=match");
   }
   setPassword(user.id, password);
-  redirect("/admin?toast=" + encodeURIComponent("Password set — you're all set.") + "&toastType=success");
+  redirect(homeFor(user) + "?toast=" + encodeURIComponent("Password set — you're all set.") + "&toastType=success");
 }
 
 async function signOut() {
@@ -30,7 +30,7 @@ async function signOut() {
 }
 
 export default async function SetPasswordPage({ searchParams }) {
-  const user = await getCurrentUser();
+  const user = await getSignedInUser();
   if (!user) redirect("/admin/login");
 
   const error =

@@ -40,7 +40,8 @@ export const FOOTER_COLS = [
       { t: "Rates & spaces", h: "/spaces" },
       { t: "About", h: "/about" },
       { t: "Contact", h: "/contact" },
-      { t: "Owner login", h: "/admin" },
+      { t: "Log in", h: "/account" },
+      { t: "Staff login", h: "/admin/login" },
     ],
   },
 ];

@@ -4,7 +4,7 @@ import { getSettings, setSetting, getContentValue, setContent } from "@/lib/db.j
 import { formatTime, SPACES } from "@/lib/constants.js";
 import { spaceSettingKey, spaceCapacityKey, spaceOverride, globalRule } from "@/lib/spaces.js";
 import { logActivity } from "@/lib/activity.js";
-import { getActor } from "@/lib/auth.js";
+import { getActor, requireAdmin } from "@/lib/auth.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
 import Button from "@/components/admin/ui/Button.js";
@@ -98,6 +98,7 @@ const SPACE_FIELDS = [
 
 async function save(formData) {
   "use server";
+  await requireAdmin();
   for (const f of NUMBER_FIELDS) {
     // Only write what this form actually rendered. A field that isn't on the
     // page posts nothing, and the old `|| "0"` would quietly stamp a 0 over a
@@ -184,6 +185,7 @@ const REFUND_VALUES = ["full", "deposit_only", "none"];
 
 async function saveCancellationPolicy(formData) {
   "use server";
+  await requireAdmin();
   const hours = Math.max(0, Number(formData.get("cancellation_cutoff_hours")) || 0);
   const before = formData.get("refund_before_cutoff");
   const within = formData.get("refund_within_cutoff");
@@ -199,7 +201,8 @@ async function saveCancellationPolicy(formData) {
   redirect("/admin/settings?toast=" + encodeURIComponent("Cancellation policy saved.") + "&toastType=success");
 }
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  await requireAdmin();
   const s = getSettings();
   const calendarShareUrl = getContentValue("calendar_share_url", "");
   // Who still hasn't been told their bookings dashboard exists. Read-only —

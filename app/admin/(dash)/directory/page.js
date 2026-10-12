@@ -18,6 +18,7 @@ import { zoneSpace } from "@/lib/building-map.js";
 import ContentImageField from "@/components/ContentImageField.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Button from "@/components/admin/ui/Button.js";
+import { requireAdmin } from "@/lib/auth.js";
 
 export const metadata = { title: "Directory" };
 
@@ -33,6 +34,7 @@ function refresh() {
 
 async function addTenant(formData) {
   "use server";
+  await requireAdmin();
   const id = createDirectoryEntry({
     business_name: (formData.get("business_name") || "").toString().trim(),
     contact_email: (formData.get("contact_email") || "").toString().trim(),
@@ -47,6 +49,7 @@ async function addTenant(formData) {
 
 async function saveTenant(formData) {
   "use server";
+  await requireAdmin();
   const id = Number(formData.get("id"));
   updateDirectoryEntry(id, {
     business_name: (formData.get("business_name") || "").toString().trim(),
@@ -62,6 +65,7 @@ async function saveTenant(formData) {
 
 async function removeTenant(formData) {
   "use server";
+  await requireAdmin();
   const id = Number(formData.get("id"));
   setTenantSuites(id, []); // free its suites
   deleteDirectoryEntry(id);
@@ -71,6 +75,7 @@ async function removeTenant(formData) {
 
 async function generateLink(formData) {
   "use server";
+  await requireAdmin();
   ensureDirectoryToken(Number(formData.get("id")));
   refresh();
   redirect("/admin/directory#biz-" + formData.get("id"));
@@ -78,6 +83,7 @@ async function generateLink(formData) {
 
 async function emailLink(formData) {
   "use server";
+  await requireAdmin();
   const id = Number(formData.get("id"));
   const token = ensureDirectoryToken(id);
   const entry = getDirectoryEntry(id);
@@ -109,6 +115,7 @@ async function emailLink(formData) {
 
 async function saveSuite(formData) {
   "use server";
+  await requireAdmin();
   updateSuiteInfo(Number(formData.get("id")), {
     name: (formData.get("name") || "").toString().trim(),
     available: formData.get("available") != null,
@@ -257,7 +264,8 @@ function SuiteRow({ suite, tenants = [] }) {
   );
 }
 
-export default function DirectoryAdminPage() {
+export default async function DirectoryAdminPage() {
+  await requireAdmin();
   const tenants = listDirectory();
   // Exclude the two rentable spaces (gallery = Main Floor, 200 = Loft) — those
   // are managed under Spaces, not assigned to tenants.

@@ -16,7 +16,7 @@ const TONE = {
 // Translate the query params that existing server actions already redirect with
 // into a toast. Returns { message, tone } or null. Also strips a generic
 // ?toast=&toastType= pair for any new code that wants to opt in.
-function paramsToToast(sp) {
+function paramsToToast(sp, ignore = []) {
   if (sp.get("toast")) {
     return { message: sp.get("toast"), tone: sp.get("toastType") || "neutral" };
   }
@@ -30,13 +30,17 @@ function paramsToToast(sp) {
     return { message: "Checked invoice status.", tone: "neutral" };
   }
   if (sp.has("saved")) return { message: "Changes saved.", tone: "success" };
-  if (sp.has("error")) return { message: sp.get("error") || "Something went wrong.", tone: "error" };
+  if (sp.has("error") && !ignore.includes("error")) return { message: sp.get("error") || "Something went wrong.", tone: "error" };
   return null;
 }
 
 const CONSUMED = ["toast", "toastType", "paid", "checked", "r", "saved", "error"];
 
-export default function Toaster() {
+/**
+ * `ignore`: params this page shows itself (e.g. the account pages turn an
+ * ?error=code into their own fixed wording) — no toast, and left in the URL.
+ */
+export default function Toaster({ ignore = [] }) {
   const [items, setItems] = useState([]);
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -77,14 +81,14 @@ export default function Toaster() {
     const key = searchParams.toString();
     if (cleanedKey.current === key) return;
 
-    const t = paramsToToast(searchParams);
+    const t = paramsToToast(searchParams, ignore);
     if (!t) return;
     cleanedKey.current = key;
     push({ id: `p${Date.now()}`, ...t });
 
     if (typeof window === "undefined") return;
     const next = new URLSearchParams(searchParams);
-    CONSUMED.forEach((k) => next.delete(k));
+    CONSUMED.filter((k) => !ignore.includes(k)).forEach((k) => next.delete(k));
     const qs = next.toString();
     const url = pathname + (qs ? `?${qs}` : "") + window.location.hash;
     // Preserve Next's internal history state so the router stays consistent.

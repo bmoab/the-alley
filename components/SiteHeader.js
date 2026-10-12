@@ -16,7 +16,13 @@ export default function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   useBodyScrollLock(menuOpen);
-  useEffect(() => setMounted(true), []);
+  // "alley_in" is a display-only flag set alongside the account session.
+  const [signedIn, setSignedIn] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    setSignedIn(/(?:^|;\s*)alley_in=1/.test(document.cookie));
+  }, []);
+  const loginLabel = signedIn ? "My account" : "Log in";
 
   const isActive = (href) => pathname === href || pathname.startsWith(href + "/");
 
@@ -57,6 +63,16 @@ export default function SiteHeader() {
         </nav>
 
         <div className="sh-actions">
+          <Link href="/account" className="btn btn--ghost sh-cta sh-login" aria-label={loginLabel}>
+            <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true">
+              <circle cx="8" cy="5" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M2 15c.6-3.2 3-5 6-5s5.4 1.8 6 5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            <span className="sh-login-text">
+              <span className="sh-cta-full">{loginLabel}</span>
+              <span className="sh-cta-short">{signedIn ? "Account" : "Log in"}</span>
+            </span>
+          </Link>
           <Link href="/spaces" className="btn btn--solid sh-cta">
             <span className="sh-cta-full">Request to Book</span>
             <span className="sh-cta-short">Book</span>
@@ -94,6 +110,9 @@ export default function SiteHeader() {
             ))}
             <Link href="/spaces" className="btn btn--solid" style={{ marginTop: 18 }} onClick={() => setMenuOpen(false)}>
               Request to Book
+            </Link>
+            <Link href="/account" className="btn btn--ghost" onClick={() => setMenuOpen(false)}>
+              {loginLabel}
             </Link>
           </nav>
         </div>,

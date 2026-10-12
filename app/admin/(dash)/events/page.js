@@ -16,7 +16,10 @@ import LinksEditor from "@/components/LinksEditor.js";
 import EventMediaField from "@/components/admin/EventMediaField.js";
 import { emailHostInvite, emailHostReminder } from "@/lib/email.js";
 import { logEmail } from "@/lib/activity.js";
-import { getActor } from "@/lib/auth.js";
+import { getActor, requireAdmin, requireStaffManager } from "@/lib/auth.js";
+import { cache } from "react";
+import { canSellTickets, openTicketSales, setTicketSalesOpen, ticketsSold, ticketsLeft, salesTaxes } from "@/lib/tickets.js";
+import { logActivity } from "@/lib/activity.js";
 import { SPACES, spaceName, formatDate, formatTime, venueToday } from "@/lib/constants.js";
 import { eventTimeLabel } from "@/lib/event-time.js";
 import { db } from "@/lib/db.js";
@@ -55,6 +58,7 @@ function refresh() {
 // Owner invites a host directly: minimal details now, host fills the rest.
 async function inviteHost(formData) {
   "use server";
+  await requireAdmin();
   const host_name = (formData.get("host_name") || "").toString().trim();
   const host_email = (formData.get("host_email") || "").toString().trim();
   if (!host_name) redirect("/admin/events");
@@ -79,6 +83,7 @@ async function inviteHost(formData) {
 // Re-send / reveal a draft host's invite link.
 async function emailHostLink(formData) {
   "use server";
+  await requireAdmin();
   const id = Number(formData.get("id"));
   const ev = getEvent(id);
   if (ev?.host_email && ev?.host_token) {
@@ -95,6 +100,7 @@ async function emailHostLink(formData) {
 // Nudge a host whose listing is live as a placeholder but still empty.
 async function remindHost(formData) {
   "use server";
+  await requireAdmin();
   const id = Number(formData.get("id"));
   const ev = getEvent(id);
   let ok = false;
@@ -136,6 +142,7 @@ async function remindHost(formData) {
 
 async function approveEvent(formData) {
   "use server";
+  await requireAdmin();
   setEventStatus(Number(formData.get("id")), "live", {
     actor: await getActor(),
     via: "approved from Public Events",
@@ -151,6 +158,7 @@ async function approveEvent(formData) {
 // guests while staying fully editable here — and nothing the host wrote is lost.
 async function setEventPublic(formData) {
   "use server";
+  await requireAdmin();
   const id = Number(formData.get("id"));
   const makePublic = formData.get("public") === "1";
   const ev = setEventStatus(id, makePublic ? "live" : "private", {
@@ -174,6 +182,7 @@ async function setEventPublic(formData) {
 
 async function removeEvent(formData) {
   "use server";
+  await requireAdmin();
   deleteEvent(Number(formData.get("id")));
   refresh();
   redirect("/admin/events");
@@ -200,6 +209,7 @@ function parsePdfsField(formData) {
 
 async function saveEvent(formData) {
   "use server";
+  await requireAdmin();
   const id = Number(formData.get("id"));
   updateEvent(id, {
     title: formData.get("title"),
@@ -225,6 +235,7 @@ async function saveEvent(formData) {
 
 async function createEvent(formData) {
   "use server";
+  await requireAdmin();
   const created = createOwnEvent({
     title: formData.get("title"),
     host_name: formData.get("host_name") || "The Alley On Center",
@@ -301,6 +312,106 @@ function EventEditor({ ev }) {
       <EventMediaField photo={ev.photo_path || ""} pdfs={parsePdfPaths(ev)} />
       <Button type="submit" className="w-fit">Save changes</Button>
     </form>
+  );
+}
+
+async function openTickets(formData) {
+  "use server";
+  await requireStaffManager();
+  const id = Number(formData.get("id"));
+  let ev;
+  try {
+    ev = await openTicketSales(id, { price: formData.get("ticket_price"), capacity: formData.get("ticket_capacity") });
+  } catch (err) {
+    redirect(`/admin/events?ev=${id}&toast=${encodeURIComponent(err.message)}&toastType=error#ev-${id}`);
+  }
+  logActivity({
+    eventType: "tickets_opened",
+    description: `Tickets on sale for "${ev.title}" at $${Number(ev.ticket_price).toFixed(2)} + sales tax${ev.ticket_capacity ? ` · ${ev.ticket_capacity} spots` : ""}`,
+    ...(await getActor()),
+  });
+  revalidatePath("/admin/events");
+  revalidatePath(`/events/${id}`);
+  redirect(`/admin/events?ev=${id}&toast=${encodeURIComponent("Tickets are on sale — sales tax is added at checkout and at the register.")}&toastType=success#ev-${id}`);
+}
+
+async function toggleTickets(formData) {
+  "use server";
+  await requireStaffManager();
+  const id = Number(formData.get("id"));
+  const open = formData.get("open") === "1";
+  setTicketSalesOpen(id, open);
+  logActivity({ eventType: open ? "tickets_opened" : "tickets_closed", description: `Online ticket sales ${open ? "reopened" : "stopped"} for event #${id}`, ...(await getActor()) });
+  revalidatePath("/admin/events");
+  revalidatePath(`/events/${id}`);
+  redirect(`/admin/events?ev=${id}&toast=${encodeURIComponent(open ? "Online sales reopened." : "Online sales stopped — door sales still work at the register.")}&toastType=neutral#ev-${id}`);
+}
+
+// One Square lookup per page render, however many events show the panel.
+const taxesOnce = cache(async () => {
+  try {
+    return { taxes: await salesTaxes() };
+  } catch (err) {
+    return { taxes: [], error: err.message };
+  }
+});
+
+/**
+ * Selling tickets to The Alley's own event. The ticket is a Square item with
+ * sales tax on it, so tax is collected online and at the door alike.
+ */
+async function TicketPanel({ ev }) {
+  if (!canSellTickets(ev)) return null;
+  const { taxes, error } = await taxesOnce();
+  const taxLabel = taxes.map((t) => `${t.name} ${t.percentage}%`).join(" + ");
+  const selling = !!ev.square_ticket_variation_id;
+  const left = selling ? await ticketsLeft(ev).catch(() => null) : null;
+  const sold = selling ? ticketsSold(ev) : 0;
+  return (
+    <div className="mt-3 rounded-xl border border-line bg-paper-dim p-4">
+      <p className="text-sm font-semibold text-ink">Tickets sold by The Alley</p>
+      {selling ? (
+        <p className="mt-1 text-sm text-ink-soft">
+          ${Number(ev.ticket_price).toFixed(2)} + {taxLabel || "sales tax"} ·{" "}
+          {ev.ticket_sales_open ? "on sale online" : "online sales stopped"} · {sold} sold (as of last night&apos;s sync)
+          {left != null ? ` · ${left} left` : ev.ticket_capacity == null ? " · no limit" : ""}
+        </p>
+      ) : (
+        <p className="mt-1 text-xs text-ink-muted">
+          Sell admission here and it&apos;s rung up through Square with sales tax added — online from this listing, and at
+          the door from the register (look under &ldquo;Event tickets&rdquo;). Admission The Alley sells is taxable in Utah.
+        </p>
+      )}
+      {error ? <p className="mt-2 text-xs text-rust">Couldn&apos;t check Square&apos;s sales tax: {error}</p> : null}
+      {!error && !taxes.length ? (
+        <p className="mt-2 text-xs text-rust">
+          Square has no sales tax switched on. Add it in Square Dashboard → Settings → Sales taxes first.
+        </p>
+      ) : null}
+      <form action={openTickets} className="mt-3 flex flex-wrap items-end gap-2">
+        <input type="hidden" name="id" value={ev.id} />
+        <div>
+          <label className="label">Price per ticket (before tax)</label>
+          <input name="ticket_price" inputMode="decimal" required defaultValue={ev.ticket_price ?? ""} className="field w-32" placeholder="15.00" />
+        </div>
+        <div>
+          <label className="label">Spots (blank = no limit)</label>
+          <input name="ticket_capacity" inputMode="numeric" defaultValue={ev.ticket_capacity ?? ""} className="field w-32" />
+        </div>
+        <Button type="submit" variant={selling ? "ghost" : "accent"} size="sm" disabled={!taxes.length}>
+          {selling ? "Update" : "Put tickets on sale"}
+        </Button>
+      </form>
+      {selling ? (
+        <form action={toggleTickets} className="mt-2">
+          <input type="hidden" name="id" value={ev.id} />
+          <input type="hidden" name="open" value={ev.ticket_sales_open ? "0" : "1"} />
+          <Button type="submit" variant="subtle" size="sm">
+            {ev.ticket_sales_open ? "Stop selling online" : "Reopen online sales"}
+          </Button>
+        </form>
+      ) : null}
+    </div>
   );
 }
 
@@ -386,6 +497,7 @@ function EventCard({ ev, children, focused = false }) {
         </span>
         {children}
       </div>
+      <TicketPanel ev={ev} />
       <EventEditor ev={ev} />
       {ev.host_token ? (
         <div className="mt-3 border-t border-line pt-3">
@@ -415,7 +527,8 @@ function EventCard({ ev, children, focused = false }) {
   );
 }
 
-export default function EventsAdminPage({ searchParams }) {
+export default async function EventsAdminPage({ searchParams }) {
+  await requireAdmin();
   // ?ev=<id> — arrived from the admin calendar; open + highlight that listing.
   const focusedEv = (searchParams?.ev || "").toString();
   const all = listAllEvents();

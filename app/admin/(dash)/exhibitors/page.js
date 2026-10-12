@@ -12,6 +12,7 @@ import {
 import { emailExhibitorInvite } from "@/lib/email.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Button from "@/components/admin/ui/Button.js";
+import { requireAdmin } from "@/lib/auth.js";
 
 export const metadata = { title: "Exhibitors" };
 
@@ -25,6 +26,7 @@ function refresh() {
 
 async function addExhibitorAction(formData) {
   "use server";
+  await requireAdmin();
   const name = (formData.get("name") || "").toString().trim();
   if (!name) redirect("/admin/exhibitors");
   createExhibitor({
@@ -41,6 +43,7 @@ async function addExhibitorAction(formData) {
 
 async function saveExhibitorAction(formData) {
   "use server";
+  await requireAdmin();
   const id = Number(formData.get("id"));
   updateExhibitor(id, {
     name: (formData.get("name") || "").toString().trim(),
@@ -56,6 +59,7 @@ async function saveExhibitorAction(formData) {
 
 async function removeExhibitorAction(formData) {
   "use server";
+  await requireAdmin();
   deleteExhibitor(Number(formData.get("id")));
   refresh();
   redirect("/admin/exhibitors");
@@ -63,6 +67,7 @@ async function removeExhibitorAction(formData) {
 
 async function generateLink(formData) {
   "use server";
+  await requireAdmin();
   ensureExhibitorToken(Number(formData.get("id")));
   refresh();
   redirect("/admin/exhibitors#ex-" + formData.get("id"));
@@ -70,6 +75,7 @@ async function generateLink(formData) {
 
 async function emailLink(formData) {
   "use server";
+  await requireAdmin();
   const id = Number(formData.get("id"));
   const token = ensureExhibitorToken(id);
   const ex = getExhibitor(id);
@@ -168,7 +174,8 @@ function SelfEditLink({ ex }) {
 
 const PHASE_LABEL = { current: "On view", past: "Past", hidden: "Hidden" };
 
-export default function ExhibitorsAdminPage() {
+export default async function ExhibitorsAdminPage() {
+  await requireAdmin();
   const exhibitors = listExhibitors();
 
   return (

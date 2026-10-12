@@ -12,10 +12,10 @@ import { cx } from "./ui/cx.js";
  * section plus View website / Sign out / the signed-in email — the actions
  * that were previously unreachable on a phone.
  */
-export default function BottomNav({ email, isOwner = false, canManageBookings = false, logout }) {
+export default function BottomNav({ email, isOwner = false, canManageBookings = false, canManageStaff = false, logout }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const nav = navFor({ isOwner, canManageBookings });
+  const nav = navFor({ isOwner, canManageBookings, canManageStaff });
 
   // Close the sheet on navigation.
   useEffect(() => {

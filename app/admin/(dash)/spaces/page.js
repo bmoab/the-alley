@@ -6,6 +6,7 @@ import Placeholder from "@/components/Placeholder.js";
 import ContentImageField from "@/components/ContentImageField.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Button from "@/components/admin/ui/Button.js";
+import { requireAdmin } from "@/lib/auth.js";
 
 export const metadata = { title: "Spaces" };
 
@@ -17,6 +18,7 @@ function refresh() {
 
 async function addPhoto(formData) {
   "use server";
+  await requireAdmin();
   const space = (formData.get("space") || "").toString();
   const path = (formData.get("image_path") || "").toString().trim();
   if (space && path) {
@@ -28,6 +30,7 @@ async function addPhoto(formData) {
 
 async function savePhoto(formData) {
   "use server";
+  await requireAdmin();
   updateSpacePhoto(Number(formData.get("id")), {
     caption: (formData.get("caption") || "").toString().trim() || null,
     sort_order: formData.get("sort_order"),
@@ -38,12 +41,14 @@ async function savePhoto(formData) {
 
 async function removePhoto(formData) {
   "use server";
+  await requireAdmin();
   deleteSpacePhoto(Number(formData.get("id")));
   refresh();
   redirect("/admin/spaces#" + formData.get("space"));
 }
 
-export default function SpacesAdminPage() {
+export default async function SpacesAdminPage() {
+  await requireAdmin();
   return (
     <div>
       <PageHeader

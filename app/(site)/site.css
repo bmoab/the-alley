@@ -284,6 +284,7 @@
 .sh-actions { display: flex; align-items: center; gap: 10px; }
 .sh-cta { padding: 12px 20px; }
 .sh-cta-short { display: none; }
+.sh-login { gap: 8px; white-space: nowrap; }
 
 /* "More" dropdown (desktop) */
 .sh-more { position: relative; display: flex; align-items: center; }
@@ -308,6 +309,8 @@
 .sh[data-theme="dark"] .sh-burger:hover { background: #fff; color: #161614; border-color: #fff; }
 .sh[data-theme="dark"] .sh-cta.btn--solid { background: #f4f0e8; color: #17130f; }
 .sh[data-theme="dark"] .sh-cta.btn--solid:hover { background: #fff; color: #17130f; }
+.sh[data-theme="dark"] .sh-login.btn--ghost { color: #fff; border-color: rgba(255,255,255,.4); }
+.sh[data-theme="dark"] .sh-login.btn--ghost:hover { background: #fff; color: #161614; border-color: #fff; }
 .sh-sheet { position: fixed; inset: 0; z-index: 80; background: rgba(22,22,20,.5); backdrop-filter: blur(4px); display: flex; justify-content: flex-end; animation: fadein .2s ease; }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
 .sh-sheet-nav { width: min(320px,82vw); background: var(--verde); height: 100%; padding: 92px 30px 30px; display: flex; flex-direction: column; gap: 6px; border-left: 1px solid var(--line-strong); }
@@ -591,6 +594,17 @@ a.ex-handle:hover { text-decoration-color: var(--ink); }
   .sh-cta { padding: 8px 14px; font-size: 11px; }
   .sh-cta-full { display: none; }
   .sh-cta-short { display: inline; }
+}
+/* Phones: "Log in" in words while it fits, just the person icon below that.
+   (.dir-b .btn sets the desktop padding, so match its weight to override it.) */
+@media (max-width: 720px) {
+  .dir-b .sh-login { padding: 0 12px; height: 42px; font-size: 11px; }
+  .sh-login svg { display: none; }
+}
+@media (max-width: 380px) {
+  .dir-b .sh-login { width: 42px; padding: 0; justify-content: center; }
+  .sh-login svg { display: block; }
+  .sh-login-text { display: none; }
 }
 @media (max-width: 560px) {
   .ways-grid, .pillars-grid { grid-template-columns: 1fr; }

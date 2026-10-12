@@ -4,10 +4,12 @@ import AdminCalendar from "@/components/AdminCalendar.js";
 import { listBookings } from "@/lib/bookings.js";
 import { listAdminCalendarEvents, listingIndex } from "@/lib/catalog.js";
 import { listClosures, createClosure, deleteClosure } from "@/lib/closures.js";
-import { SPACES, spaceName, formatDate, formatTime } from "@/lib/constants.js";
+import { SPACES, spaceName, formatDate, formatTime, shiftDate, venueToday } from "@/lib/constants.js";
+import { listShifts, weekStart } from "@/lib/staff.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
 import Button from "@/components/admin/ui/Button.js";
+import { requireAdmin } from "@/lib/auth.js";
 
 export const metadata = { title: "Calendar" };
 export const dynamic = "force-dynamic";
@@ -20,6 +22,7 @@ function refreshClosures() {
 
 async function addClosure(formData) {
   "use server";
+  await requireAdmin();
   const allDay = formData.get("all_day") != null;
   createClosure({
     space: (formData.get("space") || "all").toString(),
@@ -35,6 +38,7 @@ async function addClosure(formData) {
 
 async function removeClosure(formData) {
   "use server";
+  await requireAdmin();
   deleteClosure(Number(formData.get("id")));
   refreshClosures();
   redirect("/admin/calendar#closures");
@@ -62,7 +66,8 @@ const HIDDEN_REASON = {
   pending: "not showing — its booking isn't approved yet",
 };
 
-export default function CalendarPage() {
+export default async function CalendarPage() {
+  await requireAdmin();
   const held = listBookings({ status: "held" });
   const confirmed = listBookings({ status: "confirmed" });
   const cancelled = listBookings({ status: "cancelled" });
@@ -171,7 +176,31 @@ export default function CalendarPage() {
     href: `/admin/bookings?status=all&preset=all&focus=${b.id}&b=${b.id}#b-${b.id}`,
   }));
 
-  const items = [...bookingItems, ...eventItems, ...cancelledItems];
+  // Staff on shift: ONE summary chip per day rather than a chip per person, so a
+  // fully staffed Saturday doesn't push the night's events under "+3 more". It
+  // opens that week of the schedule; the tooltip names who's on.
+  const today = venueToday();
+  const shiftsByDate = {};
+  for (const s of listShifts({ from: shiftDate(today, { months: -6 }), to: shiftDate(today, { months: 12 }) })) {
+    (shiftsByDate[s.date] ||= []).push(s);
+  }
+  const staffItems = Object.entries(shiftsByDate).map(([date, list]) => {
+    const people = list.filter((s) => s.employee_id).length;
+    const open = list.length - people;
+    const drafts = list.filter((s) => s.status === "draft").length;
+    return {
+      id: date,
+      date,
+      kind: "staff",
+      title: `${people} on shift${open ? ` · ${open} open` : ""}`,
+      meta:
+        list.map((s) => `${s.employee_name || "Open"} ${formatTime(s.start_time)}–${formatTime(s.end_time)}`).join(", ") +
+        (drafts ? ` · ${drafts} not published yet` : ""),
+      href: `/admin/schedule?week=${weekStart(date)}`,
+    };
+  });
+
+  const items = [...bookingItems, ...eventItems, ...cancelledItems, ...staffItems];
 
   return (
     <div>

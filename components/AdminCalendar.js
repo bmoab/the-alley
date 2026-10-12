@@ -40,6 +40,8 @@ const KIND_STYLES = {
   event: "bg-rust text-paper",
   eventHidden: "border border-dashed border-rust bg-rust/10 text-rust",
   cancelled: "bg-ink/15 text-ink-muted line-through",
+  // Who's working that day — deliberately quiet so it never reads as an event.
+  staff: "border border-ink/15 bg-paper-warm text-ink-soft",
 };
 
 // Tooltip prefixes. Both states of a room read the same here — the chip's `meta`
@@ -57,6 +59,7 @@ const KIND_LABELS = {
   event: "The Alley's own event",
   eventHidden: "The Alley's own event",
   cancelled: "Cancelled",
+  staff: "Staff",
 };
 
 // One swatch per room + the Alley's own, then a line explaining fill vs outline.
@@ -88,18 +91,25 @@ export default function AdminCalendar({ items = [], closedDates = {} }) {
     year: today.getFullYear(),
     month: today.getMonth(),
   });
+  const hasStaff = items.some((it) => it.kind === "staff");
+  const [showStaff, setShowStaff] = useState(true);
 
   const byDate = useMemo(() => {
     const map = {};
     for (const it of items) {
       if (!it.date) continue;
+      if (it.kind === "staff" && !showStaff) continue;
       (map[it.date] ||= []).push(it);
     }
     for (const list of Object.values(map)) {
-      list.sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+      // The staff chip goes last: the night's events are what the day is about.
+      list.sort(
+        (a, b) =>
+          (a.kind === "staff") - (b.kind === "staff") || (a.time || "").localeCompare(b.time || "")
+      );
     }
     return map;
-  }, [items]);
+  }, [items, showStaff]);
 
   const first = new Date(cursor.year, cursor.month, 1);
   const startDow = first.getDay();
@@ -164,6 +174,15 @@ export default function AdminCalendar({ items = [], closedDates = {} }) {
       <p className="mb-4 text-xs text-ink-muted">
         Filled = on the public calendar · Outlined = not public ·{" "}
         <span className="line-through">Grey</span> = cancelled
+        {hasStaff ? (
+          <>
+            {" · "}
+            <label className="inline-flex cursor-pointer items-center gap-1 align-middle">
+              <input type="checkbox" checked={showStaff} onChange={(e) => setShowStaff(e.target.checked)} />
+              Show who&apos;s on shift
+            </label>
+          </>
+        ) : null}
       </p>
 
       <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold uppercase tracking-wider text-ink-muted">

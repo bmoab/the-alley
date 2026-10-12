@@ -117,7 +117,11 @@ export default async function TeamPage() {
               <option value="user">User — view &amp; edit content, can’t approve or charge bookings</option>
               <option value="admin">Admin — manage bookings &amp; content, can’t manage team</option>
               <option value="owner">Owner — everything, including the team</option>
+              <option value="staff">Staff — their own shifts, clock and hours only (no admin)</option>
             </select>
+            <p className="mt-1 text-xs text-ink-muted">
+              Adding an employee? Use Staff → Employees instead — it puts them on the schedule and makes the login in one go.
+            </p>
           </div>
           <div>
             <label className="label" htmlFor="password">Initial password (optional)</label>
@@ -167,6 +171,7 @@ export default async function TeamPage() {
                         <option value="user">User</option>
                         <option value="admin">Admin</option>
                         <option value="owner">Owner</option>
+                        <option value="staff">Staff</option>
                       </select>
                       <Button type="submit" variant="ghost" size="sm" disabled={lastOwner}>
                         Set

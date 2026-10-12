@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { canSellTickets, ticketsLeft, startTicketCheckout, MAX_PER_ORDER } from "@/lib/tickets.js";
 import { getEvent, normalizeLinkUrl, parseEventLinks, getEventSessions, applySessionContent } from "@/lib/catalog.js";
 import { directoryLinkLabel } from "@/lib/link-label.js";
 import { formatDate, spaceName } from "@/lib/constants.js";
@@ -12,9 +13,29 @@ export function generateMetadata({ params }) {
   return { title: e?.title || "Event" };
 }
 
-export default function EventDetailPage({ params, searchParams }) {
+/**
+ * Buy tickets to one of The Alley's own events: check spots, then off to a
+ * Square checkout that adds sales tax. Square prices it from the catalog, so
+ * nothing about the price comes from this form.
+ */
+async function buyTickets(formData) {
+  "use server";
+  const id = Number(formData.get("id"));
+  let url;
+  try {
+    ({ url } = await startTicketCheckout(id, formData.get("qty"), { appUrl: process.env.APP_URL || "" }));
+  } catch (err) {
+    redirect(`/events/${id}?ticketError=${encodeURIComponent(err.message || "Couldn't start checkout — please try again.")}#tickets`);
+  }
+  redirect(url);
+}
+
+export default async function EventDetailPage({ params, searchParams }) {
   const e = getEvent(params.id);
   if (!e || e.status !== "live") notFound();
+  const alleyTickets = canSellTickets(e) && e.ticket_sales_open && e.square_ticket_variation_id && e.ticket_price;
+  const left = alleyTickets ? await ticketsLeft(e).catch(() => null) : null;
+  const maxQty = left == null ? MAX_PER_ORDER : Math.min(MAX_PER_ORDER, left);
   const links = parseEventLinks(e);
 
   // Recurring series: pick the session (from ?d=, else the next upcoming, else
@@ -72,7 +93,41 @@ export default function EventDetailPage({ params, searchParams }) {
             {m.price ? <div><b>{m.price}</b> <span style={{ color: "var(--ink-muted)" }}>per spot</span></div> : null}
           </div>
 
-          {e.payment_instructions || e.payment_link ? (
+          {alleyTickets ? (
+            <div id="tickets" className="card" style={{ marginTop: 22, padding: 20 }}>
+              <p className="eyebrow" style={{ color: "var(--verde-deep)" }}>Tickets</p>
+              {searchParams?.bought ? (
+                <p style={{ marginTop: 8, color: "var(--ink)" }}>
+                  Thank you — you&apos;re in! Square has emailed your receipt.
+                </p>
+              ) : null}
+              <p style={{ marginTop: 8, color: "var(--ink-soft)", fontWeight: 300 }}>
+                <b style={{ color: "var(--ink)", fontWeight: 600 }}>${Number(e.ticket_price).toFixed(2)}</b> per ticket, plus sales tax
+                {left != null ? ` · ${left ? `${left} left` : "sold out"}` : ""}
+              </p>
+              {searchParams?.ticketError ? (
+                <p style={{ marginTop: 8, color: "#9c4a2e" }}>{searchParams.ticketError}</p>
+              ) : null}
+              {maxQty > 0 ? (
+                <form action={buyTickets} style={{ marginTop: 14, display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+                  <input type="hidden" name="id" value={e.id} />
+                  <select name="qty" defaultValue="1" className="field" style={{ width: "auto" }} aria-label="How many tickets">
+                    {Array.from({ length: maxQty }, (_, i) => i + 1).map((n) => (
+                      <option key={n} value={n}>
+                        {n} ticket{n === 1 ? "" : "s"}
+                      </option>
+                    ))}
+                  </select>
+                  <button type="submit" className="btn btn--solid">Buy tickets →</button>
+                </form>
+              ) : null}
+              <p className="mono" style={{ marginTop: 12, fontSize: 11, color: "var(--ink-muted)" }}>
+                Sold by The Alley. Checkout is through Square, which adds Utah sales tax.
+              </p>
+            </div>
+          ) : null}
+
+          {!alleyTickets && (e.payment_instructions || e.payment_link) ? (
             <div className="card" style={{ marginTop: 22, padding: 20 }}>
               <p className="eyebrow" style={{ color: "var(--verde-deep)" }}>How to reserve your spot</p>
               {e.payment_instructions ? <p style={{ marginTop: 8, color: "var(--ink-soft)", fontWeight: 300 }}>{e.payment_instructions}</p> : null}

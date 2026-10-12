@@ -11,6 +11,7 @@ import ContentImageField from "@/components/ContentImageField.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
 import Button from "@/components/admin/ui/Button.js";
+import { requireAdmin } from "@/lib/auth.js";
 
 export const metadata = { title: "Gallery" };
 
@@ -29,6 +30,7 @@ function parseTagsInput(value) {
 
 async function addImage(formData) {
   "use server";
+  await requireAdmin();
   const path = (formData.get("image_path") || "").toString().trim();
   if (!path) redirect("/admin/gallery");
   createGalleryImage(
@@ -43,6 +45,7 @@ async function addImage(formData) {
 
 async function saveImage(formData) {
   "use server";
+  await requireAdmin();
   updateGalleryImage(Number(formData.get("id")), {
     caption: (formData.get("caption") || "").toString().trim() || null,
     tags: parseTagsInput(formData.get("tags")),
@@ -54,12 +57,14 @@ async function saveImage(formData) {
 
 async function removeImage(formData) {
   "use server";
+  await requireAdmin();
   deleteGalleryImage(Number(formData.get("id")));
   refresh();
   redirect("/admin/gallery");
 }
 
-export default function GalleryAdminPage() {
+export default async function GalleryAdminPage() {
+  await requireAdmin();
   const images = listGallery();
 
   return (

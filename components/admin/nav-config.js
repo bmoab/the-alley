@@ -17,6 +17,16 @@ import {
   Activity,
   Users,
   LayoutTemplate,
+  UserRound,
+  CalendarClock,
+  Contact,
+  ShoppingBag,
+  Package,
+  PackageOpen,
+  Tags,
+  ClipboardCheck,
+  Handshake,
+  Receipt,
 } from "lucide-react";
 
 // Full navigation, in sidebar order. Items are either a link
@@ -36,6 +46,26 @@ export const NAV = [
     ],
   },
   { href: "/admin/calendar", label: "Calendar", icon: CalendarDays },
+  {
+    group: "Staff",
+    icon: UserRound,
+    items: [
+      { href: "/admin/schedule", label: "Schedule", icon: CalendarClock, needsStaff: true },
+      { href: "/admin/employees", label: "Employees", icon: Contact, needsStaff: true },
+    ],
+  },
+  {
+    group: "Shop",
+    icon: ShoppingBag,
+    items: [
+      { href: "/admin/inventory", label: "Inventory", icon: Package },
+      { href: "/admin/inventory/dropoffs", label: "Drop-offs", icon: PackageOpen },
+      { href: "/admin/inventory/tags", label: "Price tags", icon: Tags },
+      { href: "/admin/inventory/count", label: "Shelf count", icon: ClipboardCheck },
+      { href: "/admin/vendors", label: "Makers", icon: Handshake },
+      { href: "/admin/sales", label: "Sales", icon: Receipt },
+    ],
+  },
   { href: "/admin/events", label: "Public Events", icon: Megaphone },
   { href: "/admin/directory", label: "Directory", icon: Building2 },
   { href: "/admin/exhibitors", label: "Exhibitors", icon: Store },
@@ -57,14 +87,17 @@ export const NAV = [
 
 /**
  * NAV filtered for the current user's capabilities. `perms` is
- * { isOwner, canManageBookings }. Drops owner-only items when not an owner and
- * booking-management items when the user can't manage bookings, then prunes any
- * group left empty. (A bare boolean is still accepted as legacy isOwner.)
+ * { isOwner, canManageBookings, canManageStaff }. Drops owner-only items when
+ * not an owner, booking-management items when the user can't manage bookings and
+ * staff items (schedule, employees) when they can't manage staff,
+ * then prunes any group left empty. (A bare boolean is still accepted as legacy isOwner.)
  */
 export function navFor(perms = {}) {
   const p = typeof perms === "boolean" ? { isOwner: perms } : perms;
   const allowed = (item) =>
-    (!item.ownerOnly || p.isOwner) && (!item.needsBookings || p.canManageBookings);
+    (!item.ownerOnly || p.isOwner) &&
+    (!item.needsBookings || p.canManageBookings) &&
+    (!item.needsStaff || p.canManageStaff);
   return NAV.flatMap((item) => {
     if (item.group) {
       const items = item.items.filter(allowed);
@@ -83,8 +116,13 @@ export const PRIMARY_TABS = [
   { href: "/admin/calendar", label: "Calendar", icon: CalendarDays },
 ];
 
-// Helper shared by both nav surfaces.
+const ALL_HREFS = NAV.flatMap((item) => (item.group ? item.items.map((i) => i.href) : [item.href]));
+
+// Helper shared by both nav surfaces. A page under a longer nav entry belongs
+// to that entry alone (Drop-offs, not Inventory too).
 export function isActive(pathname, href) {
   if (href === "/admin") return pathname === "/admin";
-  return pathname === href || pathname.startsWith(href + "/");
+  const matches = (h) => pathname === h || pathname.startsWith(h + "/");
+  if (!matches(href)) return false;
+  return !ALL_HREFS.some((other) => other.length > href.length && other.startsWith(href + "/") && matches(other));
 }

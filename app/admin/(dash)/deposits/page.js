@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { listDepositsToRefund, resolveDeposit } from "@/lib/deposits.js";
-import { getActor, getCurrentUser, canManageBookings, requireBookingManager } from "@/lib/auth.js";
+import { getActor, getCurrentUser, canManageBookings, requireBookingManager, requireAdmin } from "@/lib/auth.js";
 import { spaceName, formatDate, formatMoney } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
@@ -50,7 +50,8 @@ async function resolve(formData) {
   );
 }
 
-export default function DepositsPage() {
+export default async function DepositsPage() {
+  await requireAdmin();
   // NOTE: reminders are sent only by the scheduled cron (GET
   // /api/cron/deposit-reminders, point it at ~9am America/Denver). We no longer
   // fire them on page load, so opening this page never sends an email.

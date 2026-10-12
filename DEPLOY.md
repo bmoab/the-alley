@@ -110,6 +110,18 @@ attachment; over it, a notice is sent instead. `BACKUP_MAX_EMAIL_MB=0` = notice-
 
 ---
 
+## Cron (Square register sales)
+
+Add a **nightly** cron (same auth) hitting
+`GET https://alleyoncenter.com/api/cron/square-sales?key=<CRON_SECRET>` — ~2 AM
+Mountain is `0 8 * * *` UTC. It copies completed Square orders into the site
+(consignor payouts, the Sales page and its Utah sales-tax numbers) and refreshes
+every item's on-hand count. It re-reads a two-hour overlap and ignores duplicates,
+so running it more often (or pressing "Pull now" on Sales) is harmless. The first
+run reaches back 30 days.
+
+---
+
 ## DNS cutover (last step)
 
 1. Verify everything on the temporary `*.up.railway.app` URL first.

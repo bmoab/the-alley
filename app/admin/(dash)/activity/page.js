@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { requireAdmin } from "@/lib/auth.js";
 import { listAllActivity } from "@/lib/activity.js";
 import {
   TYPE_LABELS,
@@ -15,7 +16,8 @@ import { DataTable, Tr, Td } from "@/components/admin/ui/DataTable.js";
 
 export const metadata = { title: "Activity" };
 
-export default function ActivityFeedPage({ searchParams }) {
+export default async function ActivityFeedPage({ searchParams }) {
+  await requireAdmin();
   const type = searchParams?.type || "all";
   const q = searchParams?.q || "";
   const rows = listAllActivity({ type, q, limit: 300 });

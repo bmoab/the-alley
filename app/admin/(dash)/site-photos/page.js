@@ -6,6 +6,7 @@ import ContentImageField from "@/components/ContentImageField.js";
 import ImageCropField from "@/components/ImageCropField.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Button from "@/components/admin/ui/Button.js";
+import { requireAdmin } from "@/lib/auth.js";
 
 export const metadata = { title: "Site Photos" };
 
@@ -32,6 +33,7 @@ const IMAGE_FIELDS = [
 
 async function save(formData) {
   "use server";
+  await requireAdmin();
   for (const f of IMAGE_FIELDS) {
     setContent(f.key, (formData.get(f.key) || "").toString());
     // Crop rectangle (homepage hero): JSON {x,y,w,h,nw,nh} or "" when unset.
@@ -50,7 +52,8 @@ async function save(formData) {
   redirect("/admin/site-photos?saved=1");
 }
 
-export default function SitePhotosPage() {
+export default async function SitePhotosPage() {
+  await requireAdmin();
   const c = getContent();
 
   return (

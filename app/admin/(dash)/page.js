@@ -1,4 +1,5 @@
 import { Inbox, Clock, CalendarCheck, Megaphone } from "lucide-react";
+import { requireAdmin } from "@/lib/auth.js";
 import { listBookings } from "@/lib/bookings.js";
 import { listLiveEvents } from "@/lib/catalog.js";
 import { BOOKING_STATUS } from "@/lib/constants.js";
@@ -7,7 +8,8 @@ import StatCard from "@/components/admin/ui/StatCard.js";
 
 export const metadata = { title: "Dashboard" };
 
-export default function AdminDashboard() {
+export default async function AdminDashboard() {
+  await requireAdmin();
   const pending = listBookings({ status: BOOKING_STATUS.PENDING });
   const held = listBookings({ status: BOOKING_STATUS.HELD });
   const confirmed = listBookings({ status: BOOKING_STATUS.CONFIRMED });

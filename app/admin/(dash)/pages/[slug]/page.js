@@ -5,6 +5,7 @@ import { getContent, setContent } from "@/lib/db.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import PagesEditor from "@/components/admin/PagesEditor.js";
 import { cx } from "@/components/admin/ui/cx.js";
+import { requireAdmin } from "@/lib/auth.js";
 
 /**
  * Visual "Pages" editor: pick a page, edit its words/photos/lists on the left,
@@ -157,6 +158,7 @@ export function generateMetadata({ params }) {
 
 async function save(formData) {
   "use server";
+  await requireAdmin();
   const slug = (formData.get("__slug") || "").toString();
   const page = PAGES[slug];
   if (!page) redirect("/admin/pages/home");
@@ -188,7 +190,8 @@ async function save(formData) {
   redirect(base);
 }
 
-export default function PageEditor({ params, searchParams }) {
+export default async function PageEditor({ params, searchParams }) {
+  await requireAdmin();
   const slug = params.slug;
   const page = PAGES[slug];
   if (!page) notFound();

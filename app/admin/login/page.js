@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { verifyCredentials, setSessionCookie, getCurrentUser, recordLogin, ensureSeeded } from "@/lib/auth.js";
+import { verifyCredentials, setSessionCookie, getSignedInUser, recordLogin, ensureSeeded, homeFor } from "@/lib/auth.js";
 import Button from "@/components/admin/ui/Button.js";
 
 export const metadata = { title: "Admin Sign In" };
@@ -17,17 +17,19 @@ async function login(formData) {
   recordLogin(user.id);
   await setSessionCookie(user);
   // First login (or an owner-reset) forces choosing a new password.
-  redirect(user.must_change_password ? "/admin/set-password" : "/admin");
+  redirect(user.must_change_password ? "/admin/set-password" : homeFor(user));
 }
 
 export default async function LoginPage({ searchParams }) {
   // Ensure the two owner accounts exist (prints their one-time temp passwords to
   // the server console on first run). Idempotent.
   ensureSeeded();
-  // Already signed in with an ACTIVE account? Go straight to the dashboard.
-  // (Checking getCurrentUser, not just the raw cookie, so a stale session for a
-  // since-deactivated account doesn't bounce /admin ⇄ /admin/login forever.)
-  if (await getCurrentUser()) redirect("/admin");
+  // Already signed in with an ACTIVE account? Go straight to their home — the
+  // dashboard, or the staff area for an employee login. (Checking the user row,
+  // not just the raw cookie, so a stale session for a since-deactivated account
+  // doesn't bounce /admin ⇄ /admin/login forever.)
+  const signedIn = await getSignedInUser();
+  if (signedIn) redirect(homeFor(signedIn));
   const hasError = searchParams?.error;
   const didReset = searchParams?.reset;
 
@@ -45,13 +47,13 @@ export default async function LoginPage({ searchParams }) {
           <Link href="/" className="mt-3 text-xl font-semibold tracking-tight text-ink">
             The Alley <span className="text-verde-deep">On Center</span>
           </Link>
-          <p className="mt-1 text-sm text-ink-muted">Owner administration</p>
+          <p className="mt-1 text-sm text-ink-muted">Owner &amp; staff sign-in</p>
         </div>
 
         <div className="card p-8">
           <h1 className="text-2xl font-semibold text-ink">Welcome back</h1>
           <p className="mt-1 text-sm text-ink-muted">
-            Sign in to manage bookings, events, and your site.
+            Sign in to manage bookings, events, and your site — or, for staff, your shifts.
           </p>
 
           {hasError ? (
