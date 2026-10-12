@@ -4,9 +4,7 @@ import {
   LayoutDashboard,
   CalendarDays,
   Inbox,
-  CalendarCheck,
   Wallet,
-  Megaphone,
   Building2,
   Store,
   Image,
@@ -33,6 +31,8 @@ import {
 // { href, label, icon } or a group { group, icon, items:[...] }.
 export const NAV = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  // One page for the calendar, every booking and every listing.
+  { href: "/admin/events", label: "Events", icon: CalendarDays },
   {
     group: "Reservations",
     icon: ClipboardList,
@@ -40,12 +40,10 @@ export const NAV = [
       // Requests (approve/deny) and Deposits (refunds) are booking-management
       // surfaces — hidden from a limited "user" (server-guarded regardless).
       { href: "/admin/requests", label: "Requests", icon: Inbox, needsBookings: true },
-      { href: "/admin/bookings", label: "Bookings", icon: CalendarCheck },
       { href: "/admin/deposits", label: "Deposits", icon: Wallet, needsBookings: true },
       { href: "/admin/activity", label: "Activity", icon: Activity },
     ],
   },
-  { href: "/admin/calendar", label: "Calendar", icon: CalendarDays },
   {
     group: "Staff",
     icon: UserRound,
@@ -66,7 +64,6 @@ export const NAV = [
       { href: "/admin/sales", label: "Sales", icon: Receipt },
     ],
   },
-  { href: "/admin/events", label: "Public Events", icon: Megaphone },
   { href: "/admin/directory", label: "Directory", icon: Building2 },
   { href: "/admin/exhibitors", label: "Exhibitors", icon: Store },
   {
@@ -112,8 +109,8 @@ export function navFor(perms = {}) {
 export const PRIMARY_TABS = [
   { href: "/admin", label: "Home", icon: LayoutDashboard },
   { href: "/admin/requests", label: "Requests", icon: Inbox },
-  { href: "/admin/bookings", label: "Bookings", icon: CalendarCheck },
-  { href: "/admin/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/admin/events", label: "Events", icon: CalendarDays },
+  { href: "/admin/inventory", label: "Shop", icon: Package },
 ];
 
 const ALL_HREFS = NAV.flatMap((item) => (item.group ? item.items.map((i) => i.href) : [item.href]));

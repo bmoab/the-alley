@@ -59,7 +59,7 @@ export async function POST(request) {
   // submission in front of you.
   if (existing.status !== "live" && existing.status !== "private") {
     return NextResponse.json(
-      { error: "This listing is still awaiting review — publish it from Public Events." },
+      { error: "This listing is still awaiting review — open it on the Events page and approve it there." },
       { status: 409 }
     );
   }

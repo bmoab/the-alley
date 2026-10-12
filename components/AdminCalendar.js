@@ -85,12 +85,17 @@ function fmtTime(hhmm) {
  * they can't (the `meta` says why).
  * `items` is a flat list of { id, date: "YYYY-MM-DD", title, kind, time, meta }.
  */
-export default function AdminCalendar({ items = [], closedDates = {} }) {
+export default function AdminCalendar({ items = [], closedDates = {}, collapsible = false, dayHrefPrefix = null, selectedDay = null }) {
   const today = new Date();
-  const [cursor, setCursor] = useState({
-    year: today.getFullYear(),
-    month: today.getMonth(),
-  });
+  // On a phone the month is a lot of scrolling above the list, so a collapsible
+  // calendar starts as just this week; "Whole month" opens the rest.
+  const [expanded, setExpanded] = useState(false);
+  // Opens on the picked day's month when there is one (?day= on the page).
+  const [cursor, setCursor] = useState(() =>
+    selectedDay
+      ? { year: Number(selectedDay.slice(0, 4)), month: Number(selectedDay.slice(5, 7)) - 1 }
+      : { year: today.getFullYear(), month: today.getMonth() }
+  );
   const hasStaff = items.some((it) => it.kind === "staff");
   const [showStaff, setShowStaff] = useState(true);
 
@@ -122,6 +127,11 @@ export default function AdminCalendar({ items = [], closedDates = {} }) {
   const cells = [];
   for (let i = 0; i < startDow; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7) cells.push(null);
+  // The week shown when collapsed: today's in this month, else the first.
+  const inThisMonth = cursor.month === today.getMonth() && cursor.year === today.getFullYear();
+  const shownWeek = inThisMonth ? Math.floor((startDow + today.getDate() - 1) / 7) : 0;
+  const folded = collapsible && !expanded;
 
   function shift(delta) {
     setCursor((c) => {
@@ -192,9 +202,20 @@ export default function AdminCalendar({ items = [], closedDates = {} }) {
           </div>
         ))}
       </div>
+      {collapsible ? (
+        <button
+          type="button"
+          onClick={() => setExpanded((x) => !x)}
+          className="mb-2 text-xs font-semibold text-verde-deep hover:underline sm:hidden"
+        >
+          {expanded ? "Just this week ▴" : "Whole month ▾"}
+        </button>
+      ) : null}
       <div className="grid grid-cols-7 gap-1">
         {cells.map((d, i) => {
-          if (!d) return <div key={i} className="min-h-[84px] rounded-lg" />;
+          // Folded on a phone: only the shown week (a computer always gets the month).
+          const hide = folded && Math.floor(i / 7) !== shownWeek ? "hidden sm:block" : "";
+          if (!d) return <div key={i} className={`min-h-[84px] rounded-lg ${hide}`} />;
           const ymd = `${cursor.year}-${pad(cursor.month + 1)}-${pad(d)}`;
           const dayItems = byDate[ymd] || [];
           const closedLabels = closedDates[ymd];
@@ -205,11 +226,18 @@ export default function AdminCalendar({ items = [], closedDates = {} }) {
           return (
             <div
               key={i}
-              className={`min-h-[84px] rounded-lg border p-1.5 text-left ${
-                isToday ? "border-brass bg-brass/5" : "border-ink/10"
+              className={`min-h-[84px] rounded-lg border p-1.5 text-left ${hide} ${
+                selectedDay === ymd ? "border-verde-deep ring-2 ring-verde-deep/40" : isToday ? "border-brass bg-brass/5" : "border-ink/10"
               }`}
             >
-              <div className="text-xs font-semibold text-ink-muted">{d}</div>
+              {dayHrefPrefix ? (
+                // The date shows that day in the list below.
+                <a href={`${dayHrefPrefix}${ymd}`} className="text-xs font-semibold text-ink-muted hover:text-ink hover:underline" title="Show this day in the list">
+                  {d}
+                </a>
+              ) : (
+                <div className="text-xs font-semibold text-ink-muted">{d}</div>
+              )}
               {closedLabels ? (
                 <div
                   className="mt-0.5 truncate rounded bg-rust/15 px-1.5 py-0.5 text-[10px] font-semibold text-rust"

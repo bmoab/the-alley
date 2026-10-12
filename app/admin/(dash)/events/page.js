@@ -1,758 +1,725 @@
+import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { listBookings } from "@/lib/bookings.js";
+import { releaseExpiredHolds } from "@/lib/payments.js";
+import { listAllEvents, listingIndex, listDirectory, eventLastDate } from "@/lib/catalog.js";
+import { listClosures, createClosure, deleteClosure } from "@/lib/closures.js";
+import { adminCalendarItems, closedDateMarkers, SPACE_LABEL } from "@/lib/calendar-items.js";
+import { getCurrentUser, canManageBookings, requireAdmin } from "@/lib/auth.js";
 import {
-  listAllEvents,
-  setEventStatus,
-  updateEvent,
-  deleteEvent,
-  createOwnEvent,
-  createHostInvite,
-  getEvent,
-  parseEventLinks,
-  eventLastDate,
-  getEventSessions,
-} from "@/lib/catalog.js";
-import LinksEditor from "@/components/LinksEditor.js";
-import EventMediaField from "@/components/admin/EventMediaField.js";
-import { emailHostInvite, emailHostReminder } from "@/lib/email.js";
-import { logEmail } from "@/lib/activity.js";
-import { getActor, requireAdmin, requireStaffManager } from "@/lib/auth.js";
-import { cache } from "react";
-import { canSellTickets, openTicketSales, setTicketSalesOpen, ticketsSold, ticketsLeft, salesTaxes } from "@/lib/tickets.js";
-import { logActivity } from "@/lib/activity.js";
-import { SPACES, spaceName, formatDate, formatTime, venueToday } from "@/lib/constants.js";
+  SPACES,
+  DATE_PRESETS,
+  DEFAULT_DATE_PRESET,
+  resolveDateRange,
+  spaceName,
+  formatDate,
+  formatDateShort,
+  formatTime,
+  formatMoney,
+} from "@/lib/constants.js";
 import { eventTimeLabel } from "@/lib/event-time.js";
-import { db } from "@/lib/db.js";
+import AdminCalendar from "@/components/AdminCalendar.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
+import Card from "@/components/admin/ui/Card.js";
+import Badge from "@/components/admin/ui/Badge.js";
 import Button from "@/components/admin/ui/Button.js";
+import BookingActionsMenu from "@/components/admin/BookingActionsMenu.js";
+import { DataTable, Tr, Td } from "@/components/admin/ui/DataTable.js";
 import { cx } from "@/components/admin/ui/cx.js";
+import ListingPanel, { NewEventForm } from "./ListingPanel.js";
+import { createEvent, inviteHost } from "./listing-actions.js";
+import {
+  markPaid,
+  keepOnCalendar,
+  setBookingPublic,
+  sendRescheduleLink,
+  resend,
+  checkPayment,
+  restore,
+  archive,
+} from "./booking-actions.js";
 
-export const metadata = { title: "Public Events" };
-
-const APP_URL = process.env.APP_URL || "";
-
-function invitedRedirect(hasEmail, id) {
-  if (hasEmail) {
-    redirect(
-      "/admin/events?toast=" +
-        encodeURIComponent("Invite link emailed to the host.") +
-        "&toastType=success#ev-" + id
-    );
-  }
-  redirect(
-    "/admin/events?toast=" +
-      encodeURIComponent(
-        "No host email entered — copy the link from “Awaiting host details” below and send it manually."
-      ) +
-      "&toastType=error#ev-" + id
-  );
-}
-
-function refresh() {
-  revalidatePath("/admin/events");
-  revalidatePath("/events");
-  revalidatePath("/calendar");
-  revalidatePath("/");
-}
-
-// Owner invites a host directly: minimal details now, host fills the rest.
-async function inviteHost(formData) {
-  "use server";
-  await requireAdmin();
-  const host_name = (formData.get("host_name") || "").toString().trim();
-  const host_email = (formData.get("host_email") || "").toString().trim();
-  if (!host_name) redirect("/admin/events");
-  const { id, token } = createHostInvite({
-    host_name,
-    host_email,
-    title: (formData.get("title") || "").toString().trim(),
-    date: (formData.get("date") || "").toString().trim(),
-    active_until: (formData.get("active_until") || "").toString().trim(),
-  });
-  if (host_email) {
-    try {
-      await emailHostInvite({ client_name: host_name, client_email: host_email }, token);
-    } catch (err) {
-      console.error("[events] host invite email error:", err.message);
-    }
-  }
-  refresh();
-  invitedRedirect(!!host_email, id);
-}
-
-// Re-send / reveal a draft host's invite link.
-async function emailHostLink(formData) {
-  "use server";
-  await requireAdmin();
-  const id = Number(formData.get("id"));
-  const ev = getEvent(id);
-  if (ev?.host_email && ev?.host_token) {
-    try {
-      await emailHostInvite({ client_name: ev.host_name, client_email: ev.host_email }, ev.host_token);
-    } catch (err) {
-      console.error("[events] host invite email error:", err.message);
-    }
-  }
-  refresh();
-  invitedRedirect(!!ev?.host_email, id);
-}
-
-// Nudge a host whose listing is live as a placeholder but still empty.
-async function remindHost(formData) {
-  "use server";
-  await requireAdmin();
-  const id = Number(formData.get("id"));
-  const ev = getEvent(id);
-  let ok = false;
-  if (ev?.host_email && ev?.host_token) {
-    try {
-      const res = await emailHostReminder(ev);
-      // Reset the auto-reminder clock so the cron doesn't double-nudge within
-      // its ~3-day window right after a manual reminder.
-      db.prepare("UPDATE events SET host_reminder_last_sent = ? WHERE id = ?").run(venueToday(), id);
-      // Record the nudge so there's a trail of who was reminded and when.
-      // Booking-tied listings attach to their booking's activity; manual
-      // invites (no booking) still land in the global activity feed.
-      logEmail({
-        bookingId: ev.booking_id || null,
-        eventType: "host_reminder_sent",
-        description: `Host-details reminder sent${ev.title ? ` · ${ev.title}` : ""}`,
-        recipientEmail: ev.host_email,
-        sendResult: res,
-        ...(await getActor()),
-      });
-      ok = true;
-    } catch (err) {
-      console.error("[events] host reminder email error:", err.message);
-    }
-  }
-  refresh();
-  redirect(
-    "/admin/events?toast=" +
-      encodeURIComponent(
-        ok
-          ? `Reminder sent to ${ev.host_email}.`
-          : ev?.host_token
-            ? "No host email on file — copy their link and send it manually."
-            : "Couldn't send the reminder."
-      ) +
-      "&toastType=" + (ok ? "success" : "neutral")
-  );
-}
-
-async function approveEvent(formData) {
-  "use server";
-  await requireAdmin();
-  setEventStatus(Number(formData.get("id")), "live", {
-    actor: await getActor(),
-    via: "approved from Public Events",
-  });
-  refresh();
-  redirect("/admin/events");
-}
-
-// Show / hide a listing on the public calendar. 'private' rather than the old
-// 'pending': unpublishing used to drop the listing into "Awaiting review", which
-// read as though it needed a decision when the decision had just been made.
-// Every public surface filters on status = 'live', so 'private' is invisible to
-// guests while staying fully editable here — and nothing the host wrote is lost.
-async function setEventPublic(formData) {
-  "use server";
-  await requireAdmin();
-  const id = Number(formData.get("id"));
-  const makePublic = formData.get("public") === "1";
-  const ev = setEventStatus(id, makePublic ? "live" : "private", {
-    actor: await getActor(),
-    via: "Public Events",
-  });
-  refresh();
-  // A bare "/admin/events" redirect is the page this form was submitted from,
-  // so it navigates nowhere and looks like nothing happened. The toast makes it
-  // a real navigation and confirms which way it went.
-  redirect(
-    "/admin/events?toast=" +
-      encodeURIComponent(
-        makePublic
-          ? `“${ev?.title || "Event"}” is on the public calendar.`
-          : `“${ev?.title || "Event"}” is hidden from the public calendar.`
-      ) +
-      `&toastType=${makePublic ? "success" : "neutral"}#ev-${id}`
-  );
-}
-
-async function removeEvent(formData) {
-  "use server";
-  await requireAdmin();
-  deleteEvent(Number(formData.get("id")));
-  refresh();
-  redirect("/admin/events");
-}
-
-function parseLinksField(formData) {
-  try {
-    const l = JSON.parse(formData.get("links") || "[]");
-    return Array.isArray(l) ? l : [];
-  } catch {
-    return [];
-  }
-}
-
-/** Uploaded PDF paths, posted by EventMediaField as a JSON array. */
-function parsePdfsField(formData) {
-  try {
-    const p = JSON.parse(formData.get("pdf_paths") || "[]");
-    return Array.isArray(p) ? p.filter((x) => typeof x === "string" && x) : [];
-  } catch {
-    return [];
-  }
-}
-
-async function saveEvent(formData) {
-  "use server";
-  await requireAdmin();
-  const id = Number(formData.get("id"));
-  updateEvent(id, {
-    title: formData.get("title"),
-    host_name: formData.get("host_name"),
-    description: formData.get("description"),
-    date: formData.get("date"),
-    time: formData.get("time"),
-    // Guest-facing times; blank clears back to the reservation time.
-    public_time: (formData.get("public_time") || "").toString(),
-    public_end_time: (formData.get("public_end_time") || "").toString(),
-    tickets: formData.get("tickets") || null,
-    price: formData.get("price"),
-    payment_instructions: formData.get("payment_instructions"),
-    payment_link: formData.get("payment_link"),
-    links: parseLinksField(formData),
-    // "" is an explicit "remove the photo", not "leave it alone".
-    photo_path: (formData.get("photo_path") ?? "").toString(),
-    pdf_paths: parsePdfsField(formData),
-  });
-  refresh();
-  redirect("/admin/events");
-}
-
-async function createEvent(formData) {
-  "use server";
-  await requireAdmin();
-  const created = createOwnEvent({
-    title: formData.get("title"),
-    host_name: formData.get("host_name") || "The Alley On Center",
-    description: formData.get("description"),
-    date: formData.get("date"),
-    time: formData.get("time"),
-    public_time: (formData.get("public_time") || "").toString(),
-    public_end_time: (formData.get("public_end_time") || "").toString(),
-    space: formData.get("space") || null,
-    tickets: formData.get("tickets") || null,
-    price: formData.get("price"),
-    payment_instructions: formData.get("payment_instructions"),
-    payment_link: formData.get("payment_link"),
-    photo_path: (formData.get("photo_path") || "").toString() || null,
-    pdf_paths: parsePdfsField(formData),
-    links: parseLinksField(formData),
-    status: "live",
-  });
-  refresh();
-  // Redirecting to the bare "/admin/events" was a no-op: that's the page the
-  // form is already on, so nothing visibly happened, no confirmation appeared,
-  // and the form kept its values — pressing "Publish event" again just created
-  // another copy. Carrying the new id + a toast makes it a real navigation, so
-  // the owner gets feedback and the form below resets (it's keyed on ?ev=).
-  redirect(
-    `/admin/events?ev=${created.id}&toast=` +
-      encodeURIComponent(`"${created.title || "Event"}" is live on the calendar.`) +
-      "&toastType=success"
-  );
-}
-
-/** An event's stored pdf_paths JSON → array (tolerates null / bad JSON). */
-function parsePdfPaths(ev) {
-  try {
-    const p = JSON.parse(ev.pdf_paths || "[]");
-    return Array.isArray(p) ? p : [];
-  } catch {
-    return [];
-  }
-}
-
-function EventEditor({ ev }) {
-  return (
-    <form action={saveEvent} className="mt-3 grid grid-cols-1 gap-3 border-t border-line pt-3">
-      <input type="hidden" name="id" value={ev.id} />
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div><label className="label">Title</label><input name="title" defaultValue={ev.title || ""} className="field" /></div>
-        <div><label className="label">Host name</label><input name="host_name" defaultValue={ev.host_name || ""} className="field" /></div>
-      </div>
-      <div><label className="label">Description</label><textarea name="description" rows={3} defaultValue={ev.description || ""} className="field" /></div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
-        <div><label className="label">Date</label><input type="date" name="date" defaultValue={ev.date || ""} className="field" /></div>
-        <div><label className="label">Booking time</label><input type="time" name="time" defaultValue={ev.time || ""} className="field" /></div>
-        <div><label className="label">Spots</label><input type="number" name="tickets" defaultValue={ev.tickets ?? ""} className="field" /></div>
-        <div><label className="label">Price</label><input name="price" defaultValue={ev.price || ""} className="field" /></div>
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div><label className="label">Guests arrive at</label><input type="time" name="public_time" defaultValue={ev.public_time || ""} className="field" /></div>
-        <div><label className="label">Ends at</label><input type="time" name="public_end_time" defaultValue={ev.public_end_time || ""} className="field" /></div>
-      </div>
-      <p className="-mt-1 text-xs text-ink-muted">
-        What the public calendar shows. Hosts often book early to set up — set these
-        so guests see the real event time. Blank falls back to the booking time.
-        Changing them never moves the reservation.
-      </p>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div><label className="label">Payment instructions</label><input name="payment_instructions" defaultValue={ev.payment_instructions || ""} className="field" /></div>
-        <div><label className="label">Payment link</label><input name="payment_link" defaultValue={ev.payment_link || ""} className="field" /></div>
-      </div>
-      <div>
-        <label className="label">Links (buttons on the public listing)</label>
-        <LinksEditor name="links" value={parseEventLinks(ev)} />
-      </div>
-      <EventMediaField photo={ev.photo_path || ""} pdfs={parsePdfPaths(ev)} />
-      <Button type="submit" className="w-fit">Save changes</Button>
-    </form>
-  );
-}
-
-async function openTickets(formData) {
-  "use server";
-  await requireStaffManager();
-  const id = Number(formData.get("id"));
-  let ev;
-  try {
-    ev = await openTicketSales(id, { price: formData.get("ticket_price"), capacity: formData.get("ticket_capacity") });
-  } catch (err) {
-    redirect(`/admin/events?ev=${id}&toast=${encodeURIComponent(err.message)}&toastType=error#ev-${id}`);
-  }
-  logActivity({
-    eventType: "tickets_opened",
-    description: `Tickets on sale for "${ev.title}" at $${Number(ev.ticket_price).toFixed(2)} + sales tax${ev.ticket_capacity ? ` · ${ev.ticket_capacity} spots` : ""}`,
-    ...(await getActor()),
-  });
-  revalidatePath("/admin/events");
-  revalidatePath(`/events/${id}`);
-  redirect(`/admin/events?ev=${id}&toast=${encodeURIComponent("Tickets are on sale — sales tax is added at checkout and at the register.")}&toastType=success#ev-${id}`);
-}
-
-async function toggleTickets(formData) {
-  "use server";
-  await requireStaffManager();
-  const id = Number(formData.get("id"));
-  const open = formData.get("open") === "1";
-  setTicketSalesOpen(id, open);
-  logActivity({ eventType: open ? "tickets_opened" : "tickets_closed", description: `Online ticket sales ${open ? "reopened" : "stopped"} for event #${id}`, ...(await getActor()) });
-  revalidatePath("/admin/events");
-  revalidatePath(`/events/${id}`);
-  redirect(`/admin/events?ev=${id}&toast=${encodeURIComponent(open ? "Online sales reopened." : "Online sales stopped — door sales still work at the register.")}&toastType=neutral#ev-${id}`);
-}
-
-// One Square lookup per page render, however many events show the panel.
-const taxesOnce = cache(async () => {
-  try {
-    return { taxes: await salesTaxes() };
-  } catch (err) {
-    return { taxes: [], error: err.message };
-  }
-});
+export const metadata = { title: "Events" };
+export const dynamic = "force-dynamic";
 
 /**
- * Selling tickets to The Alley's own event. The ticket is a Square item with
- * sales tax on it, so tax is collected online and at the door alike.
+ * Events — ONE page for everything on the calendar. It used to be three
+ * (Bookings, Calendar, Public Events), and the same evening's details were
+ * split between them: the room and the money on one, what guests see on
+ * another. Now the calendar sits on top, every booking AND every listing is in
+ * one filterable list under it, and anything opens in a side panel on this
+ * page: ?b=<id> for a booking (the drawer in the dash layout, which links its
+ * listing), ?ev=<id> for a listing (ListingPanel, which links its booking).
  */
-async function TicketPanel({ ev }) {
-  if (!canSellTickets(ev)) return null;
-  const { taxes, error } = await taxesOnce();
-  const taxLabel = taxes.map((t) => `${t.name} ${t.percentage}%`).join(" + ");
-  const selling = !!ev.square_ticket_variation_id;
-  const left = selling ? await ticketsLeft(ev).catch(() => null) : null;
-  const sold = selling ? ticketsSold(ev) : 0;
-  return (
-    <div className="mt-3 rounded-xl border border-line bg-paper-dim p-4">
-      <p className="text-sm font-semibold text-ink">Tickets sold by The Alley</p>
-      {selling ? (
-        <p className="mt-1 text-sm text-ink-soft">
-          ${Number(ev.ticket_price).toFixed(2)} + {taxLabel || "sales tax"} ·{" "}
-          {ev.ticket_sales_open ? "on sale online" : "online sales stopped"} · {sold} sold (as of last night&apos;s sync)
-          {left != null ? ` · ${left} left` : ev.ticket_capacity == null ? " · no limit" : ""}
-        </p>
-      ) : (
-        <p className="mt-1 text-xs text-ink-muted">
-          Sell admission here and it&apos;s rung up through Square with sales tax added — online from this listing, and at
-          the door from the register (look under &ldquo;Event tickets&rdquo;). Admission The Alley sells is taxable in Utah.
-        </p>
-      )}
-      {error ? <p className="mt-2 text-xs text-rust">Couldn&apos;t check Square&apos;s sales tax: {error}</p> : null}
-      {!error && !taxes.length ? (
-        <p className="mt-2 text-xs text-rust">
-          Square has no sales tax switched on. Add it in Square Dashboard → Settings → Sales taxes first.
-        </p>
-      ) : null}
-      <form action={openTickets} className="mt-3 flex flex-wrap items-end gap-2">
-        <input type="hidden" name="id" value={ev.id} />
-        <div>
-          <label className="label">Price per ticket (before tax)</label>
-          <input name="ticket_price" inputMode="decimal" required defaultValue={ev.ticket_price ?? ""} className="field w-32" placeholder="15.00" />
-        </div>
-        <div>
-          <label className="label">Spots (blank = no limit)</label>
-          <input name="ticket_capacity" inputMode="numeric" defaultValue={ev.ticket_capacity ?? ""} className="field w-32" />
-        </div>
-        <Button type="submit" variant={selling ? "ghost" : "accent"} size="sm" disabled={!taxes.length}>
-          {selling ? "Update" : "Put tickets on sale"}
-        </Button>
-      </form>
-      {selling ? (
-        <form action={toggleTickets} className="mt-2">
-          <input type="hidden" name="id" value={ev.id} />
-          <input type="hidden" name="open" value={ev.ticket_sales_open ? "0" : "1"} />
-          <Button type="submit" variant="subtle" size="sm">
-            {ev.ticket_sales_open ? "Stop selling online" : "Reopen online sales"}
-          </Button>
-        </form>
-      ) : null}
-    </div>
-  );
+
+// Booking status filters. "active" (the default) and "all" are meta-filters;
+// "archived" is the junk drawer. Listings with no booking only show under
+// Active and All — the other filters are about a booking's state.
+const FILTERS = [
+  { key: "active", label: "Active" },
+  { key: "all", label: "All" },
+  { key: "pending", label: "Pending" },
+  { key: "held", label: "Held" },
+  { key: "reserved", label: "Reserved" },
+  { key: "confirmed", label: "Confirmed" },
+  { key: "completed", label: "Completed" },
+  { key: "denied", label: "Denied" },
+  { key: "cancelled", label: "Cancelled" },
+  { key: "expired", label: "Expired" },
+  { key: "archived", label: "Archived" },
+];
+
+// Filters about the past default to "All time" rather than "Upcoming".
+const HISTORICAL_STATUSES = new Set(["archived", "cancelled", "denied", "expired", "completed"]);
+// Over and done with — left out of "Active".
+const DEAD_STATUSES = new Set(["denied", "cancelled", "expired"]);
+const ACTIVE_STATUSES = FILTERS.map((f) => f.key).filter(
+  (k) => !["active", "all", "archived"].includes(k) && !DEAD_STATUSES.has(k)
+);
+const DEFAULT_STATUS = "active";
+
+const SHOW = [
+  { key: "", label: "Everything" },
+  { key: "booked", label: "Bookings" },
+  { key: "listings", label: "Listings only (no booking)" },
+];
+const PUB = [
+  { key: "", label: "Either" },
+  { key: "public", label: "Public" },
+  { key: "private", label: "Not public" },
+  { key: "none", label: "No listing" },
+];
+
+// A listing's state, as the list shows it.
+const LISTING_STATE = {
+  live: { label: "Public", className: "bg-verde/60 text-ink-soft" },
+  private: { label: "Private", className: "bg-ink/5 text-ink-soft" },
+  pending: { label: "Review", className: "bg-gold/25 text-ink" },
+  draft: { label: "Waiting on host", className: "bg-ink/5 text-ink-muted" },
+};
+
+function ListingTag({ status }) {
+  const s = LISTING_STATE[status];
+  if (!s) return <span className="text-xs text-ink-muted">—</span>;
+  return <span className={cx("whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold", s.className)}>{s.label}</span>;
 }
 
-/** Public/private switch for one listing, pointing whichever way it isn't. */
-function VisibilityButton({ ev }) {
-  const makePublic = ev.status === "private";
-  return (
-    <form action={setEventPublic}>
-      <input type="hidden" name="id" value={ev.id} />
-      <input type="hidden" name="public" value={makePublic ? "1" : "0"} />
-      <Button type="submit" variant={makePublic ? "accent" : "ghost"} size="sm">
-        {makePublic ? "Make public" : "Make private"}
-      </Button>
-    </form>
-  );
-}
-
-function EventCard({ ev, children, focused = false }) {
-  // A live listing with a host link the host hasn't filled in yet — on the
-  // calendar as a title-only placeholder.
-  const placeholder = ev.status === "live" && ev.host_token && !ev.host_posted;
-  const isHidden = ev.status === "private";
-
-  // Recurring shows: how many dates are left and when the next one is.
-  const today = venueToday();
-  const sessions = getEventSessions(ev);
-  const upcoming = sessions.filter((session) => session.date >= today);
-  const seriesLabel = sessions.length
-    ? upcoming.length
-      ? `${upcoming.length} date${upcoming.length === 1 ? "" : "s"} left · next ${formatDate(upcoming[0].date)}`
-      : `${sessions.length} dates · all past`
-    : null;
-  return (
-    // The id is what the calendar's #ev-<id> link scrolls to; arriving from the
-    // calendar also opens the card and rings it, so it's clear which one it is.
-    <details
-      id={`ev-${ev.id}`}
-      open={focused}
-      className={cx("card p-5", focused && "ring-2 ring-verde-deep")}
-    >
-      <summary className="flex cursor-pointer items-center justify-between gap-3">
-        <span>
-          <span className="font-semibold text-ink">{ev.title || "(untitled)"}</span>
-          {placeholder ? (
-            <span className="ml-2 rounded-full border border-gold/40 bg-gold/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-soft">
-              Placeholder · host hasn’t posted
-            </span>
-          ) : null}
-          {isHidden ? (
-            <span className="ml-2 rounded-full border border-ink/20 bg-ink/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-soft">
-              Private · not on the calendar
-            </span>
-          ) : null}
-          <span className="ml-2 text-xs text-ink-muted">
-            {ev.host_name ? `${ev.host_name} · ` : ""}
-            {ev.date ? formatDate(ev.date) : "no date"}
-            {/* Show what the public sees, not the reservation start. */}
-            {eventTimeLabel(ev) ? ` · ${eventTimeLabel(ev)}` : ""}
-            {ev.space ? ` · ${spaceName(ev.space)}` : ""}
-          </span>
-          {/* A recurring show keeps ONE listing, dated to the session that holds
-              the series — so a card for a show running again tomorrow reads as
-              a date months ago unless the repeat is spelled out. */}
-          {seriesLabel ? (
-            <span className="ml-2 rounded-full border border-verde-deep/30 bg-verde/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-soft">
-              {seriesLabel}
-            </span>
-          ) : null}
-        </span>
-        <span className="shrink-0 text-xs text-ink-muted">edit ▾</span>
-      </summary>
-      {/* Status and the buttons FIRST. These used to sit under the whole edit
-          form, so on a phone "how do I put this on the calendar?" meant
-          scrolling past every field to find out. */}
-      <div className="mt-3 flex flex-wrap items-center gap-3 border-b border-line pb-3">
-        <span
-          className={cx(
-            "rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide",
-            isHidden ? "bg-rust/10 text-rust" : "bg-verde/60 text-ink-soft"
-          )}
-        >
-          {isHidden ? "Not on the public calendar" : "On the public calendar"}
-        </span>
-        {children}
-      </div>
-      <TicketPanel ev={ev} />
-      <EventEditor ev={ev} />
-      {ev.host_token ? (
-        <div className="mt-3 border-t border-line pt-3">
-          <p className="text-xs font-semibold text-ink">Host self-edit link</p>
-          <p className="mt-1 text-xs text-ink-muted">
-            The host&apos;s private link to manage their own listing (title, description, photo, payment). Open it to
-            edit on their behalf, or re-send it.
-          </p>
-          <input readOnly value={`${APP_URL}/host-listing/${ev.host_token}`} className="field mt-2 text-xs" />
-          <div className="mt-2 flex flex-wrap gap-2">
-            <form action={emailHostLink}>
-              <input type="hidden" name="id" value={ev.id} />
-              <Button type="submit" variant="ghost" size="sm">
-                {ev.host_email ? `Email link to ${ev.host_email}` : "No host email on file"}
-              </Button>
-            </form>
-            {placeholder && ev.host_email ? (
-              <form action={remindHost}>
-                <input type="hidden" name="id" value={ev.id} />
-                <Button type="submit" variant="subtle" size="sm">Remind host to finish</Button>
-              </form>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-    </details>
-  );
-}
-
-export default async function EventsAdminPage({ searchParams }) {
+async function addClosure(formData) {
+  "use server";
   await requireAdmin();
-  // ?ev=<id> — arrived from the admin calendar; open + highlight that listing.
-  const focusedEv = (searchParams?.ev || "").toString();
-  const all = listAllEvents();
-  // A listing is done only once its LAST date has passed — a weekly series
-  // whose first session already happened is still current. Undated invites are
-  // never "past". Finished listings move to their own collapsed section so this
-  // list stays about what's coming up; the admin calendar still shows history.
-  const today = venueToday();
-  const isPast = (e) => {
-    const last = eventLastDate(e);
-    return Boolean(last) && last < today;
+  const allDay = formData.get("all_day") != null;
+  createClosure({
+    space: (formData.get("space") || "all").toString(),
+    start_date: (formData.get("start_date") || "").toString(),
+    end_date: (formData.get("end_date") || "").toString(),
+    start_time: allDay ? null : (formData.get("start_time") || "").toString() || null,
+    end_time: allDay ? null : (formData.get("end_time") || "").toString() || null,
+    reason: (formData.get("reason") || "").toString(),
+  });
+  revalidatePath("/admin/events");
+  revalidatePath("/spaces");
+  revalidatePath("/book");
+  redirect("/admin/events?toast=" + encodeURIComponent("Closure added.") + "&toastType=success#closures");
+}
+
+async function removeClosure(formData) {
+  "use server";
+  await requireAdmin();
+  deleteClosure(Number(formData.get("id")));
+  revalidatePath("/admin/events");
+  revalidatePath("/spaces");
+  revalidatePath("/book");
+  redirect("/admin/events#closures");
+}
+
+export default async function EventsPage({ searchParams }) {
+  await requireAdmin();
+  const canManage = canManageBookings(await getCurrentUser());
+
+  // Lazy sweep: release any holds whose payment window has lapsed (a cron does
+  // this in production too). Notifies affected clients.
+  await releaseExpiredHolds();
+
+  const sp = searchParams || {};
+  const status = (sp.status || DEFAULT_STATUS).toString();
+  const sort = sp.sort === "date_desc" ? "date_desc" : "date_asc";
+  const q = (sp.q || "").toString().trim();
+  const space = (sp.space || "").toString();
+  const show = ["booked", "listings"].includes(sp.show) ? sp.show : "";
+  const pub = ["public", "private", "none"].includes(sp.pub) ? sp.pub : "";
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(sp.day || "") ? sp.day : "";
+  const customFrom = (sp.from || "").toString();
+  const customTo = (sp.to || "").toString();
+  const focusedId = (sp.focus || sp.b || "").toString();
+  const openListing = (sp.ev || "").toString();
+
+  const explicitPreset = (sp.preset || "").toString();
+  const showsAllByDefault = HISTORICAL_STATUSES.has(status) || status === "held";
+  const defaultPreset = showsAllByDefault ? "all" : DEFAULT_DATE_PRESET;
+  const preset = explicitPreset || defaultPreset;
+  // A day picked on the calendar wins over the date range.
+  const range = day ? { from: day, to: day } : resolveDateRange(preset, { from: customFrom, to: customTo });
+  const archived = status === "archived";
+
+  // URL for this view with some params changed ("" removes one).
+  const current = { status, sort, q, space, show, pub, day, preset: explicitPreset, from: customFrom, to: customTo };
+  const qs = (next = {}) => {
+    const m = { ...current, ...next };
+    const p = new URLSearchParams();
+    if (m.status && m.status !== DEFAULT_STATUS) p.set("status", m.status);
+    if (m.sort && m.sort !== "date_asc") p.set("sort", m.sort);
+    for (const k of ["q", "space", "show", "pub", "day", "preset"]) if (m[k]) p.set(k, m[k]);
+    if (m.preset === "custom") {
+      if (m.from) p.set("from", m.from);
+      if (m.to) p.set("to", m.to);
+    }
+    for (const k of ["b", "ev"]) if (m[k]) p.set(k, m[k]);
+    const s = p.toString();
+    return "/admin/events" + (s ? `?${s}` : "");
   };
-  const pending = all.filter((e) => e.status === "pending");
-  const live = all.filter((e) => e.status === "live" && !isPast(e));
-  // Deliberately hidden and still ahead — kept in its own section so it doesn't
-  // read as waiting on a decision, and stays one click from going public.
-  const hidden = all.filter((e) => e.status === "private" && !isPast(e));
-  const past = all
-    .filter((e) => (e.status === "live" || e.status === "private") && isPast(e))
-    .reverse();
-  const drafts = all.filter((e) => e.status === "draft");
+
+  // ── Listings, keyed so a booking row can show its own ────────────────────
+  const { byBooking, bySeries } = listingIndex();
+  const listingFor = (b) => byBooking[b.id] || (b.series_id != null ? bySeries[b.series_id] : null);
+  const needle = q.toLowerCase();
+  const matches = (...fields) => !needle || fields.some((f) => String(f || "").toLowerCase().includes(needle));
+  const pubMatches = (listingStatus) =>
+    !pub ||
+    (pub === "public" && listingStatus === "live") ||
+    (pub === "private" && listingStatus && listingStatus !== "live") ||
+    (pub === "none" && !listingStatus);
+
+  // ── Booking rows ──────────────────────────────────────────────────────────
+  const bookingRows =
+    show === "listings"
+      ? []
+      : listBookings({
+          status: archived || status === "all" ? undefined : status === "active" ? ACTIVE_STATUSES : status,
+          sort,
+          space: space || undefined,
+          from: range.from || undefined,
+          to: range.to || undefined,
+          archived,
+        })
+          .map((b) => ({ type: "booking", date: b.date, time: b.start_time, booking: b, listing: listingFor(b) }))
+          .filter((r) => matches(r.booking.client_name, r.booking.client_email, r.booking.event_type, r.listing?.title))
+          .filter((r) => pubMatches(r.listing?.status));
+
+  // ── Listing rows: listings with no booking behind them ────────────────────
+  // The Alley's own events, special events, tenant posts. Booked listings ride on
+  // their booking's row above instead of getting a second one.
+  const listingRows =
+    show === "booked" || pub === "none" || !["active", "all"].includes(status)
+      ? []
+      : listAllEvents()
+          .filter((e) => !e.booking_id && e.status !== "removed")
+          .filter((e) => !space || e.space === space)
+          .filter((e) => {
+            // A listing counts while any of its dates is in range; an undated
+            // invite only shows when the range is open-ended.
+            if (!e.date) return !range.to;
+            const last = eventLastDate(e) || e.date;
+            return (!range.from || last >= range.from) && (!range.to || e.date <= range.to);
+          })
+          .filter((e) => matches(e.title, e.host_name, e.host_email))
+          .filter((e) => pubMatches(e.status))
+          .map((e) => ({ type: "listing", date: e.date || "", time: e.time, event: e }));
+
+  const rows = [...bookingRows, ...listingRows].sort((a, b) => {
+    const ka = `${a.date || "9999"} ${a.time || ""}`;
+    const kb = `${b.date || "9999"} ${b.time || ""}`;
+    return sort === "date_desc" ? kb.localeCompare(ka) : ka.localeCompare(kb);
+  });
+
+  // ── Needs attention ───────────────────────────────────────────────────────
+  const allListings = listAllEvents();
+  const toReview = allListings.filter((e) => e.status === "pending");
+  const waitingOnHosts = allListings.filter((e) => e.status === "draft");
+  const pendingRequests = listBookings({ status: "pending" }).length;
+
+  const tenantName = Object.fromEntries(listDirectory().map((t) => [t.id, t.business_name]));
+  const otherSort = sort === "date_asc" ? "date_desc" : "date_asc";
+  const presetLabel = DATE_PRESETS.find((p) => p.key === preset)?.label || "Upcoming";
+  const isFiltered = q || space || show || pub || day || (explicitPreset && explicitPreset !== defaultPreset);
+  const filterValues = { status, sort, q, space, show, pub, day, preset, from: customFrom, to: customTo };
+  const closures = listClosures();
 
   return (
     <div>
       <PageHeader
-        title="Public Events"
-        subtitle="Invite a host with just their name and email — they fill in their own event details. Then review and publish submissions here. You can also post The Alley's own events."
+        title="Events"
+        subtitle="Everything on the calendar in one place — bookings, The Alley's own events and hosts' listings. Tap anything for all of its details."
       />
 
-      {/* Invite a host */}
-      <details className="card p-5" open={drafts.length === 0 && pending.length === 0 && live.length === 0}>
-        <summary className="cursor-pointer font-semibold text-ink">+ Invite a host to post an event</summary>
-        <form action={inviteHost} className="mt-4 grid grid-cols-1 gap-3">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div><label className="label">Host name</label><input name="host_name" required placeholder="Jane Maker" className="field" /></div>
-            <div><label className="label">Host email (sends them the link)</label><input name="host_email" type="email" placeholder="host@email.com" className="field" /></div>
-          </div>
-          <div>
-            <label className="label">Event title (optional)</label>
-            <input name="title" placeholder="e.g. Saturday Improv Night" className="field" />
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div><label className="label">Event date (optional)</label><input name="date" type="date" className="field" /></div>
-            <div><label className="label">Through (optional, multi-day)</label><input name="active_until" type="date" className="field" /></div>
-          </div>
-          <p className="text-xs text-ink-muted">
-            With a date, the title goes on the public calendar right away as a placeholder — the host then
-            adds their photo, description, and how attendees pay them via their private link.
-          </p>
-          <Button type="submit" className="w-fit">Send host invite</Button>
-        </form>
-      </details>
-
-      {/* Awaiting review */}
-      <h2 className="mt-8 text-xl font-semibold text-ink">
-        Awaiting review {pending.length ? <span className="text-verde-deep">({pending.length})</span> : null}
-      </h2>
-      {pending.length === 0 ? (
-        <p className="mt-2 text-sm text-ink-muted">Nothing waiting for review.</p>
-      ) : (
-        <div className="mt-3 space-y-3">
-          {pending.map((ev) => (
-            <EventCard key={ev.id} ev={ev} focused={String(ev.id) === focusedEv}>
-              <form action={approveEvent}><input type="hidden" name="id" value={ev.id} /><Button type="submit" variant="accent" size="sm">Approve &amp; publish</Button></form>
-              <form action={removeEvent}><input type="hidden" name="id" value={ev.id} /><button className="text-sm font-semibold text-rust hover:underline">Remove</button></form>
-            </EventCard>
-          ))}
-        </div>
-      )}
-
-      {/* Live */}
-      <h2 className="mt-8 text-xl font-semibold text-ink">
-        Live on the calendar {live.length ? <span className="text-verde-deep">({live.length})</span> : null}
-      </h2>
-      {live.length === 0 ? (
-        <p className="mt-2 text-sm text-ink-muted">No live events yet.</p>
-      ) : (
-        <div className="mt-3 space-y-3">
-          {live.map((ev) => (
-            <EventCard key={ev.id} ev={ev} focused={String(ev.id) === focusedEv}>
-              <VisibilityButton ev={ev} />
-              <form action={removeEvent}><input type="hidden" name="id" value={ev.id} /><button className="text-sm font-semibold text-rust hover:underline">Remove</button></form>
-            </EventCard>
-          ))}
-        </div>
-      )}
-
-      {/* Deliberately hidden — not awaiting anything, just not public. */}
-      {hidden.length ? (
-        <>
-          <h2 className="mt-8 text-xl font-semibold text-ink">
-            Private <span className="text-ink-muted">({hidden.length})</span>
-          </h2>
-          <p className="mt-2 text-sm text-ink-muted">
-            Booked and coming up, but not on the public calendar — either the host
-            keeps it private, or you took it down. The details are all still here;
-            &ldquo;Make public&rdquo; puts it on the calendar whenever you like.
-          </p>
-          <div className="mt-3 space-y-3">
-            {hidden.map((ev) => (
-              <EventCard key={ev.id} ev={ev} focused={String(ev.id) === focusedEv}>
-                <VisibilityButton ev={ev} />
-                <form action={removeEvent}><input type="hidden" name="id" value={ev.id} /><button className="text-sm font-semibold text-rust hover:underline">Remove</button></form>
-              </EventCard>
-            ))}
-          </div>
-        </>
-      ) : null}
-
-      {/* Past — still editable, just out of the way. */}
-      {past.length ? (
-        // Opens when the calendar linked straight to a past listing, otherwise
-        // that #ev-<id> jump would land on a collapsed section.
-        <details className="mt-6" open={past.some((e) => String(e.id) === focusedEv)}>
-          <summary className="cursor-pointer text-sm font-semibold text-ink-soft hover:text-ink">
-            Past events ({past.length})
-          </summary>
-          <p className="mt-2 text-sm text-ink-muted">
-            Already happened, so they&apos;re off the public calendar — still here if you
-            need to reuse or remove one.
-          </p>
-          <div className="mt-3 space-y-3">
-            {past.map((ev) => (
-              <EventCard key={ev.id} ev={ev} focused={String(ev.id) === focusedEv}>
-                <VisibilityButton ev={ev} />
-                <form action={removeEvent}><input type="hidden" name="id" value={ev.id} /><button className="text-sm font-semibold text-rust hover:underline">Remove</button></form>
-              </EventCard>
-            ))}
-          </div>
+      {/* Make something new */}
+      <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <details className="card p-4" key={`new-${openListing || "x"}`}>
+          <summary className="cursor-pointer font-semibold text-ink">+ New Alley event</summary>
+          <NewEventForm createEvent={createEvent} />
         </details>
+        <details className="card p-4">
+          <summary className="cursor-pointer font-semibold text-ink">+ Add a special event</summary>
+          <div className="mt-3 rounded-lg bg-paper-dim p-3 text-sm text-ink-soft">
+            <p>
+              <strong className="text-ink">For someone else&apos;s event that isn&apos;t a room rental</strong> — a partner,
+              a local group, a performer. You add their name and email; we email them a private link where they fill in
+              the title, photo, description and how guests pay. With a date, it goes on the public calendar right away as a
+              placeholder until they do.
+            </p>
+            <p className="mt-2">
+              <strong className="text-ink">It doesn&apos;t reserve a room.</strong> If they&apos;ll use one, make a booking
+              (or close the room) for that night too. Tenants don&apos;t need this — they post their own events from their
+              business page.
+            </p>
+          </div>
+          <form action={inviteHost} className="mt-4 grid grid-cols-1 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div><label className="label">Who&apos;s putting it on</label><input name="host_name" required placeholder="Jane Maker" className="field" /></div>
+              <div><label className="label">Their email (we send them the link)</label><input name="host_email" type="email" placeholder="host@email.com" className="field" /></div>
+            </div>
+            <div><label className="label">Event title (optional)</label><input name="title" placeholder="e.g. Saturday Improv Night" className="field" /></div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div><label className="label">Event date (optional)</label><input name="date" type="date" className="field" /></div>
+              <div><label className="label">Through (optional, multi-day)</label><input name="active_until" type="date" className="field" /></div>
+            </div>
+            <Button type="submit" className="w-fit">Add special event &amp; email them</Button>
+          </form>
+        </details>
+      </div>
+
+      {/* Needs you */}
+      {toReview.length || pendingRequests || waitingOnHosts.length ? (
+        <div className="mb-4 flex flex-wrap gap-2 text-sm">
+          {pendingRequests ? (
+            <Link href="/admin/requests" className="rounded-full border border-gold/50 bg-gold/15 px-3 py-1.5 font-semibold text-ink hover:bg-gold/25">
+              {pendingRequests} booking request{pendingRequests === 1 ? "" : "s"} to answer →
+            </Link>
+          ) : null}
+          {toReview.map((e) => (
+            <Link
+              key={e.id}
+              href={qs({ ev: String(e.id) })}
+              scroll={false}
+              className="rounded-full border border-gold/50 bg-gold/15 px-3 py-1.5 font-semibold text-ink hover:bg-gold/25"
+            >
+              Review: {e.title || e.host_name || "listing"} →
+            </Link>
+          ))}
+          {waitingOnHosts.length ? (
+            <Link
+              href={qs({ show: "listings", pub: "private", status: "all", preset: "all", day: "" })}
+              className="rounded-full border border-line px-3 py-1.5 font-semibold text-ink-soft hover:bg-paper-dim"
+            >
+              {waitingOnHosts.length} special event{waitingOnHosts.length === 1 ? "" : "s"} waiting on the host
+            </Link>
+          ) : null}
+        </div>
       ) : null}
 
-      {/* Drafts (host invited, not yet submitted) */}
-      {drafts.length ? (
+      {/* The calendar — a week on a phone, the month on a computer */}
+      <div className="mb-6">
+        <AdminCalendar
+          items={adminCalendarItems()}
+          closedDates={closedDateMarkers(closures)}
+          collapsible
+          dayHrefPrefix="/admin/events?status=all&day="
+          selectedDay={day || null}
+        />
+      </div>
+
+      {day ? (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-verde-deep/30 bg-verde/30 px-4 py-2.5 text-sm">
+          <span className="font-semibold text-ink">Showing {formatDate(day)}</span>
+          <Link href={qs({ day: "", status: "" })} className="font-semibold text-verde-deep hover:underline">
+            Show everything again
+          </Link>
+        </div>
+      ) : null}
+
+      {/* Status filter */}
+      <div className="mb-4 flex flex-wrap gap-1 rounded-2xl border border-line bg-paper p-1">
+        {FILTERS.map((f) => (
+          <Link
+            key={f.key}
+            href={qs({ status: f.key })}
+            className={cx(
+              "rounded-full px-3.5 py-1.5 text-sm font-semibold transition",
+              status === f.key ? "bg-ink text-paper" : "text-ink-soft hover:bg-paper-dim hover:text-ink"
+            )}
+          >
+            {f.label}
+          </Link>
+        ))}
+      </div>
+
+      {/* Search + what + public + space + dates */}
+      <form method="get" className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-6 lg:items-end">
+        {status !== DEFAULT_STATUS ? <input type="hidden" name="status" value={status} /> : null}
+        {sort !== "date_asc" ? <input type="hidden" name="sort" value={sort} /> : null}
+        <div className="col-span-2">
+          <label className="label" htmlFor="q">Search</label>
+          <input id="q" name="q" defaultValue={q} className="field" placeholder="Event, client, host or email" />
+        </div>
+        <div>
+          <label className="label" htmlFor="show">Show</label>
+          <select id="show" name="show" defaultValue={show} className="field">
+            {SHOW.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label" htmlFor="pub">Public?</label>
+          <select id="pub" name="pub" defaultValue={pub} className="field">
+            {PUB.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label" htmlFor="space">Space</label>
+          <select id="space" name="space" defaultValue={space} className="field">
+            <option value="">All spaces</option>
+            {SPACES.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label" htmlFor="preset">Dates</label>
+          <select id="preset" name="preset" defaultValue={preset} className="field">
+            {DATE_PRESETS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
+          </select>
+        </div>
+        {preset === "custom" ? (
+          <>
+            <div>
+              <label className="label" htmlFor="from">From</label>
+              <input id="from" name="from" type="date" defaultValue={customFrom} className="field" />
+            </div>
+            <div>
+              <label className="label" htmlFor="to">To</label>
+              <input id="to" name="to" type="date" defaultValue={customTo} className="field" />
+            </div>
+          </>
+        ) : null}
+        <div className="col-span-2 flex gap-2 lg:col-span-1">
+          <Button type="submit" variant="ghost">Filter</Button>
+          {isFiltered ? (
+            <Button href={qs({ q: "", space: "", show: "", pub: "", day: "", preset: "", from: "", to: "" })} variant="subtle">
+              Clear
+            </Button>
+          ) : null}
+        </div>
+      </form>
+
+      {rows.length === 0 ? (
+        <Card pad="lg" className="py-12 text-center text-ink-muted">
+          {archived ? "Nothing archived." : `Nothing matches${day ? "" : preset !== "all" ? ` in “${presetLabel}”` : ""}.`}
+          {!day && preset !== "all" && !archived ? (
+            <div className="mt-2 text-sm">
+              <Link href={qs({ preset: "all" })} className="font-medium text-verde-deep hover:underline">
+                Search all time instead →
+              </Link>
+            </div>
+          ) : null}
+          {status === "active" ? (
+            <div className="mt-2 text-sm">
+              <Link href={qs({ status: "all" })} className="font-medium text-verde-deep hover:underline">
+                Include denied &amp; cancelled →
+              </Link>
+            </div>
+          ) : null}
+        </Card>
+      ) : (
         <>
-          <h2 className="mt-8 text-xl font-semibold text-ink">
-            Awaiting host details <span className="text-ink-muted">({drafts.length})</span>
-          </h2>
-          <div className="mt-3 space-y-2">
-            {drafts.map((ev) => (
-              <div
-                key={ev.id}
-                id={`ev-${ev.id}`}
-                className={cx(
-                  "card p-4 text-sm",
-                  String(ev.id) === focusedEv && "ring-2 ring-verde-deep"
-                )}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-ink-soft">
-                    <strong>{ev.host_name || "(host)"}</strong>
-                    {ev.date ? ` — ${formatDate(ev.date)}` : ""}
-                    {ev.space ? ` · ${spaceName(ev.space)}` : ""}
-                  </span>
-                  <span className="shrink-0 text-xs text-ink-muted">Invite sent · not posted yet</span>
-                </div>
-                {ev.host_token ? (
-                  <div className="mt-2">
-                    <input readOnly value={`${APP_URL}/host-listing/${ev.host_token}`} className="field text-xs" />
-                    <div className="mt-2 flex flex-wrap gap-3">
-                      <form action={emailHostLink}>
-                        <input type="hidden" name="id" value={ev.id} />
-                        <Button type="submit" variant="ghost" size="sm">
-                          {ev.host_email ? `Email link to ${ev.host_email}` : "No email on file"}
-                        </Button>
-                      </form>
-                      <form action={removeEvent}>
-                        <input type="hidden" name="id" value={ev.id} />
-                        <button className="text-sm font-semibold text-rust hover:underline">Cancel invite</button>
-                      </form>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ))}
-          </div>
+        {/* Phone: one card per evening — a seven-column table doesn't fit. */}
+        <ul className="space-y-2 sm:hidden">
+          {rows.map((r) =>
+            r.type === "booking" ? (
+              <PhoneBookingCard
+                key={`pb-${r.booking.id}`}
+                b={r.booking}
+                listing={r.listing}
+                href={qs({ b: String(r.booking.id) })}
+                focused={String(r.booking.id) === focusedId}
+                canManage={canManage}
+                filters={filterValues}
+              />
+            ) : (
+              <PhoneListingCard key={`pe-${r.event.id}`} e={r.event} href={qs({ ev: String(r.event.id) })} />
+            )
+          )}
+        </ul>
+        <Card pad="sm" className="hidden sm:block">
+          <DataTable
+            columns={[
+              <Link key="d" href={qs({ sort: otherSort })} className="inline-flex items-center gap-1 hover:text-ink">
+                Date {sort === "date_asc" ? "↑" : "↓"}
+              </Link>,
+              "Event",
+              "Space",
+              "Status",
+              "Public",
+              "Payment",
+              "Total",
+              "",
+            ]}
+            minWidth={720}
+            // Pin the last column to the right edge: the table scrolls sideways
+            // on a phone, which otherwise parks every row action off-screen.
+            className="[&_tr>*:last-child]:sticky [&_tr>*:last-child]:right-0 [&_tr>*:last-child]:z-10 [&_tr>*:last-child]:bg-paper [&_tr>*:last-child]:shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.08)]"
+          >
+            {rows.map((r) =>
+              r.type === "booking" ? (
+                <BookingRow
+                  key={`b-${r.booking.id}`}
+                  b={r.booking}
+                  listing={r.listing}
+                  href={qs({ b: String(r.booking.id) })}
+                  focused={String(r.booking.id) === focusedId}
+                  tenant={r.booking.tenant_id ? tenantName[r.booking.tenant_id] : null}
+                  canManage={canManage}
+                  filters={filterValues}
+                />
+              ) : (
+                <ListingRow
+                  key={`e-${r.event.id}`}
+                  e={r.event}
+                  href={qs({ ev: String(r.event.id) })}
+                  focused={String(r.event.id) === openListing}
+                  tenant={r.event.tenant_id ? tenantName[r.event.tenant_id] : null}
+                />
+              )
+            )}
+          </DataTable>
+        </Card>
         </>
-      ) : null}
+      )}
 
-      {/* Create own event */}
-      <h2 className="mt-10 text-xl font-semibold text-ink">
-        Create an Alley event
-      </h2>
-      {/* Keyed on the last-created id so a successful publish REMOUNTS this
-          block: the <details> collapses and every field clears. Without the
-          key, React reconciles the same DOM nodes and the just-submitted values
-          sit there looking like the publish didn't take. */}
-      <details className="mt-3 card p-5" key={`new-event-${focusedEv || "blank"}`}>
-        <summary className="cursor-pointer font-semibold text-ink">+ New event</summary>
-        <form action={createEvent} className="mt-4 grid grid-cols-1 gap-3">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div><label className="label">Title</label><input name="title" required className="field" /></div>
-            <div><label className="label">Host name</label><input name="host_name" defaultValue="The Alley On Center" className="field" /></div>
-          </div>
-          <div><label className="label">Description</label><textarea name="description" rows={3} className="field" /></div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
-            <div><label className="label">Date</label><input type="date" name="date" required className="field" /></div>
-            <div><label className="label">Time</label><input type="time" name="time" className="field" /></div>
+      {/* Less often: closures and the calendar feed */}
+      <details id="closures" className="card mt-8 p-5">
+        <summary className="cursor-pointer font-semibold text-ink">
+          Close the Alley {closures.length ? <span className="font-normal text-ink-muted">({closures.length} set)</span> : null}
+        </summary>
+        <p className="mt-2 text-sm text-ink-muted">
+          Block new bookings for a space (or the whole building) on a date — all day or for a time window. Existing bookings
+          aren&apos;t affected.
+        </p>
+        <form action={addClosure} className="mt-4 grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="label">Space</label>
-              <select name="space" className="field">
-                <option value="">—</option>
+              <select name="space" className="field" defaultValue="all">
+                <option value="all">Whole building</option>
                 {SPACES.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
-            <div><label className="label">Spots</label><input type="number" name="tickets" className="field" /></div>
+            <div><label className="label">From date</label><input name="start_date" type="date" required className="field" /></div>
+            <div><label className="label">To date (optional)</label><input name="end_date" type="date" className="field" /></div>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div><label className="label">Guests arrive at (optional)</label><input type="time" name="public_time" className="field" /></div>
-            <div><label className="label">Ends at (optional)</label><input type="time" name="public_end_time" className="field" /></div>
-          </div>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" name="all_day" defaultChecked />
+            <span className="text-sm font-semibold text-ink-soft">All day</span>
+          </label>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div><label className="label">Price</label><input name="price" className="field" /></div>
-            <div><label className="label">Payment instructions</label><input name="payment_instructions" className="field" /></div>
-            <div><label className="label">Payment link</label><input name="payment_link" className="field" /></div>
+            <div><label className="label">From time (if not all day)</label><input name="start_time" type="time" className="field" /></div>
+            <div><label className="label">To time</label><input name="end_time" type="time" className="field" /></div>
+            <div><label className="label">Reason (optional)</label><input name="reason" placeholder="Holiday, private event…" className="field" /></div>
           </div>
-          <div>
-            <label className="label">Links (buttons on the public listing)</label>
-            <LinksEditor name="links" value={[]} />
-          </div>
-          <EventMediaField />
-          <Button type="submit" className="w-fit">Publish event</Button>
+          <Button type="submit" className="w-fit">Add closure</Button>
         </form>
+        {closures.length ? (
+          <ul className="mt-5 divide-y divide-line">
+            {closures.map((c) => (
+              <li key={c.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                <span className="text-ink-soft">
+                  <strong className="text-ink">{SPACE_LABEL[c.space] || c.space}</strong> {formatDate(c.start_date)}
+                  {c.end_date !== c.start_date ? ` – ${formatDate(c.end_date)}` : ""}
+                  {c.start_time && c.end_time ? ` · ${formatTime(c.start_time)}–${formatTime(c.end_time)}` : " · all day"}
+                  {c.reason ? ` · ${c.reason}` : ""}
+                </span>
+                <form action={removeClosure}>
+                  <input type="hidden" name="id" value={c.id} />
+                  <button className="text-xs font-semibold text-rust hover:underline">Remove</button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </details>
+
+      <details className="card mt-3 p-5">
+        <summary className="cursor-pointer font-semibold text-ink">Sync to Google Calendar &amp; Skylight</summary>
+        <p className="mt-2 text-sm text-ink-soft">
+          Subscribe any calendar to this live feed of your public events (Google Calendar → Other calendars → From URL;
+          Skylight → Add calendar → iCal/URL):
+        </p>
+        <code className="mt-2 block break-all rounded bg-paper-dim p-2 text-xs text-ink-soft">{(process.env.APP_URL || "") + "/calendar.ics"}</code>
+        <p className="mt-2 text-xs text-ink-muted">
+          Once it&apos;s in Google Calendar, share that calendar with your tenants. Set the &ldquo;Shared calendar link&rdquo;
+          under Site Content → Descriptors to include it in invite emails.
+        </p>
+      </details>
+
+      {openListing ? <ListingPanel id={openListing} closeHref={qs({ ev: "" })} /> : null}
     </div>
+  );
+}
+
+function BookingRow({ b, listing, href, focused, tenant, canManage, filters }) {
+  const dim = b.status === "cancelled" || b.archived;
+  const comped = Number(b.total) === 0;
+  return (
+    <Tr id={`b-${b.id}`} className={cx(dim && "opacity-55", focused && "bg-verde/50 hover:bg-verde/50")}>
+      <Td>
+        <div className="whitespace-nowrap font-medium text-ink">{formatDateShort(b.date)}</div>
+        <div className="text-xs text-ink-muted">
+          {formatTime(b.start_time)} · {b.hours}h
+        </div>
+      </Td>
+      <Td>
+        <Link href={href} scroll={false} className="group block">
+          <span className={cx("font-medium", dim ? "text-ink-soft line-through" : "text-ink group-hover:underline")}>
+            {listing?.title || b.event_type || b.client_name}
+          </span>
+          {listing?.title || b.event_type ? <span className="block text-xs text-ink-soft">{b.client_name}</span> : null}
+          <span className="block text-xs text-ink-muted">{b.client_email}</span>
+        </Link>
+        {tenant ? <div className="text-xs font-medium text-verde-deep">Tenant · {tenant}</div> : null}
+        {b.series_id ? (
+          <div className="text-xs font-medium text-sky-700">
+            Recurring · session {b.series_index}/{b.series_total}
+          </div>
+        ) : null}
+      </Td>
+      <Td className="whitespace-nowrap">{spaceName(b.space).replace("The Alley ", "")}</Td>
+      <Td>
+        <Badge status={b.status} />
+        {b.status === "cancelled" && b.refund_type && b.refund_type !== "none" ? (
+          <div className="mt-0.5 text-xs text-ink-muted">refunded {formatMoney(b.refund_amount)}</div>
+        ) : null}
+      </Td>
+      <Td>{listing ? <ListingTag status={listing.status} /> : <span className="text-xs text-ink-muted">no listing</span>}</Td>
+      <Td className="capitalize">
+        {comped && b.payment_status === "paid" ? (
+          <span className="font-medium text-verde-deep">Free</span>
+        ) : (
+          b.payment_status || "unpaid"
+        )}
+        {b.status === "held" && b.keep_on_calendar ? (
+          <div className="text-xs normal-case font-medium text-verde-deep">Kept on calendar · won’t expire</div>
+        ) : b.status === "held" && b.hold_expires_at ? (
+          <div className="text-xs normal-case text-ink-muted">holds until {formatDate(b.hold_expires_at.slice(0, 10))}</div>
+        ) : null}
+      </Td>
+      <Td className="text-right font-medium text-ink">{formatMoney(b.total)}</Td>
+      <Td className="text-right">
+        {canManage ? (
+          <BookingActionsMenu
+            booking={b}
+            filters={filters}
+            markPaidAction={markPaid}
+            checkPaymentAction={checkPayment}
+            resendAction={resend}
+            listing={listing ? { id: listing.id, status: listing.status, host_posted: listing.host_posted } : null}
+            setPublicAction={setBookingPublic}
+            rescheduleLinkAction={sendRescheduleLink}
+            keepOnCalendarAction={keepOnCalendar}
+            restoreAction={restore}
+            archiveAction={archive}
+          />
+        ) : (
+          <Link href={href} scroll={false} className="whitespace-nowrap text-xs font-semibold text-verde-deep hover:underline">
+            Open
+          </Link>
+        )}
+      </Td>
+    </Tr>
+  );
+}
+
+function PhoneBookingCard({ b, listing, href, focused, canManage, filters }) {
+  const dim = b.status === "cancelled" || b.archived;
+  return (
+    <li className={cx("card flex items-start gap-3 p-3", dim && "opacity-55", focused && "ring-2 ring-verde-deep")}>
+      <Link href={href} scroll={false} className="min-w-0 flex-1">
+        <p className="text-xs font-semibold text-ink-muted">
+          {formatDateShort(b.date)} · {formatTime(b.start_time)} · {spaceName(b.space).replace("The Alley ", "")}
+        </p>
+        <p className={cx("mt-0.5 font-semibold", dim ? "text-ink-soft line-through" : "text-ink")}>
+          {listing?.title || b.event_type || b.client_name}
+        </p>
+        <p className="truncate text-xs text-ink-soft">{b.client_name}</p>
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <Badge status={b.status} />
+          {listing ? <ListingTag status={listing.status} /> : <span className="text-[11px] text-ink-muted">no listing</span>}
+          <span className="text-xs text-ink-muted">
+            {formatMoney(b.total)} · {b.payment_status || "unpaid"}
+          </span>
+        </div>
+      </Link>
+      {canManage ? (
+        <BookingActionsMenu
+          booking={b}
+          filters={filters}
+          markPaidAction={markPaid}
+          checkPaymentAction={checkPayment}
+          resendAction={resend}
+          listing={listing ? { id: listing.id, status: listing.status, host_posted: listing.host_posted } : null}
+          setPublicAction={setBookingPublic}
+          rescheduleLinkAction={sendRescheduleLink}
+          keepOnCalendarAction={keepOnCalendar}
+          restoreAction={restore}
+          archiveAction={archive}
+        />
+      ) : null}
+    </li>
+  );
+}
+
+function PhoneListingCard({ e, href }) {
+  return (
+    <li className="card p-3">
+      <Link href={href} scroll={false} className="block">
+        <p className="text-xs font-semibold text-ink-muted">
+          {e.date ? formatDateShort(e.date) : "No date"}
+          {eventTimeLabel(e) ? ` · ${eventTimeLabel(e)}` : ""}
+          {e.space ? ` · ${spaceName(e.space).replace("The Alley ", "")}` : ""}
+        </p>
+        <p className="mt-0.5 font-semibold text-ink">{e.title || "(untitled)"}</p>
+        <p className="truncate text-xs text-ink-soft">{e.host_name || "The Alley"}</p>
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <ListingTag status={e.status} />
+          <span className="text-xs text-ink-muted">{e.status === "draft" ? "waiting on the host" : "no booking"}</span>
+        </div>
+      </Link>
+    </li>
+  );
+}
+
+function ListingRow({ e, href, focused, tenant }) {
+  return (
+    <Tr id={`ev-${e.id}`} className={cx(focused && "bg-verde/50 hover:bg-verde/50")}>
+      <Td>
+        <div className="whitespace-nowrap font-medium text-ink">{e.date ? formatDateShort(e.date) : "No date"}</div>
+        <div className="text-xs text-ink-muted">{eventTimeLabel(e) || ""}</div>
+      </Td>
+      <Td>
+        <Link href={href} scroll={false} className="group block">
+          <span className="font-medium text-ink group-hover:underline">{e.title || "(untitled)"}</span>
+          <span className="block text-xs text-ink-soft">
+            {tenant ? `Tenant · ${tenant}` : e.host_name || "The Alley"}
+          </span>
+        </Link>
+      </Td>
+      <Td className="whitespace-nowrap">{e.space ? spaceName(e.space).replace("The Alley ", "") : "—"}</Td>
+      <Td>
+        <span className="text-xs text-ink-muted">{e.status === "draft" ? "waiting on host" : "listing only"}</span>
+      </Td>
+      <Td><ListingTag status={e.status} /></Td>
+      <Td className="text-xs text-ink-muted">{e.ticket_price != null ? `tickets $${Number(e.ticket_price).toFixed(2)}` : "—"}</Td>
+      <Td className="text-right text-ink-muted">—</Td>
+      <Td className="text-right">
+        <Link href={href} scroll={false} className="whitespace-nowrap rounded-lg border border-line px-2.5 py-1 text-xs font-semibold text-ink hover:bg-paper-dim">
+          Open
+        </Link>
+      </Td>
+    </Tr>
   );
 }

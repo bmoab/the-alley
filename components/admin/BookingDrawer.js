@@ -201,11 +201,12 @@ export default function BookingDrawer() {
                         : "Add to public calendar"}
                 </button>
                 {listing ? (
+                  // Swaps this panel for the listing's own (same Events page).
                   <a
-                    href={`/admin/events?ev=${listing.id}#ev-${listing.id}`}
-                    className="rounded-lg px-2 py-1.5 text-xs font-semibold text-ink-muted transition hover:text-ink"
+                    href={`/admin/events?ev=${listing.id}`}
+                    className="rounded-lg px-2 py-1.5 text-xs font-semibold text-verde-deep transition hover:underline"
                   >
-                    Edit
+                    Edit listing
                   </a>
                 ) : null}
               </div>
@@ -214,7 +215,7 @@ export default function BookingDrawer() {
               <p className="mt-1 truncate text-xs text-ink-muted">{listing.title}</p>
             ) : !listing ? (
               <p className="mt-1 text-xs text-ink-muted">
-                This booking has no listing yet, so it isn&apos;t on the Public Events page at all.
+                No listing yet — guests can&apos;t see this one anywhere.
               </p>
             ) : null}
             {listingNote ? <p className="mt-1 text-xs text-ink-soft">{listingNote}</p> : null}

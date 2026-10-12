@@ -50,6 +50,30 @@ export default async function MyShiftsPage() {
         phone). Your hours and pay stubs are there too.
       </p>
 
+      {/* The few register habits the books depend on — makers are paid from
+          what Square records, so these keep their payouts right. */}
+      <details className="rounded-xl border border-line bg-paper p-4 text-sm">
+        <summary className="cursor-pointer font-semibold text-ink">At the register</summary>
+        <ul className="mt-2 list-disc space-y-1.5 pl-5 text-ink-soft">
+          <li>
+            <strong className="text-ink">Scan the tag</strong> — the camera button at the right of Square&apos;s search bar.
+            No tag? Type the number under the code into search.
+          </li>
+          <li>
+            <strong className="text-ink">Refunds: always item by item.</strong> In Square choose Issue refund, then pick the
+            item(s) — never &ldquo;Refund by amount&rdquo;. That&apos;s how the maker&apos;s share comes back off automatically.
+          </li>
+          <li>
+            <strong className="text-ink">Don&apos;t give a maker&apos;s item away</strong> (comp it) — ask Chelsea first. It&apos;s
+            the maker&apos;s money.
+          </li>
+          <li>
+            <strong className="text-ink">Never ring up a custom amount</strong> for a tagged item — scan or search it, so the
+            sale counts for its maker.
+          </li>
+        </ul>
+      </details>
+
       {next ? (
         <Card pad="md" className="border-verde-deep/40">
           <p className="text-xs font-semibold uppercase tracking-wider text-verde-deep">
