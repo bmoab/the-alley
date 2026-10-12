@@ -6,6 +6,7 @@ import { logActivity, logEmail } from "@/lib/activity.js";
 import { emailOwnerListingVisibility } from "@/lib/email.js";
 import { requestRecipients, recipientLabel } from "@/lib/notify.js";
 import HostListingForm from "@/components/HostListingForm.js";
+import AccountNudge from "@/components/account/AccountNudge.js";
 
 export const metadata = { title: "Post your event" };
 
@@ -162,6 +163,7 @@ export default function HostListingPage({ params }) {
             </>
           )}
         </p>
+        <AccountNudge email={event.host_email} />
 
         <div className="mt-8">
           <HostListingForm event={event} saveAction={save} alreadyLive={alreadyLive} canSetVisibility={canSetVisibility} needsReview={needsReview} lastEvent={lastEvent} sessions={getEventSessions(event)} bookingWindow={getEventBookingWindow(event)} />

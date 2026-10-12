@@ -9,6 +9,7 @@ import {
   parseExhibitorLinks,
 } from "@/lib/catalog.js";
 import ExhibitorEditForm from "@/components/ExhibitorEditForm.js";
+import AccountNudge from "@/components/account/AccountNudge.js";
 
 export const metadata = { title: "Set up your exhibitor page" };
 
@@ -80,6 +81,7 @@ export default function ExhibitorTokenPage({ params }) {
           This is your spot on The Alley&apos;s Exhibitors page. Add your bio, a profile photo, and photos of your
           work — changes go live on our website right away. Bookmark this link to edit anytime.
         </p>
+        <AccountNudge email={exhibitor.contact_email} />
 
         <div className="mt-8">
           <ExhibitorEditForm

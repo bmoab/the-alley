@@ -15,6 +15,7 @@ import {
 import { saveUpload } from "@/lib/uploads.js";
 import { formatDate, formatTime, venueToday } from "@/lib/constants.js";
 import DirectoryEditForm from "@/components/DirectoryEditForm.js";
+import AccountNudge from "@/components/account/AccountNudge.js";
 
 export const metadata = { title: "Set up your business listing" };
 
@@ -156,6 +157,7 @@ export default function BusinessListingPage({ params, searchParams }) {
           links — your changes go live on our website right away. Bookmark this
           link to edit anytime.
         </p>
+        <AccountNudge email={entry.contact_email} />
 
         <div className="mt-8">
           <DirectoryEditForm

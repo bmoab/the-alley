@@ -18,6 +18,7 @@ import {
   formatMoney,
   venueToday,
 } from "@/lib/constants.js";
+import AccountNudge from "@/components/account/AccountNudge.js";
 
 export const metadata = {
   title: "Your bookings",
@@ -405,6 +406,7 @@ export default function MyBookingsPage({ params }) {
         Everything you&rsquo;ve booked at The Alley, and where each one stands.
         Bookmark this link — it always shows your latest.
       </p>
+      <AccountNudge email={portal.email} />
 
       {rows.length === 0 ? (
         <div className="card mt-8 p-6 text-center">
