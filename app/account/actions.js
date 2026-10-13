@@ -1,8 +1,8 @@
 "use server";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   accountForLink,
+  clientIp,
   checkCredentials,
   consumeToken,
   createAccount,
@@ -18,21 +18,10 @@ import {
   updateAccountName,
 } from "@/lib/accounts.js";
 import { normalizeEmail } from "@/lib/portal.js";
-import { emailAccountReset, emailAccountSignIn } from "@/lib/email.js";
+import { emailAccountReset, emailAccountSignIn, emailPasswordReset } from "@/lib/email.js";
+import { verifyCredentials, recordLogin, setSessionCookie, homeFor, createResetToken } from "@/lib/auth.js";
 
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
-
-/**
- * The visitor's IP, for throttling. Cloudflare's header first (it overwrites
- * whatever the client sent), then the proxy's; failing those the LAST
- * X-Forwarded-For hop — the one our own proxy added. The first hop is whatever
- * the client typed, so throttling on it could be dodged at will.
- */
-function clientIp() {
-  const h = headers();
-  const forwarded = h.get("x-forwarded-for")?.split(",").map((s) => s.trim()).filter(Boolean) || [];
-  return h.get("cf-connecting-ip") || h.get("x-real-ip") || forwarded.at(-1) || "local";
-}
 
 const q = (params) => new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString();
 
@@ -49,7 +38,19 @@ export async function signIn(formData) {
     redirect(`/account/sign-in?${q({ error: "slow", next, email })}`);
   }
   const r = checkCredentials(email, formData.get("password"));
-  if (r.error) redirect(`/account/sign-in?${q({ error: "bad", next, email })}`);
+  if (r.error) {
+    // The header's "Log in" is the first thing the owners and staff tap too, and
+    // their login lives in admin_users, not here. Rather than a baffling "doesn't
+    // match", a correct STAFF email + password signs them in to the staff side.
+    // Same throttle as above; nothing about the account side changes.
+    const staff = verifyCredentials(email, formData.get("password"));
+    if (staff) {
+      recordLogin(staff.id);
+      await setSessionCookie(staff);
+      redirect(staff.must_change_password ? "/admin/set-password" : homeFor(staff));
+    }
+    redirect(`/account/sign-in?${q({ error: "bad", next, email })}`);
+  }
   await startAccountSession(r.account);
   redirect(next);
 }
@@ -104,9 +105,16 @@ export async function continueWithLink(formData) {
 export async function requestReset(formData) {
   const email = normalizeEmail(formData.get("email"));
   const account = getAccountByEmail(email);
-  if (account?.is_active && !throttled(`reset:${email}`, 3, 60) && !throttled(`reset-ip:${clientIp()}`, 15, 60)) {
-    const token = issueToken(account.id, "reset");
-    await emailAccountReset(account, `${APP_URL}/account/reset/${token}`);
+  if (!throttled(`reset:${email}`, 3, 60) && !throttled(`reset-ip:${clientIp()}`, 15, 60)) {
+    if (account?.is_active) {
+      const token = issueToken(account.id, "reset");
+      await emailAccountReset(account, `${APP_URL}/account/reset/${token}`);
+    } else {
+      // No customer account, but a staff login under this address: send THAT
+      // reset, so an owner who came in through the header still gets an email.
+      const staff = createResetToken(email);
+      if (staff) await emailPasswordReset(staff.user, `${APP_URL}/admin/reset?token=${staff.token}`);
+    }
   }
   redirect(`/account/reset?${q({ sent: "1", email })}`);
 }

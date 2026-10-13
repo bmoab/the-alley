@@ -25,6 +25,7 @@ import {
   ClipboardCheck,
   Handshake,
   Receipt,
+  Coins,
 } from "lucide-react";
 
 // Full navigation, in sidebar order. Items are either a link
@@ -50,6 +51,7 @@ export const NAV = [
     items: [
       { href: "/admin/schedule", label: "Schedule", icon: CalendarClock, needsStaff: true },
       { href: "/admin/employees", label: "Employees", icon: Contact, needsStaff: true },
+      { href: "/admin/staff-costs", label: "Shared cost", icon: Coins, needsStaff: true },
     ],
   },
   {

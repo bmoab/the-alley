@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { getSignedInUser, setPassword, clearSessionCookie, homeFor } from "@/lib/auth.js";
 import Button from "@/components/admin/ui/Button.js";
+import PasswordInput from "@/components/auth/PasswordInput.js";
 
 export const metadata = { title: "Set your password" };
 
@@ -75,10 +76,9 @@ export default async function SetPasswordPage({ searchParams }) {
           <form action={submit} className="mt-6 space-y-4">
             <div>
               <label className="label" htmlFor="password">New password</label>
-              <input
+              <PasswordInput
                 id="password"
                 name="password"
-                type="password"
                 autoComplete="new-password"
                 required
                 minLength={8}
@@ -88,10 +88,9 @@ export default async function SetPasswordPage({ searchParams }) {
             </div>
             <div>
               <label className="label" htmlFor="confirm">Confirm password</label>
-              <input
+              <PasswordInput
                 id="confirm"
                 name="confirm"
-                type="password"
                 autoComplete="new-password"
                 required
                 minLength={8}

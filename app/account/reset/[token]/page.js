@@ -1,6 +1,7 @@
 import { peekToken } from "@/lib/accounts.js";
 import { finishReset } from "../../actions.js";
 import Button from "@/components/admin/ui/Button.js";
+import PasswordInput from "@/components/auth/PasswordInput.js";
 
 export const metadata = { title: "Choose a new password" };
 
@@ -28,11 +29,11 @@ export default function NewPasswordPage({ params, searchParams }) {
       ) : null}
       <div>
         <label className="label" htmlFor="password">New password (10+ characters)</label>
-        <input id="password" name="password" type="password" autoComplete="new-password" minLength={10} required className="field" />
+        <PasswordInput id="password" name="password" autoComplete="new-password" minLength={10} required className="field" />
       </div>
       <div>
         <label className="label" htmlFor="confirm">Same again</label>
-        <input id="confirm" name="confirm" type="password" autoComplete="new-password" minLength={10} required className="field" />
+        <PasswordInput id="confirm" name="confirm" autoComplete="new-password" minLength={10} required className="field" />
       </div>
       <Button type="submit" full>Save and sign in</Button>
     </form>

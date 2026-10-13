@@ -2,6 +2,7 @@ import { requireAccount } from "@/lib/accounts.js";
 import { saveSettings, signOut } from "../actions.js";
 import Card from "@/components/admin/ui/Card.js";
 import Button from "@/components/admin/ui/Button.js";
+import PasswordInput from "@/components/auth/PasswordInput.js";
 
 export const metadata = { title: "Settings" };
 
@@ -31,11 +32,11 @@ export default async function SettingsPage({ searchParams }) {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="label" htmlFor="password">{account.password_hash ? "New password" : "Add a password"} (10+ characters)</label>
-              <input id="password" name="password" type="password" autoComplete="new-password" minLength={10} className="field" />
+              <PasswordInput id="password" name="password" autoComplete="new-password" minLength={10} className="field" />
             </div>
             <div>
               <label className="label" htmlFor="confirm">Same again</label>
-              <input id="confirm" name="confirm" type="password" autoComplete="new-password" minLength={10} className="field" />
+              <PasswordInput id="confirm" name="confirm" autoComplete="new-password" minLength={10} className="field" />
             </div>
           </div>
           <p className="text-xs text-ink-muted">Leave the password blank to keep {account.password_hash ? "yours" : "signing in by email link"}.</p>

@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { getUserByResetToken, setPassword } from "@/lib/auth.js";
 import Button from "@/components/admin/ui/Button.js";
+import PasswordInput from "@/components/auth/PasswordInput.js";
 
 export const metadata = { title: "Choose a new password" };
 
@@ -68,10 +69,9 @@ export default function ResetPage({ searchParams }) {
               <input type="hidden" name="token" value={token} />
               <div>
                 <label className="label" htmlFor="password">New password</label>
-                <input
+                <PasswordInput
                   id="password"
                   name="password"
-                  type="password"
                   autoComplete="new-password"
                   required
                   minLength={8}
@@ -81,10 +81,9 @@ export default function ResetPage({ searchParams }) {
               </div>
               <div>
                 <label className="label" htmlFor="confirm">Confirm password</label>
-                <input
+                <PasswordInput
                   id="confirm"
                   name="confirm"
-                  type="password"
                   autoComplete="new-password"
                   required
                   minLength={8}

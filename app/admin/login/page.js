@@ -3,13 +3,18 @@ import Link from "next/link";
 import Image from "next/image";
 import { verifyCredentials, setSessionCookie, getSignedInUser, recordLogin, ensureSeeded, homeFor } from "@/lib/auth.js";
 import Button from "@/components/admin/ui/Button.js";
+import { throttled, clientIp } from "@/lib/accounts.js";
+import PasswordInput from "@/components/auth/PasswordInput.js";
 
 export const metadata = { title: "Admin Sign In" };
 
 async function login(formData) {
   "use server";
-  const email = formData.get("email");
+  const email = (formData.get("email") || "").toString().toLowerCase().trim();
   const password = formData.get("password");
+  if (throttled(`staff-pw:${email}`, 8, 15) || throttled(`staff-pw-ip:${clientIp()}`, 30, 15)) {
+    redirect("/admin/login?error=slow");
+  }
   const user = verifyCredentials(email, password);
   if (!user) {
     redirect("/admin/login?error=1");
@@ -58,7 +63,9 @@ export default async function LoginPage({ searchParams }) {
 
           {hasError ? (
             <div className="mt-4 rounded-lg border border-rust/30 bg-rust/10 px-3 py-2 text-sm text-rust">
-              That email and password don&apos;t match. Please try again.
+              {hasError === "slow"
+                ? "Too many tries — wait 15 minutes and try again, or reset your password below."
+                : "That email and password don't match. Please try again."}
             </div>
           ) : null}
           {didReset ? (
@@ -86,10 +93,9 @@ export default async function LoginPage({ searchParams }) {
               <label className="label" htmlFor="password">
                 Password
               </label>
-              <input
+              <PasswordInput
                 id="password"
                 name="password"
-                type="password"
                 autoComplete="current-password"
                 required
                 className="field"

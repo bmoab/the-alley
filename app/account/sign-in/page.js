@@ -3,11 +3,13 @@ import { redirect } from "next/navigation";
 import { getAccount, safeNext } from "@/lib/accounts.js";
 import { signIn, emailLink } from "../actions.js";
 import Button from "@/components/admin/ui/Button.js";
+import PasswordInput from "@/components/auth/PasswordInput.js";
+import CooldownButton from "@/components/auth/CooldownButton.js";
 
 export const metadata = { title: "Sign in" };
 
 const ERRORS = {
-  bad: "That email and password don't match.",
+  bad: "That email and password don't match. Owners and staff can use their staff login here too — or reset your password below.",
   slow: "Too many tries — wait a few minutes and try again.",
   email: "That email address doesn't look right.",
   link: "That link has expired or was already used. Send yourself a new one below.",
@@ -50,7 +52,7 @@ export default async function SignInPage({ searchParams }) {
         </div>
         <div>
           <label className="label" htmlFor="password">Password</label>
-          <input id="password" name="password" type="password" autoComplete="current-password" required className="field" />
+          <PasswordInput id="password" name="password" autoComplete="current-password" required className="field" />
         </div>
         <Button type="submit" full>Sign in</Button>
         <p className="text-right text-xs">
@@ -62,7 +64,7 @@ export default async function SignInPage({ searchParams }) {
         <input type="hidden" name="next" value={next} />
         <p className="text-sm font-semibold text-ink">No password? We&apos;ll email you a link.</p>
         <input name="email" type="email" autoComplete="email" required defaultValue={email} placeholder="you@example.com" className="field" />
-        <Button type="submit" variant="ghost" full>Email me a sign-in link</Button>
+        <CooldownButton storageKey="alley-signin-link" variant="ghost" full>Email me a sign-in link</CooldownButton>
       </form>
 
       <p className="text-center text-sm text-ink-muted">

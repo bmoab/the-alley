@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { syncSquareSales } from "@/lib/inventory.js";
+import { staffCostDaily, monthLabel } from "@/lib/staff-costs.js";
+import { emailStaffCostReady } from "@/lib/email.js";
 
 export const dynamic = "force-dynamic";
 
@@ -7,7 +9,8 @@ export const dynamic = "force-dynamic";
  * GET /api/cron/square-sales
  * Copies the day's completed Square register sales into the site (for
  * consignor payouts and the sales-tax report) and refreshes every item's
- * on-hand count. Re-reads a small overlap each run and ignores duplicates, so
+ * on-hand count — and, from the 1st of each month, builds last month's shared
+ * staff cost and tells the bookkeeper it's ready to send. Re-reads a small overlap each run and ignores duplicates, so
  * it's safe to call as often as you like. Point a nightly cron at this, e.g.
  * ~2 AM America/Denver (`0 8 * * *` UTC).
  *
@@ -28,11 +31,23 @@ export async function GET(request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   }
+  let sales;
   try {
-    const result = await syncSquareSales();
-    return NextResponse.json({ ok: true, ...result });
+    sales = await syncSquareSales();
   } catch (err) {
     console.error("[cron] square-sales failed", err);
-    return NextResponse.json({ ok: false, error: "Sync failed — see the server log." }, { status: 500 });
+    sales = { error: "Sync failed — see the server log." };
   }
+  // Separate, so a hiccup in one never skips the other.
+  let staffCosts;
+  try {
+    staffCosts = await staffCostDaily({
+      notify: (m) => emailStaffCostReady(m, { label: monthLabel(m.month), warnings: m.detail?.warnings || [] }),
+    });
+  } catch (err) {
+    console.error("[cron] staff-costs failed", err);
+    staffCosts = { error: "Staff cost step failed — see the server log." };
+  }
+  const ok = !sales.error && !staffCosts.error;
+  return NextResponse.json({ ok, ...sales, staffCosts }, { status: ok ? 200 : 500 });
 }
