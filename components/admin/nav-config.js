@@ -15,9 +15,6 @@ import {
   Activity,
   Users,
   LayoutTemplate,
-  UserRound,
-  CalendarClock,
-  Contact,
   ShoppingBag,
   Package,
   PackageOpen,
@@ -46,15 +43,6 @@ export const NAV = [
     ],
   },
   {
-    group: "Staff",
-    icon: UserRound,
-    items: [
-      { href: "/admin/schedule", label: "Schedule", icon: CalendarClock, needsStaff: true },
-      { href: "/admin/employees", label: "Employees", icon: Contact, needsStaff: true },
-      { href: "/admin/staff-costs", label: "Shared cost", icon: Coins, needsStaff: true },
-    ],
-  },
-  {
     group: "Shop",
     icon: ShoppingBag,
     items: [
@@ -64,6 +52,7 @@ export const NAV = [
       { href: "/admin/inventory/count", label: "Shelf count", icon: ClipboardCheck },
       { href: "/admin/vendors", label: "Makers", icon: Handshake },
       { href: "/admin/sales", label: "Sales", icon: Receipt },
+      { href: "/admin/staff-costs", label: "Shared staff cost", icon: Coins, needsStaff: true },
     ],
   },
   { href: "/admin/directory", label: "Directory", icon: Building2 },

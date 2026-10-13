@@ -12,6 +12,7 @@ import RoomsTeaser from "@/components/home/RoomsTeaser.js";
 import DirectoryGrid from "@/components/home/DirectoryGrid.js";
 import ExhibitorsTeaser from "@/components/home/ExhibitorsTeaser.js";
 import EventsRow from "@/components/home/EventsRow.js";
+import { pdfCover } from "@/lib/pdf-preview.js";
 import CtaBand from "@/components/site/CtaBand.js";
 import InstaStrip from "@/components/site/InstaStrip.js";
 
@@ -23,7 +24,7 @@ function parseJson(value, fallback) {
   }
 }
 
-export default function HomePage() {
+export default async function HomePage() {
   const c = getContent();
   const destinations = parseJson(c.home_destinations, []);
   const rotate = parseJson(c.home_hero_rotate, ["MUSIC", "ART", "EVENTS", "COMMUNITY"]);
@@ -47,7 +48,10 @@ export default function HomePage() {
 
   const tenants = listPublicDirectoryWithSuites();
   const exhibitors = listExhibitorsByPhase().current;
-  const events = listUpcomingLiveEvents(3);
+  // An event with no photo but a PDF flyer shows the flyer's first page.
+  const events = await Promise.all(
+    listUpcomingLiveEvents(3).map(async (e) => (e.photo_path ? e : { ...e, photo_path: await pdfCover(e.pdf_paths) }))
+  );
   const gallery = listGallery().slice(0, 6);
   const heroCrop = parseCrop(c.home_hero_image_crop);
 

@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getSignedInUser, clearSessionCookie, isStaffRole } from "@/lib/auth.js";
-import StaffNav from "@/components/staff/StaffNav.js";
 import Toaster from "@/components/admin/ui/Toaster.js";
 
 export const metadata = { title: { default: "Staff", template: "%s · Staff · The Alley" } };
@@ -16,9 +15,9 @@ async function logout() {
 }
 
 /**
- * The staff area: an employee's shifts and the schedule. (Clocking in, hours
- * and pay are in Square.) Any signed-in person may come here — an owner or admin who also
- * works shifts uses the same pages — but a staff login can go NOWHERE else.
+ * The staff area: the register habits page. (Shifts, clocking in, hours and
+ * pay are in Square.) Any signed-in person may come here, but a staff login can
+ * go NOWHERE else.
  */
 export default async function StaffLayout({ children }) {
   const user = await getSignedInUser();
@@ -44,7 +43,6 @@ export default async function StaffLayout({ children }) {
             </form>
           </div>
         </div>
-        <StaffNav />
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-6 pb-16">{children}</main>

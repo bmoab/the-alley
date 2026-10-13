@@ -1,9 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // better-sqlite3 and sharp are native modules; keep them external to the
+  // better-sqlite3, sharp and @napi-rs/canvas are native modules (and pdfjs-dist
+  // loads its worker from disk); keep them external to the
   // server bundle so Next doesn't try to trace their platform binaries.
   experimental: {
-    serverComponentsExternalPackages: ["better-sqlite3", "sharp"],
+    serverComponentsExternalPackages: ["better-sqlite3", "sharp", "pdfjs-dist", "@napi-rs/canvas"],
   },
 };
 

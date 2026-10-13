@@ -3,61 +3,68 @@ import { useState } from "react";
 import Lightbox from "@/components/site/Lightbox.js";
 
 /**
- * Event flyer for the public event page. Unlike the cover-cropped PhotoSlot,
- * this shows the WHOLE flyer (portrait posters were getting their top and
- * bottom cut off) and opens the shared full-screen lightbox on click so
- * attendees can actually read it. Falls back to nothing when there's no image —
- * the page keeps its placeholder.
+ * The event page's pictures: the flyer photo and every page of any PDF the host
+ * attached (rendered to images on the server — lib/pdf-preview.js), all shown
+ * the same way. The first is shown WHOLE (portrait posters were getting their
+ * top and bottom cut off); the rest sit beneath it as thumbnails. Any of them
+ * opens the shared full-screen lightbox, where you can swipe through them all.
  *
- * It used to carry its own inline copy of a lightbox; it now uses the same one
- * as the gallery and exhibitor photos so enlarging a photo behaves identically
- * everywhere on the site.
+ * `photos` = [{ src, alt }]. Renders nothing when there are none — the page
+ * keeps its placeholder.
  */
-export default function EventPhoto({ src, alt = "", caption = "" }) {
-  const [open, setOpen] = useState(false);
-  if (!src) return null;
+export default function EventPhoto({ photos = [], caption = "" }) {
+  const [open, setOpen] = useState(null);
+  const list = photos.filter((p) => p?.src);
+  if (!list.length) return null;
+  const [first, ...rest] = list;
+  const frame = {
+    display: "block",
+    width: "100%",
+    padding: 0,
+    border: "1px solid var(--line)",
+    borderRadius: 12,
+    overflow: "hidden",
+    background: "var(--paper-dim, #efeae0)",
+    cursor: "zoom-in",
+  };
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="View full flyer"
-        style={{
-          display: "block",
-          width: "100%",
-          padding: 0,
-          border: "1px solid var(--line)",
-          borderRadius: 12,
-          overflow: "hidden",
-          background: "var(--paper-dim, #efeae0)",
-          cursor: "zoom-in",
-        }}
-      >
+    <div>
+      <button type="button" onClick={() => setOpen(0)} aria-label="View full flyer" style={frame}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={src}
-          alt={alt}
-          loading="lazy"
-          style={{
-            display: "block",
-            width: "100%",
-            height: "auto",
-            maxHeight: "80vh",
-            objectFit: "contain",
-          }}
+          src={first.src}
+          alt={first.alt || ""}
+          style={{ display: "block", width: "100%", height: "auto", maxHeight: "80vh", objectFit: "contain" }}
         />
       </button>
 
-      {open ? (
+      {rest.length ? (
+        <div style={{ marginTop: 10, display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fill, minmax(88px, 1fr))" }}>
+          {rest.map((p, i) => (
+            <button
+              key={p.src}
+              type="button"
+              onClick={() => setOpen(i + 1)}
+              aria-label={`View ${p.alt || `picture ${i + 2}`}`}
+              style={{ ...frame, borderRadius: 8, aspectRatio: "3 / 4" }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={p.src} alt={p.alt || ""} loading="lazy" style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} />
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {open != null ? (
         <Lightbox
-          photos={[{ src, cap: alt, cat: caption }]}
-          index={0}
-          setIndex={() => {}}
-          onClose={() => setOpen(false)}
+          photos={list.map((p) => ({ src: p.src, cap: p.alt, cat: caption }))}
+          index={open}
+          setIndex={setOpen}
+          onClose={() => setOpen(null)}
           label="Event flyer"
         />
       ) : null}
-    </>
+    </div>
   );
 }

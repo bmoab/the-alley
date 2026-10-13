@@ -7,6 +7,7 @@ import { formatDate, spaceName } from "@/lib/constants.js";
 import { eventTimeLabel } from "@/lib/event-time.js";
 import PhotoSlot from "@/components/site/PhotoSlot.js";
 import EventPhoto from "@/components/site/EventPhoto.js";
+import { pdfPreview } from "@/lib/pdf-preview.js";
 
 export function generateMetadata({ params }) {
   const e = getEvent(params.id);
@@ -60,6 +61,15 @@ export default async function EventDetailPage({ params, searchParams }) {
   } catch {
     pdfs = [];
   }
+  // A PDF the host attached (flyer, menu, program) shows as pictures of its
+  // pages, alongside the photo; one that can't be drawn falls back to a link.
+  const title = m.title || "Event";
+  const rendered = await Promise.all(pdfs.map((p) => pdfPreview(p)));
+  const pictures = [
+    ...(m.photo_path ? [{ src: m.photo_path, alt: title }] : []),
+    ...rendered.flatMap((pages) => pages.map((pg, i) => ({ src: pg.src, alt: pages.length > 1 ? `${title} — page ${i + 1}` : title }))),
+  ];
+  const unrendered = pdfs.filter((_, i) => !rendered[i].length);
 
   return (
     <main className="ipage wrap" style={{ paddingTop: "clamp(110px,14vw,150px)" }}>
@@ -68,10 +78,10 @@ export default async function EventDetailPage({ params, searchParams }) {
       </Link>
 
       <div style={{ marginTop: 28, display: "grid", gap: "clamp(24px,4vw,48px)", gridTemplateColumns: "minmax(0,1.1fr) minmax(0,.9fr)" }} className="ev-detail-grid">
-        {m.photo_path ? (
-          // A real flyer: show it whole (posters are portrait and were being
-          // cropped) and let attendees tap to read it full-screen.
-          <EventPhoto src={m.photo_path} alt={m.title || "Event flyer"} caption={e.host_name || ""} />
+        {pictures.length ? (
+          // The flyer and any PDF pages: shown whole (posters are portrait and
+          // were being cropped), tap to read full-screen.
+          <EventPhoto photos={pictures} caption={e.host_name || ""} />
         ) : (
           <PhotoSlot src={null} tag={m.title} showTag={false} variant="verde" style={{ minHeight: 320 }} />
         )}
@@ -209,14 +219,13 @@ export default async function EventDetailPage({ params, searchParams }) {
         </div>
       ) : null}
 
-      {pdfs.length ? (
+      {unrendered.length ? (
         <div style={{ marginTop: 32, maxWidth: "60ch" }}>
-          <h2 className="space-name" style={{ fontSize: "clamp(22px,2.4vw,30px)" }}>Downloads</h2>
-          <ul style={{ marginTop: 12, listStyle: "none", padding: 0, display: "grid", gap: 8 }}>
-            {pdfs.map((p, i) => (
-              <li key={i}>
+          <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: 8 }}>
+            {unrendered.map((p, i) => (
+              <li key={p}>
                 <a href={p} target="_blank" rel="noreferrer" className="rulelink" style={{ flexDirection: "row" }}>
-                  ↓ {p.split("/").pop()}
+                  {unrendered.length > 1 ? `${title} — PDF ${i + 1}` : `${title} — PDF`} →
                 </a>
               </li>
             ))}

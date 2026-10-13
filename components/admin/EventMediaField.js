@@ -90,7 +90,7 @@ export default function EventMediaField({ photo = "", pdfs = [] }) {
             {files.map((p, i) => (
               <li key={p + i} className="flex items-center justify-between gap-3 rounded bg-paper px-3 py-1.5">
                 <a href={p} target="_blank" rel="noreferrer" className="truncate text-ink-soft hover:underline">
-                  {p.split("/").pop()}
+                  {`PDF ${i + 1}`}
                 </a>
                 <button
                   type="button"

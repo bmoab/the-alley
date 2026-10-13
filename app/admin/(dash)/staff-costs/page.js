@@ -185,7 +185,7 @@ export default async function StaffCostsPage({ searchParams }) {
   return (
     <div>
       <PageHeader
-        eyebrow="Staff"
+        eyebrow="Shop"
         title="Shared staff cost"
         subtitle="The tenants and the shop split what the staff cost each month, evenly. On the 1st the site adds up last month from Square's timecards and emails you; nothing goes to a tenant until you press Send. Each tenant then gets a Square invoice, due with rent."
       />

@@ -336,7 +336,7 @@ export default function HostListingForm({ event, saveAction, alreadyLive, canSet
             <ul className="mb-2 space-y-1 text-sm">
               {pdfs.map((p, i) => (
                 <li key={i} className="flex items-center justify-between rounded bg-paper-warm px-3 py-1.5">
-                  <span className="truncate text-ink-soft">{p.split("/").pop()}</span>
+                  <span className="truncate text-ink-soft">{`PDF ${i + 1}`}</span>
                   <button type="button" onClick={() => setPdfs((arr) => arr.filter((_, j) => j !== i))} className="text-xs font-semibold text-rust">remove</button>
                 </li>
               ))}
