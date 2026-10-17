@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, ChevronRight, Megaphone, Package, Palette, Store } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronRight, Inbox, Megaphone, Package, Palette, Store } from "lucide-react";
 import { requireAccount, whatsMine, listInbox } from "@/lib/accounts.js";
 import TenantBills from "@/components/account/TenantBills.js";
 import { makerOverview } from "@/lib/inventory.js";
@@ -22,6 +22,101 @@ function greeting() {
 function todayLabel() {
   const [y, m, d] = venueToday().split("-").map(Number);
   return new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+}
+
+/**
+ * Everything an account can do, whether or not this person does it yet. The
+ * tiles above only show what they HAVE; this is where the rest lives, folded
+ * away, each with a line on what it is and how to start.
+ */
+const FEATURES = [
+  {
+    key: "bookings",
+    icon: CalendarDays,
+    title: "Book a room",
+    body: "Rent the Main Floor, the Loft or the Conference Room for a class, party, meeting or workshop. Send a request, we confirm it, and you pay online — your bookings, receipts and date changes all live here.",
+    cta: ["Request a room", "/book"],
+  },
+  {
+    key: "listings",
+    icon: Megaphone,
+    title: "Put your event on our calendar",
+    body: "Hosting something in a room you've booked? List it on our public calendar with a flyer, times and how people pay you. You'll get a link to post it once your booking is approved.",
+    cta: ["See the calendar", "/calendar"],
+  },
+  {
+    key: "makers",
+    icon: Package,
+    title: "Sell your work in the shop",
+    body: "Bring handmade goods in on consignment. You list a drop-off here, we count it in and tag it, and you're paid your share every month — with every sale and payout shown here.",
+    cta: ["Ask about selling", "/contact"],
+  },
+  {
+    key: "exhibitors",
+    icon: Palette,
+    title: "Show your art in the gallery",
+    body: "Gallery artists get their own page on our Exhibitors list — a bio, a photo and pieces of their work — and can update it any time from here.",
+    cta: ["See the gallery", "/exhibitors"],
+  },
+  {
+    key: "businesses",
+    icon: Store,
+    title: "Your business in the building",
+    body: "Tenants get a page in our directory, can post the events they run in their own space, and see their rent and shared bills here with a Pay button.",
+    cta: ["See the directory", "/directory"],
+  },
+  {
+    key: "inbox",
+    icon: Inbox,
+    title: "Every email in one place",
+    body: "A copy of every email we send you — confirmations, invoices, receipts, payouts — is kept in your Inbox, so nothing gets lost in your email.",
+    cta: ["Open your inbox", "/account/inbox"],
+  },
+];
+
+function Explore({ mine }) {
+  const have = {
+    bookings: mine.bookings.total > 0,
+    listings: mine.listings.length > 0,
+    makers: mine.makers.length > 0,
+    exhibitors: mine.exhibitors.length > 0,
+    businesses: mine.businesses.length > 0,
+    inbox: true,
+  };
+  return (
+    <section className="ac-section ac-rise ac-rise-5" id="explore">
+      <div className="ac-section-head">
+        <h2 className="ac-h2">Everything you can do here</h2>
+        <span className="ac-small">Tap one to see how it works</span>
+      </div>
+      <div className="ac-explore">
+        {FEATURES.map(({ key, icon: Icon, title, body, cta }) => (
+          <details key={key} className="ac-explore-item">
+            <summary>
+              <span className="ac-icon" style={{ width: 38, height: 38 }}>
+                <Icon aria-hidden="true" />
+              </span>
+              <span className="ac-row-main">
+                <span className="ac-row-title" style={{ whiteSpace: "normal" }}>{title}</span>
+              </span>
+              {have[key] ? <span className="ac-pill ac-pill--live">You&apos;re set up</span> : null}
+              <ChevronDown className="ac-explore-chev" width={18} height={18} aria-hidden="true" />
+            </summary>
+            <div className="ac-explore-body">
+              <p className="ac-tile-body">{body}</p>
+              {!have[key] || key === "inbox" ? (
+                <Link href={cta[1]} className="ac-tile-go" style={{ marginTop: 14 }}>
+                  {cta[0]} <span className="ac-arrow" aria-hidden="true">→</span>
+                </Link>
+              ) : (
+                <p className="ac-small" style={{ marginTop: 10 }}>It&apos;s on your dashboard above.</p>
+              )}
+            </div>
+          </details>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function Tile({ href, icon: Icon, eyebrow, title, children, go = "Open", wide = false }) {
@@ -149,10 +244,9 @@ export default async function AccountHome() {
             It all shows up here under {account.email}. Used a different email with us before? Ask us to update it.
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", marginTop: 26 }}>
-            <Link href="/book" className="ac-btn ac-btn--auto">
-              Book a room <span className="ac-arrow" aria-hidden="true">→</span>
-            </Link>
-            <Link href="/contact" className="ac-btn ac-btn--ghost ac-btn--auto">Sell in the shop</Link>
+            <a href="#explore" className="ac-btn ac-btn--auto">
+              See what you can do <span className="ac-arrow" aria-hidden="true">↓</span>
+            </a>
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/building-front.webp" alt="" className="ac-empty-art" />
@@ -196,6 +290,8 @@ export default async function AccountHome() {
           ) : null}
         </div>
       )}
+
+      <Explore mine={mine} />
 
       <section className="ac-section ac-rise ac-rise-4">
         <div className="ac-section-head">

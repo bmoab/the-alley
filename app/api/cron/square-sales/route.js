@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { syncSquareSales } from "@/lib/inventory.js";
 import { staffCostDaily, monthLabel } from "@/lib/staff-costs.js";
 import { emailStaffCostReady } from "@/lib/email.js";
+import { refreshShareBillPayments } from "@/lib/money.js";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,13 @@ export async function GET(request) {
     console.error("[cron] staff-costs failed", err);
     staffCosts = { error: "Staff cost step failed — see the server log." };
   }
-  const ok = !sales.error && !staffCosts.error;
-  return NextResponse.json({ ok, ...sales, staffCosts }, { status: ok ? 200 : 500 });
+  let shareBills;
+  try {
+    shareBills = await refreshShareBillPayments();
+  } catch (err) {
+    console.error("[cron] share bills failed", err);
+    shareBills = { error: "Share-bill check failed — see the server log." };
+  }
+  const ok = !sales.error && !staffCosts.error && !shareBills.error;
+  return NextResponse.json({ ok, ...sales, staffCosts, shareBills }, { status: ok ? 200 : 500 });
 }

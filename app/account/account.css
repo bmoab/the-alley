@@ -387,3 +387,15 @@ a.ac-row:hover .ac-row-chev { transform: translateX(4px); color: var(--ink); }
   .ac-row:has(> .ac-pill) > .ac-pill { grid-column: 1; grid-row: 2; justify-self: start; }
   .ac-row:has(> .ac-pill) > .ac-row-chev { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
 }
+
+/* "Everything you can do here" — folded cards */
+.ac-explore { display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 760px) { .ac-explore { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; } }
+.ac-explore-item { background: #fff; border: 1px solid var(--line); transition: border-color .25s; }
+.ac-explore-item[open] { border-color: var(--ink); }
+.ac-explore-item summary { list-style: none; display: flex; align-items: center; gap: 14px; padding: 14px 16px; cursor: pointer; }
+.ac-explore-item summary::-webkit-details-marker { display: none; }
+.ac-explore-chev { flex: none; color: var(--ink-muted); transition: transform .3s var(--ac-ease); }
+.ac-explore-item[open] .ac-explore-chev { transform: rotate(180deg); color: var(--ink); }
+.ac-explore-body { padding: 0 18px 18px 68px; animation: ac-rise .35s var(--ac-ease) both; }
+@media (max-width: 600px) { .ac-explore-body { padding-left: 18px; } .ac-explore-item .ac-pill { display: none; } }

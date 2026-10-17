@@ -207,9 +207,18 @@ function AccountsAudience({ audience, data, title, blurb }) {
       <input type="hidden" name="audience" value={audience} />
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="font-semibold text-ink">{title}</p>
-        <a href={`/admin/announce/accounts/${audience}`} target="_blank" rel="noreferrer" className="text-sm font-semibold text-verde-deep underline">
-          Preview the email ↗
-        </a>
+        <span className="flex flex-wrap gap-x-3 text-sm">
+          <a href={`/admin/announce/accounts/${audience}`} target="_blank" rel="noreferrer" className="font-semibold text-verde-deep underline">
+            Preview ↗
+          </a>
+          {audience === "others"
+            ? [["artist", "as an artist"], ["maker", "as a maker"]].map(([k, l]) => (
+                <a key={k} href={`/admin/announce/accounts/others?as=${k}`} target="_blank" rel="noreferrer" className="text-verde-deep underline">
+                  {l} ↗
+                </a>
+              ))
+            : null}
+        </span>
       </div>
       <p className="mt-0.5 text-sm text-ink-muted">{blurb}</p>
       {data.total === 0 ? (
@@ -534,7 +543,7 @@ export default async function SettingsPage() {
               audience="others"
               data={accountsAnnounce.others}
               title="Everyone else"
-              blurb="Past renters, event hosts, exhibitors and makers who aren't tenants."
+              blurb="Past renters, event hosts, gallery artists and makers who aren't tenants. Each email only mentions what that person actually has with us."
             />
           </div>
         </Card>

@@ -231,7 +231,7 @@ export default async function SalesPage({ searchParams }) {
                     </td>
                     <td className="py-1.5 pr-2 text-ink-soft">
                       {l.kind !== "retail" ? (
-                        l.kind === "staffshare" ? "tenant's staff share" : l.kind
+                        ({ staffshare: "tenant's staff share", utilityshare: "utility share", rent: "rent" })[l.kind] || l.kind
                       ) : l.vendor_id ? (
                         <Link href={`/admin/vendors/${l.vendor_id}`} className="hover:underline">
                           {l.vendor_name}

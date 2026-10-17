@@ -23,6 +23,7 @@ import {
   Handshake,
   Receipt,
   Coins,
+  ChartNoAxesCombined,
 } from "lucide-react";
 
 // Full navigation, in sidebar order. Items are either a link
@@ -31,6 +32,8 @@ export const NAV = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   // One page for the calendar, every booking and every listing.
   { href: "/admin/events", label: "Events", icon: CalendarDays },
+  // The whole Alley's finances. Owners and admins.
+  { href: "/admin/money", label: "Money", icon: ChartNoAxesCombined, needsStaff: true },
   {
     group: "Reservations",
     icon: ClipboardList,
