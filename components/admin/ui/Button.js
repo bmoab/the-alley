@@ -41,6 +41,9 @@ export default function Button({
   ...props
 }) {
   const classes = cx(
+    // ui-btn / ui-btn--<variant>: stable hooks so a page with its own look (the
+    // account pages, account.css) can restyle these without touching the admin.
+    `ui-btn ui-btn--${VARIANTS[variant] ? variant : "primary"}`,
     "inline-flex items-center font-semibold tracking-wide transition-colors duration-150",
     "focus:outline-none focus-visible:ring-2 focus-visible:ring-verde-deep/50 focus-visible:ring-offset-1 focus-visible:ring-offset-paper",
     "disabled:opacity-50 disabled:pointer-events-none",

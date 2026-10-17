@@ -3,7 +3,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { isActive } from "./nav-config.js";
+import { isActive, groupCount } from "./nav-config.js";
+import NavCount from "./NavCount.js";
 import { cx } from "./ui/cx.js";
 
 /**
@@ -11,7 +12,7 @@ import { cx } from "./ui/cx.js";
  * Light theme: charcoal text, verde active state. Starts open when you're on
  * one of its pages.
  */
-export default function NavGroup({ label, icon: Icon, items }) {
+export default function NavGroup({ label, icon: Icon, items, counts = {} }) {
   const pathname = usePathname();
   const groupActive = items.some((i) => isActive(pathname, i.href));
   const [open, setOpen] = useState(groupActive);
@@ -29,6 +30,8 @@ export default function NavGroup({ label, icon: Icon, items }) {
       >
         {Icon ? <Icon className="h-[18px] w-[18px] shrink-0" /> : null}
         <span className="flex-1 text-left">{label}</span>
+        {/* Folded away, the group shows its pages' total so nothing hides. */}
+        {!open ? <NavCount n={groupCount(counts, items)} className="ml-0" /> : null}
         <ChevronDown
           className={cx("h-4 w-4 transition-transform", open ? "rotate-180" : "")}
         />
@@ -62,6 +65,7 @@ export default function NavGroup({ label, icon: Icon, items }) {
                   />
                 ) : null}
                 {sub.label}
+                <NavCount n={counts[sub.href]} />
               </Link>
             );
           })}

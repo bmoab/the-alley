@@ -7,6 +7,7 @@ import AdminNav from "@/components/admin/AdminNav.js";
 import BottomNav from "@/components/admin/BottomNav.js";
 import Toaster from "@/components/admin/ui/Toaster.js";
 import BookingDrawer from "@/components/admin/BookingDrawer.js";
+import { attentionCounts } from "@/lib/attention.js";
 
 async function logout() {
   "use server";
@@ -27,12 +28,14 @@ export default async function AdminLayout({ children }) {
   const isOwner = user.role === "owner";
   const canManage = canManageBookings(user);
   const staffManager = canManageStaff(user);
+  // The little "needs you" bubbles in the nav.
+  const counts = attentionCounts();
 
   return (
     <div className="admin-ui min-h-screen bg-paper-warm lg:flex">
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-r border-line bg-paper lg:block">
-        <AdminNav email={user.email} isOwner={isOwner} canManageBookings={canManage} canManageStaff={staffManager} logout={logout} />
+        <AdminNav email={user.email} isOwner={isOwner} canManageBookings={canManage} canManageStaff={staffManager} counts={counts} logout={logout} />
       </aside>
 
       {/* Mobile top bar */}
@@ -59,7 +62,7 @@ export default async function AdminLayout({ children }) {
       </main>
 
       {/* Mobile bottom tab bar + More sheet */}
-      <BottomNav email={user.email} isOwner={isOwner} canManageBookings={canManage} canManageStaff={staffManager} logout={logout} />
+      <BottomNav email={user.email} isOwner={isOwner} canManageBookings={canManage} canManageStaff={staffManager} counts={counts} logout={logout} />
 
       {/* Booking activity drawer — opens when ?b=<id> is in the URL (any list) */}
       <Suspense fallback={null}>

@@ -3,7 +3,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Menu, X, ExternalLink, LogOut } from "lucide-react";
-import { navFor, PRIMARY_TABS, isActive } from "./nav-config.js";
+import { navFor, PRIMARY_TABS, isActive, groupCount } from "./nav-config.js";
+import NavCount from "./NavCount.js";
 import { cx } from "./ui/cx.js";
 
 /**
@@ -12,7 +13,7 @@ import { cx } from "./ui/cx.js";
  * section plus View website / Sign out / the signed-in email — the actions
  * that were previously unreachable on a phone.
  */
-export default function BottomNav({ email, isOwner = false, canManageBookings = false, canManageStaff = false, logout }) {
+export default function BottomNav({ email, isOwner = false, canManageBookings = false, canManageStaff = false, counts = {}, logout }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const nav = navFor({ isOwner, canManageBookings, canManageStaff });
@@ -39,6 +40,14 @@ export default function BottomNav({ email, isOwner = false, canManageBookings = 
 
   // "More" is highlighted when the current page isn't one of the primary tabs.
   const onPrimary = primaryTabs.some((t) => isActive(pathname, t.href));
+
+  // Bubbles on the tabs: Shop carries its whole group; More carries whatever
+  // waits on a page no tab stands for.
+  const shopItems = nav.find((i) => i.group === "Shop")?.items || [];
+  const tabCount = (href) => (href === "/admin/inventory" ? groupCount(counts, shopItems) : counts[href] || 0);
+  const covered = new Set([...primaryTabs.map((t) => t.href), ...shopItems.map((i) => i.href)]);
+  const visible = new Set(nav.flatMap((i) => (i.group ? i.items.map((x) => x.href) : [i.href])));
+  const moreCount = Object.entries(counts).reduce((t, [href, n]) => t + (covered.has(href) || !visible.has(href) ? 0 : n), 0);
 
   return (
     <>
@@ -70,11 +79,11 @@ export default function BottomNav({ email, isOwner = false, canManageBookings = 
                       {item.group}
                     </p>
                     {item.items.map((sub) => (
-                      <SheetLink key={sub.href} item={sub} active={isActive(pathname, sub.href)} />
+                      <SheetLink key={sub.href} item={sub} active={isActive(pathname, sub.href)} count={counts[sub.href]} />
                     ))}
                   </div>
                 ) : (
-                  <SheetLink key={item.href} item={item} active={isActive(pathname, item.href)} />
+                  <SheetLink key={item.href} item={item} active={isActive(pathname, item.href)} count={counts[item.href]} />
                 )
               )}
 
@@ -116,7 +125,10 @@ export default function BottomNav({ email, isOwner = false, canManageBookings = 
                 active ? "text-verde-deep" : "text-ink-muted"
               )}
             >
-              <Icon className="h-[22px] w-[22px]" />
+              <span className="relative">
+                <Icon className="h-[22px] w-[22px]" />
+                <NavCount n={tabCount(tab.href)} className="absolute -right-3 -top-1.5 ml-0 h-[18px] min-w-[18px] text-[10px]" />
+              </span>
               {tab.label}
             </Link>
           );
@@ -129,7 +141,10 @@ export default function BottomNav({ email, isOwner = false, canManageBookings = 
             !onPrimary ? "text-verde-deep" : "text-ink-muted"
           )}
         >
-          <Menu className="h-[22px] w-[22px]" />
+          <span className="relative">
+            <Menu className="h-[22px] w-[22px]" />
+            <NavCount n={moreCount} className="absolute -right-3 -top-1.5 ml-0 h-[18px] min-w-[18px] text-[10px]" />
+          </span>
           More
         </button>
       </nav>
@@ -137,7 +152,7 @@ export default function BottomNav({ email, isOwner = false, canManageBookings = 
   );
 }
 
-function SheetLink({ item, active }) {
+function SheetLink({ item, active, count }) {
   const Icon = item.icon;
   return (
     <Link
@@ -152,6 +167,7 @@ function SheetLink({ item, active }) {
         <Icon className={cx("h-[18px] w-[18px] shrink-0", active ? "text-verde-deep" : "")} />
       ) : null}
       {item.label}
+      <NavCount n={count} />
     </Link>
   );
 }

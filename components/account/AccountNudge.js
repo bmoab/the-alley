@@ -14,27 +14,31 @@ export default async function AccountNudge({ email }) {
   const account = await getAccount();
   if (account && normalizeEmail(account.email) === clean) {
     return (
-      <p className="mt-4 rounded-xl border border-line bg-paper px-4 py-3 text-sm text-ink-soft">
-        You&apos;re signed in.{" "}
-        <Link href="/account" className="font-semibold text-ink underline">
-          Your account
-        </Link>{" "}
-        has this and everything else you have with us.
+      <p className="ac-note" style={{ marginTop: 20 }}>
+        <span>
+          You&apos;re signed in.{" "}
+          <Link href="/account" style={{ fontWeight: 600, textDecoration: "underline" }}>
+            Your account
+          </Link>{" "}
+          has this and everything else you have with us.
+        </span>
       </p>
     );
   }
   return (
-    <p className="mt-4 rounded-xl border border-line bg-paper px-4 py-3 text-sm text-ink-soft">
-      Keep it all in one place:{" "}
-      <Link href="/account/sign-up" className="font-semibold text-ink underline">
-        make an account
-      </Link>{" "}
-      with {clean} (or{" "}
-      <Link href="/account/sign-in" className="font-semibold text-ink underline">
-        sign in
-      </Link>
-      ) to see this, your other bookings and listings, and a copy of every email we send you. This link keeps working
-      either way.
+    <p className="ac-note" style={{ marginTop: 20 }}>
+      <span>
+        Keep it all in one place:{" "}
+        <Link href="/account/sign-up" style={{ fontWeight: 600, textDecoration: "underline" }}>
+          create an account
+        </Link>{" "}
+        with {clean} (or{" "}
+        <Link href="/account/sign-in" style={{ fontWeight: 600, textDecoration: "underline" }}>
+          sign in
+        </Link>
+        ) to see this, your other bookings and listings, and a copy of every email we send you. This link keeps working
+        either way.
+      </span>
     </p>
   );
 }

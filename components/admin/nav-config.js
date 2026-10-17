@@ -114,3 +114,8 @@ export function isActive(pathname, href) {
   if (!matches(href)) return false;
   return !ALL_HREFS.some((other) => other.length > href.length && other.startsWith(href + "/") && matches(other));
 }
+
+/** A group's bubble: the sum of its pages' counts. */
+export function groupCount(counts = {}, items = []) {
+  return items.reduce((t, i) => t + (counts[i.href] || 0), 0);
+}

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { getEventByToken, saveHostListing, findLastEventByHostEmail, getEventSessions, getEventBookingWindow, isReviewedListing } from "@/lib/catalog.js";
 import { getSetting } from "@/lib/db.js";
@@ -7,6 +6,7 @@ import { emailOwnerListingVisibility } from "@/lib/email.js";
 import { requestRecipients, recipientLabel } from "@/lib/notify.js";
 import HostListingForm from "@/components/HostListingForm.js";
 import AccountNudge from "@/components/account/AccountNudge.js";
+import PortalFrame, { PortalHead, PortalMissing } from "@/components/account/PortalFrame.js";
 
 export const metadata = { title: "Post your event" };
 
@@ -15,18 +15,12 @@ export default function HostListingPage({ params }) {
 
   if (!event) {
     return (
-      <main className="brandpage flex min-h-screen items-center justify-center bg-paper-warm px-5">
-        <div className="card max-w-md p-8 text-center">
-          <h1 className="font-display text-2xl font-semibold text-ink">
-            Link not found
-          </h1>
-          <p className="mt-3 text-ink-muted">
-            This event link is invalid or has expired. If you booked a public
-            event, check your confirmation email for the correct link.
-          </p>
-          <Link href="/" className="btn-primary mt-6">Visit The Alley</Link>
-        </div>
-      </main>
+      <PortalFrame label="Event listing">
+        <PortalMissing>
+          This event link is invalid or has expired. If you booked a public event, check your confirmation email for the
+          right link — or sign in to see all your listings.
+        </PortalMissing>
+      </PortalFrame>
     );
   }
 
@@ -129,46 +123,25 @@ export default function HostListingPage({ params }) {
   }
 
   return (
-    <main className="brandpage min-h-screen bg-paper-warm">
-      <header className="border-b border-ink/10 bg-paper">
-        <div className="container-content flex items-center justify-between py-4">
-          <Link href="/" className="font-display text-xl font-semibold text-ink">
-            The Alley <span className="text-brass-dark">On Center</span>
-          </Link>
-          <span className="text-sm text-ink-muted">Host event listing</span>
-        </div>
-      </header>
+    <PortalFrame label="Event listing">
+      <PortalHead eyebrow="Your private posting link" title={canSetVisibility ? "Your event listing" : "Post your event"}>
+        {canSetVisibility ? (
+          <>
+            Change anything below and save — your edits go straight to The Alley&apos;s calendar, no waiting. Whether it
+            shows publicly at all is up to you, down in &ldquo;Who can see this&rdquo;.
+          </>
+        ) : (
+          <>
+            Share your event with The Alley community: the details, a flyer, and how to pay you.
+            {needsReview ? " We’ll do a quick review before it goes live." : " It goes on the calendar as soon as you post it."}
+          </>
+        )}
+      </PortalHead>
+      <AccountNudge email={event.host_email} />
 
-      <div className="container-content max-w-2xl py-10">
-        <p className="eyebrow">Your private posting link</p>
-        <h1 className="mt-2 font-display text-3xl font-semibold text-ink">
-          {canSetVisibility ? "Your event listing" : "Post your event"}
-        </h1>
-        <p className="mt-2 text-ink-muted">
-          {canSetVisibility ? (
-            <>
-              Change anything below and save — your edits go straight to The
-              Alley&apos;s calendar, no waiting. Whether it shows publicly at all
-              is up to you, down in &ldquo;Who can see this&rdquo;. Bookmark this
-              link; it always brings you back here.
-            </>
-          ) : (
-            <>
-              Share your class with The Alley community. Fill in the details, add
-              a flyer, and tell attendees how to pay you.
-              {needsReview
-                ? " We’ll do a quick review before it goes live."
-                : " It goes on the calendar as soon as you post it."}{" "}
-              Bookmark this link — you can come back and edit anytime.
-            </>
-          )}
-        </p>
-        <AccountNudge email={event.host_email} />
-
-        <div className="mt-8">
-          <HostListingForm event={event} saveAction={save} alreadyLive={alreadyLive} canSetVisibility={canSetVisibility} needsReview={needsReview} lastEvent={lastEvent} sessions={getEventSessions(event)} bookingWindow={getEventBookingWindow(event)} />
-        </div>
+      <div style={{ marginTop: 36 }}>
+        <HostListingForm event={event} saveAction={save} alreadyLive={alreadyLive} canSetVisibility={canSetVisibility} needsReview={needsReview} lastEvent={lastEvent} sessions={getEventSessions(event)} bookingWindow={getEventBookingWindow(event)} />
       </div>
-    </main>
+    </PortalFrame>
   );
 }

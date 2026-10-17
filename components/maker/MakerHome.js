@@ -15,10 +15,10 @@ const DROPOFF_STATUS = {
 
 function Stat({ label, value, hint }) {
   return (
-    <div className="rounded-xl border border-line bg-paper p-4">
-      <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted">{label}</p>
-      <p className="mt-1 text-xl font-semibold tabular-nums text-ink">{value}</p>
-      {hint ? <p className="text-xs text-ink-muted">{hint}</p> : null}
+    <div className="card ac-figure" style={{ padding: "18px 20px" }}>
+      <b className="tabular-nums">{value}</b>
+      <span>{label}</span>
+      {hint ? <p className="ac-small" style={{ margin: "4px 0 0" }}>{hint}</p> : null}
     </div>
   );
 }
@@ -61,7 +61,7 @@ function SalesTable({ lines }) {
  * what they've been paid. Shared by their account (/account/consign/[id]) and
  * their private link (/maker/[token]); `hidden` tells the actions which.
  */
-export default function MakerHome({ vendorId, hidden }) {
+export default function MakerHome({ vendorId, hidden, notice = null }) {
   const o = makerOverview(vendorId);
   const v = o.vendor;
   const terms = termsFor(v);
@@ -72,21 +72,22 @@ export default function MakerHome({ vendorId, hidden }) {
   const hiddenFields = Object.entries(hidden).map(([k, val]) => <input key={k} type="hidden" name={k} value={val} />);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-verde-deep">Consignment</p>
-        <h1 className="text-2xl font-semibold text-ink">{v.name}</h1>
-        <p className="mt-1 text-sm text-ink-muted">
+    <div className="ac-maker space-y-6">
+      <header className="ac-hello" style={{ marginBottom: 8 }}>
+        <p className="ac-eyebrow ac-date ac-rise">Consignment</p>
+        <h1 className="ac-title ac-rise ac-rise-1">{v.name}</h1>
+        <p className="ac-lede ac-rise ac-rise-2">
           You get {o.split}% of every sale, paid monthly for the month before.
           {o.lastSynced
             ? ` Sales updated ${new Date(o.lastSynced).toLocaleString("en-US", { timeZone: "America/Denver", dateStyle: "medium", timeStyle: "short" })}.`
             : ""}
         </p>
-      </div>
+      </header>
+      {notice}
 
       {mustAgree ? (
-        <Card pad="md" id="terms" className="border-verde-deep/50">
-          <h2 className="text-base font-semibold text-ink">
+        <Card pad="lg" id="terms" className="border-verde-deep/50">
+          <h2 className="ac-h2">
             {v.terms_accepted_at ? "Our consignment terms have changed" : "First, our consignment terms"}
           </h2>
           <div className="mt-2 max-h-80 overflow-y-auto whitespace-pre-line rounded-lg bg-paper-dim p-3 text-sm text-ink-soft">
@@ -113,8 +114,8 @@ export default function MakerHome({ vendorId, hidden }) {
         />
       </div>
 
-      <Card pad="md" id="dropoffs">
-        <h2 className="text-base font-semibold text-ink">Bringing something in?</h2>
+      <Card pad="lg" id="dropoffs">
+        <h2 className="ac-h2">Bringing something in?</h2>
         <p className="mt-1 text-sm text-ink-soft">
           List it here first. When you come in we count it together, put it in the register and print the price tags.
         </p>
@@ -156,8 +157,8 @@ export default function MakerHome({ vendorId, hidden }) {
         ) : null}
       </Card>
 
-      <Card pad="md">
-        <h2 className="text-base font-semibold text-ink">On the shelf</h2>
+      <Card pad="lg">
+        <h2 className="ac-h2">On the shelf</h2>
         {o.items.length ? (
           <div className="-mx-1 mt-2 overflow-x-auto px-1">
             <table className="w-full min-w-[420px] text-sm">
@@ -195,8 +196,8 @@ export default function MakerHome({ vendorId, hidden }) {
         )}
       </Card>
 
-      <Card pad="md">
-        <h2 className="text-base font-semibold text-ink">
+      <Card pad="lg">
+        <h2 className="ac-h2">
           Sold this month <span className="font-normal text-ink-muted">· {formatMoney(sum(o.salesThisMonth, "share"))} yours</span>
         </h2>
         <SalesTable lines={o.salesThisMonth} />
@@ -208,8 +209,8 @@ export default function MakerHome({ vendorId, hidden }) {
         </details>
       </Card>
 
-      <Card pad="md">
-        <h2 className="text-base font-semibold text-ink">Payouts</h2>
+      <Card pad="lg">
+        <h2 className="ac-h2">Payouts</h2>
         {o.payouts.length ? (
           <ul className="mt-2 divide-y divide-line text-sm">
             {o.payouts.map((p) => (
@@ -227,8 +228,8 @@ export default function MakerHome({ vendorId, hidden }) {
         )}
       </Card>
 
-      <Card pad="md" id="details">
-        <h2 className="text-base font-semibold text-ink">Your details</h2>
+      <Card pad="lg" id="details">
+        <h2 className="ac-h2">Your details</h2>
         <form action={saveMakerDetails} className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {hiddenFields}
           <div>

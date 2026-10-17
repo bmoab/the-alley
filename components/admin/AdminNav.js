@@ -4,6 +4,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { ExternalLink, LogOut } from "lucide-react";
 import NavGroup from "./NavGroup.js";
+import NavCount from "./NavCount.js";
 import { navFor, isActive } from "./nav-config.js";
 import { cx } from "./ui/cx.js";
 
@@ -12,7 +13,7 @@ import { cx } from "./ui/cx.js";
  * active state with a sage accent bar. Footer actions (View website / Sign out)
  * are always visible here. `logout` is a server action passed from the layout.
  */
-export default function AdminNav({ email, isOwner = false, canManageBookings = false, canManageStaff = false, logout }) {
+export default function AdminNav({ email, isOwner = false, canManageBookings = false, canManageStaff = false, counts = {}, logout }) {
   const pathname = usePathname();
   const nav = navFor({ isOwner, canManageBookings, canManageStaff });
 
@@ -42,9 +43,10 @@ export default function AdminNav({ email, isOwner = false, canManageBookings = f
               label={item.group}
               icon={item.icon}
               items={item.items}
+              counts={counts}
             />
           ) : (
-            <NavLink key={item.href} item={item} active={isActive(pathname, item.href)} />
+            <NavLink key={item.href} item={item} active={isActive(pathname, item.href)} count={counts[item.href]} />
           )
         )}
       </nav>
@@ -72,7 +74,7 @@ export default function AdminNav({ email, isOwner = false, canManageBookings = f
   );
 }
 
-function NavLink({ item, active }) {
+function NavLink({ item, active, count }) {
   const Icon = item.icon;
   return (
     <Link
@@ -94,6 +96,7 @@ function NavLink({ item, active }) {
         />
       ) : null}
       {item.label}
+      <NavCount n={count} />
     </Link>
   );
 }

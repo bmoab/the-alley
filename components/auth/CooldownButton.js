@@ -17,7 +17,7 @@ const read = (key) => {
  * again won't make it come faster. The server throttles too; this just stops
  * the button from looking like it does nothing.
  */
-export default function CooldownButton({ storageKey, seconds = 60, children, ...props }) {
+export default function CooldownButton({ storageKey, seconds = 60, unstyled = false, children, ...props }) {
   const { pending } = useFormStatus();
   const [left, setLeft] = useState(0);
 
@@ -36,9 +36,12 @@ export default function CooldownButton({ storageKey, seconds = 60, children, ...
     } catch {}
   };
 
+  const label = pending ? "Sending…" : left > 0 ? `Sent — again in ${left}s` : children;
+  // `unstyled`: a plain <button> that takes the caller's className (the account pages' own look).
+  const Tag = unstyled ? "button" : Button;
   return (
-    <Button type="submit" disabled={pending || left > 0} onClick={left > 0 ? undefined : start} {...props}>
-      {pending ? "Sending…" : left > 0 ? `Sent — send again in ${left}s` : children}
-    </Button>
+    <Tag type="submit" disabled={pending || left > 0} onClick={left > 0 ? undefined : start} {...props}>
+      {label}
+    </Tag>
   );
 }

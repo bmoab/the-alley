@@ -16,6 +16,8 @@ import { saveUpload } from "@/lib/uploads.js";
 import { formatDate, formatTime, venueToday } from "@/lib/constants.js";
 import DirectoryEditForm from "@/components/DirectoryEditForm.js";
 import AccountNudge from "@/components/account/AccountNudge.js";
+import PortalFrame, { PortalHead, PortalMissing } from "@/components/account/PortalFrame.js";
+import TenantBills from "@/components/account/TenantBills.js";
 
 export const metadata = { title: "Set up your business listing" };
 
@@ -66,20 +68,11 @@ export default function BusinessListingPage({ params, searchParams }) {
 
   if (!entry) {
     return (
-      <main className="brandpage flex min-h-screen items-center justify-center bg-paper-warm px-5">
-        <div className="card max-w-md p-8 text-center">
-          <h1 className="font-display text-2xl font-semibold text-ink">
-            Link not found
-          </h1>
-          <p className="mt-3 text-ink-muted">
-            This listing link is invalid or has expired. Check your email for the
-            correct link, or contact The Alley.
-          </p>
-          <Link href="/" className="btn-primary mt-6">
-            Visit The Alley
-          </Link>
-        </div>
-      </main>
+      <PortalFrame label="Business listing">
+        <PortalMissing>
+          This listing link is invalid or has expired. Check your email for the right link, or sign in to your account.
+        </PortalMissing>
+      </PortalFrame>
     );
   }
 
@@ -137,29 +130,18 @@ export default function BusinessListingPage({ params, searchParams }) {
   };
 
   return (
-    <main className="brandpage min-h-screen bg-paper-warm">
-      <header className="border-b border-ink/10 bg-paper">
-        <div className="container-content flex items-center justify-between py-4">
-          <Link href="/" className="font-display text-xl font-semibold text-ink">
-            The Alley <span className="text-brass-dark">On Center</span>
-          </Link>
-          <span className="text-sm text-ink-muted">Business listing</span>
-        </div>
-      </header>
-
-      <div className="container-content max-w-2xl py-10">
-        <p className="eyebrow">Your private listing link</p>
-        <h1 className="mt-2 font-display text-3xl font-semibold text-ink">
-          Set up your listing
-        </h1>
-        <p className="mt-2 text-ink-muted">
-          This is your spot in The Alley directory. Add your details, photos, and
-          links — your changes go live on our website right away. Bookmark this
-          link to edit anytime.
-        </p>
+    <PortalFrame label="Business listing">
+      <div>
+        <PortalHead eyebrow="Your private listing link" title={entry.business_name || "Set up your listing"}>
+          Your spot in The Alley directory: your details, photos and links. Changes go live on our website right away.
+        </PortalHead>
         <AccountNudge email={entry.contact_email} />
 
-        <div className="mt-8">
+        <div style={{ marginTop: 28 }}>
+          <TenantBills directoryId={entry.id} />
+        </div>
+
+        <div style={{ marginTop: 36 }}>
           <DirectoryEditForm
             entry={{
               ...entry,
@@ -171,14 +153,14 @@ export default function BusinessListingPage({ params, searchParams }) {
         </div>
 
         {/* ------------------------------------------------ tenant events */}
-        <div id="events" className="mt-12 border-t border-ink/10 pt-10">
-          <h2 className="font-display text-2xl font-semibold text-ink">
-            Your events on The Alley calendar
-          </h2>
+        <div id="events" className="ac-section">
+          <div className="ac-section-head">
+            <h2 className="ac-h2">Your events on The Alley calendar</h2>
+          </div>
 
           {/* The distinction Chelsea asked us to spell out. A tenant seeing a
               date field will reasonably assume they're reserving something. */}
-          <div className="mt-4 rounded-xl border border-gold/40 bg-gold/10 p-5">
+          <div className="ac-note" style={{ display: "block", padding: "20px 22px" }}>
             <p className="font-semibold text-ink">This is a listing, not a booking.</p>
             <p className="mt-2 text-sm text-ink-soft">
               Posting here puts your event on The Alley&rsquo;s public calendar so
@@ -196,7 +178,7 @@ export default function BusinessListingPage({ params, searchParams }) {
             <p className="mt-3 text-sm text-ink-soft">
               <strong className="text-ink">Need a room to yourself?</strong> The Loft,
               the Main Floor and the Conference Room are booked separately — send a{" "}
-              <Link href="/book" className="font-semibold text-brass-dark hover:underline">
+              <Link href="/book" className="font-semibold text-ink underline">
                 booking request
               </Link>{" "}
               and we&rsquo;ll confirm the space is held for you.
@@ -204,14 +186,7 @@ export default function BusinessListingPage({ params, searchParams }) {
           </div>
 
           {notice && NOTICES[notice] ? (
-            <p
-              role="status"
-              className={`mt-4 rounded-lg border px-4 py-2 text-sm ${
-                notice === "error"
-                  ? "border-rust/30 bg-rust/10 text-rust"
-                  : "border-verde-deep/30 bg-verde/30 text-ink"
-              }`}
-            >
+            <p role="status" className={`ac-note ${notice === "error" ? "ac-note--error" : ""}`} style={{ marginTop: 16 }}>
               {NOTICES[notice]}
             </p>
           ) : null}
@@ -289,7 +264,7 @@ export default function BusinessListingPage({ params, searchParams }) {
           ) : null}
         </div>
       </div>
-    </main>
+    </PortalFrame>
   );
 }
 

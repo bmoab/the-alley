@@ -1,36 +1,48 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cx } from "@/components/admin/ui/cx.js";
+import { House, Inbox, Settings } from "lucide-react";
 
-// The account's whole navigation — a row of tabs under the header.
+const TABS = [
+  { href: "/account", label: "Home", icon: House },
+  { href: "/account/inbox", label: "Inbox", icon: Inbox },
+  { href: "/account/settings", label: "Settings", icon: Settings },
+];
+
+function isActive(pathname, href) {
+  return href === "/account" ? pathname === "/account" || pathname.startsWith("/account/consign") : pathname.startsWith(href);
+}
+
+/** The account's tabs, in the header on a wide screen. */
 export default function AccountNav({ unread = 0 }) {
   const pathname = usePathname();
-  const tabs = [
-    { href: "/account", label: "Home" },
-    { href: "/account/inbox", label: "Inbox" },
-    { href: "/account/settings", label: "Settings" },
-  ];
   return (
-    <nav className="mx-auto flex max-w-3xl gap-0.5 overflow-x-auto px-2 sm:px-4">
-      {tabs.map(({ href, label }) => {
-        const active = href === "/account" ? pathname === "/account" || pathname.startsWith("/account/consign") : pathname.startsWith(href);
-        return (
-          <Link
-            key={href}
-            href={href}
-            className={cx(
-              "flex shrink-0 items-center gap-1.5 border-b-2 px-2.5 py-2.5 text-sm font-semibold transition-colors",
-              active ? "border-ink text-ink" : "border-transparent text-ink-muted hover:text-ink"
-            )}
-          >
-            {label}
-            {href === "/account/inbox" && unread ? (
-              <span className="rounded-full bg-verde px-1.5 text-[11px] text-ink">{unread}</span>
-            ) : null}
-          </Link>
-        );
-      })}
+    <nav className="ac-tabs" aria-label="Your account">
+      {TABS.map(({ href, label }) => (
+        <Link key={href} href={href} className="ac-tab" aria-current={isActive(pathname, href) ? "page" : undefined}>
+          {label}
+          {href === "/account/inbox" && unread ? <span className="ac-tab-count">{unread}</span> : null}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+/**
+ * The same tabs as a bar along the bottom on a phone, where a thumb reaches.
+ * Rendered OUTSIDE the header: the header's backdrop blur would otherwise
+ * pin this "fixed" bar to the header instead of the screen.
+ */
+export function AccountMobileNav() {
+  const pathname = usePathname();
+  return (
+    <nav className="ac-mobile-tabs" aria-label="Your account">
+      {TABS.map(({ href, label, icon: Icon }) => (
+        <Link key={href} href={href} aria-current={isActive(pathname, href) ? "page" : undefined}>
+          <Icon aria-hidden="true" strokeWidth={1.6} />
+          {label}
+        </Link>
+      ))}
     </nav>
   );
 }

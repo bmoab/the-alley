@@ -19,6 +19,7 @@ import ContentImageField from "@/components/ContentImageField.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Button from "@/components/admin/ui/Button.js";
 import { requireAdmin } from "@/lib/auth.js";
+import { setTenantRent } from "@/lib/staff-costs.js";
 
 export const metadata = { title: "Directory" };
 
@@ -43,8 +44,18 @@ async function addTenant(formData) {
     active_until: (formData.get("active_until") || "").toString().trim(),
   });
   setTenantSuites(id, formData.getAll("suite_ids"));
+  saveRent(id, formData);
   refresh();
   redirect("/admin/directory#biz-" + id);
+}
+
+/** Rent amount + pay link; a bad link comes back as a message, not a crash. */
+function saveRent(id, formData) {
+  try {
+    setTenantRent(id, { amount: formData.get("rent_amount"), link: formData.get("rent_link") });
+  } catch (err) {
+    redirect("/admin/directory?toast=" + encodeURIComponent(err.message) + "&toastType=error#biz-" + id);
+  }
 }
 
 async function saveTenant(formData) {
@@ -59,6 +70,7 @@ async function saveTenant(formData) {
     active_until: (formData.get("active_until") || "").toString().trim(),
   });
   setTenantSuites(id, formData.getAll("suite_ids"));
+  saveRent(id, formData);
   refresh();
   redirect("/admin/directory#biz-" + id);
 }
@@ -138,6 +150,17 @@ function TenantFields({ entry = {}, suites = [], occupiedIds = [], suiteTenants 
         <div>
           <label className="label">Tenant email (for their self-edit invite)</label>
           <input name="contact_email" type="email" defaultValue={entry.contact_email || ""} placeholder="owner@shop.com" className="field" />
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-[10rem_1fr]">
+        <div className="min-w-0">
+          <label className="label">Monthly rent ($, optional)</label>
+          <input name="rent_amount" inputMode="decimal" defaultValue={entry.rent_amount ?? ""} placeholder="0.00" className="field" />
+        </div>
+        <div className="min-w-0">
+          <label className="label">Rent payment link (optional)</label>
+          <input name="rent_link" type="url" defaultValue={entry.rent_link || ""} placeholder="https://square.link/… or their recurring invoice link" className="field" />
+          <p className="mt-1 text-xs text-ink-muted">Shows as a “Pay rent” button on their account and business page.</p>
         </div>
       </div>
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">

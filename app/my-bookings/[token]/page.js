@@ -19,6 +19,7 @@ import {
   venueToday,
 } from "@/lib/constants.js";
 import AccountNudge from "@/components/account/AccountNudge.js";
+import PortalFrame, { PortalHead, PortalMissing } from "@/components/account/PortalFrame.js";
 
 export const metadata = {
   title: "Your bookings",
@@ -34,38 +35,15 @@ export const dynamic = "force-dynamic";
 const PHONE = "(435) 512-4608";
 const MAILTO = "thealleyoncenter@gmail.com";
 
-/** Shared page shell so every state looks like the other host-facing pages. */
+/** Shared page shell: the account area's frame, so this feels like the same place. */
 function Shell({ children }) {
-  return (
-    <main className="brandpage min-h-screen bg-paper-warm">
-      <header className="border-b border-ink/10 bg-paper">
-        <div className="container-content flex items-center justify-between py-4">
-          <Link href="/" className="font-display text-xl font-semibold text-ink">
-            The Alley <span className="text-brass-dark">On Center</span>
-          </Link>
-          <span className="text-sm text-ink-muted">Your bookings</span>
-        </div>
-      </header>
-      <div className="container-content max-w-3xl py-10">{children}</div>
-    </main>
-  );
+  return <PortalFrame label="Your bookings">{children}</PortalFrame>;
 }
 
 /** Colour-coded state pill. Deliberately plain-language, not our status words. */
 function Chip({ tone = "neutral", children }) {
-  const tones = {
-    good: "border-verde-deep/30 bg-verde/30 text-verde-deep",
-    warn: "border-gold/40 bg-gold/10 text-ink-soft",
-    bad: "border-rust/30 bg-rust/10 text-rust",
-    neutral: "border-ink/15 bg-ink/5 text-ink-soft",
-  };
-  return (
-    <span
-      className={`inline-block whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${tones[tone]}`}
-    >
-      {children}
-    </span>
-  );
+  const tones = { good: "ac-pill--live", warn: "ac-pill--wait", bad: "ac-pill--bad", neutral: "" };
+  return <span className={`ac-pill ${tones[tone] || ""}`}>{children}</span>;
 }
 
 /**
@@ -122,13 +100,8 @@ function PaymentLine({ b }) {
       <span className="font-semibold text-ink">{formatMoney(amount)}</span>
       {rentalPaid ? <Chip tone="good">Paid</Chip> : <Chip tone="warn">Unpaid</Chip>}
       {!rentalPaid && b.payment_link ? (
-        <a
-          href={b.payment_link}
-          target="_blank"
-          rel="noreferrer"
-          className="text-sm font-semibold text-brass-dark hover:underline"
-        >
-          Pay now →
+        <a href={b.payment_link} target="_blank" rel="noreferrer" className="ac-btn ac-btn--auto" style={{ height: 40, padding: "0 18px", fontSize: 11 }}>
+          Pay now <span className="ac-arrow" aria-hidden="true">→</span>
         </a>
       ) : null}
       {!rentalPaid && b.status === "held" && b.hold_expires_at ? (
@@ -179,7 +152,7 @@ function DepositLine({ b }) {
             href={b.deposit_payment_link}
             target="_blank"
             rel="noreferrer"
-            className="font-semibold text-brass-dark hover:underline"
+            className="font-semibold text-ink underline"
           >
             Pay deposit →
           </a>
@@ -226,14 +199,10 @@ function Actions({ entry }) {
 
   if (!links.length) return null;
   return (
-    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-ink/10 pt-3">
+    <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 border-t border-ink/10 pt-4">
       {links.map((l) => (
-        <Link
-          key={l.href + l.label}
-          href={l.href}
-          className="text-sm font-semibold text-ink-soft hover:text-ink hover:underline"
-        >
-          {l.label} →
+        <Link key={l.href + l.label} href={l.href} className="ac-tile-go">
+          {l.label} <span className="ac-arrow" aria-hidden="true">→</span>
         </Link>
       ))}
     </div>
@@ -243,10 +212,10 @@ function Actions({ entry }) {
 function SingleCard({ entry }) {
   const b = entry.booking;
   return (
-    <div className="card p-5">
+    <div className="card ac-rise" style={{ padding: "24px 26px" }}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="font-display text-lg font-semibold text-ink">
+          <p className="ac-tile-title" style={{ marginTop: 0 }}>
             {b.event_title || spaceName(b.space)}
           </p>
           <p className="text-sm text-ink-muted">
@@ -272,10 +241,10 @@ function SeriesCard({ entry }) {
   );
   const paidCount = live.filter((s) => s.payment_status === "paid").length;
   return (
-    <div className="card p-5">
+    <div className="card ac-rise" style={{ padding: "24px 26px" }}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="font-display text-lg font-semibold text-ink">
+          <p className="ac-tile-title" style={{ marginTop: 0 }}>
             {rep.event_title || "Recurring booking"}
           </p>
           <p className="text-sm text-ink-muted">
@@ -323,7 +292,7 @@ function SeriesCard({ entry }) {
                         href={s.payment_link}
                         target="_blank"
                         rel="noreferrer"
-                        className="font-semibold text-brass-dark hover:underline"
+                        className="font-semibold text-ink underline"
                       >
                         Pay →
                       </a>
@@ -348,8 +317,10 @@ function Card({ entry }) {
 
 function Section({ title, entries, empty }) {
   return (
-    <section className="mt-8">
-      <h2 className="font-display text-xl font-semibold text-ink">{title}</h2>
+    <section className="ac-section" style={{ marginTop: 44 }}>
+      <div className="ac-section-head">
+        <h2 className="ac-h2">{title}</h2>
+      </div>
       {entries.length ? (
         <div className="mt-3 space-y-3">
           {entries.map((e) => (
@@ -366,20 +337,11 @@ function Section({ title, entries, empty }) {
 function NotFound() {
   return (
     <Shell>
-      <div className="card mx-auto max-w-md p-8 text-center">
-        <h1 className="font-display text-2xl font-semibold text-ink">Link not found</h1>
-        <p className="mt-3 text-ink-muted">
-          This link isn&rsquo;t valid — it may have been replaced by a newer one.
-          Check the most recent email we sent you, or give us a call on{" "}
-          <a className="font-semibold text-brass-dark hover:underline" href={`tel:${PHONE.replace(/\D/g, "")}`}>
-            {PHONE}
-          </a>{" "}
-          and we&rsquo;ll sort it out.
-        </p>
-        <Link href="/" className="btn-primary mt-6">
-          Visit The Alley
-        </Link>
-      </div>
+      <PortalMissing>
+        This link isn&rsquo;t valid — it may have been replaced by a newer one. Check the most recent email we sent you, or
+        call us on <a href={`tel:${PHONE.replace(/\D/g, "")}`} style={{ fontWeight: 600 }}>{PHONE}</a> and we&rsquo;ll sort
+        it out.
+      </PortalMissing>
     </Shell>
   );
 }
@@ -398,40 +360,30 @@ export default function MyBookingsPage({ params }) {
 
   return (
     <Shell>
-      <p className="eyebrow">Your private link</p>
-      <h1 className="mt-2 font-display text-3xl font-semibold text-ink">
-        {name ? `Hi ${String(name).split(" ")[0]}` : "Your bookings"}
-      </h1>
-      <p className="mt-2 text-ink-muted">
+      <PortalHead eyebrow="Your bookings" title={name ? <>Hi, <em>{String(name).split(" ")[0]}</em>.</> : "Your bookings"}>
         Everything you&rsquo;ve booked at The Alley, and where each one stands.
-        Bookmark this link — it always shows your latest.
-      </p>
+      </PortalHead>
       <AccountNudge email={portal.email} />
 
       {rows.length === 0 ? (
-        <div className="card mt-8 p-6 text-center">
+        <div className="card" style={{ marginTop: 32, padding: 32, textAlign: "center" }}>
           <p className="text-ink-muted">
             Nothing here yet. Once you&rsquo;ve booked with us, it&rsquo;ll show up on this page.
           </p>
-          <Link href="/book" className="btn-accent mt-5">
-            Request a space →
+          <Link href="/book" className="ac-btn ac-btn--auto" style={{ marginTop: 20 }}>
+            Request a space <span className="ac-arrow" aria-hidden="true">→</span>
           </Link>
         </div>
       ) : (
         <>
           {outstanding > 0 ? (
-            <div className="mt-6 rounded-xl border border-gold/40 bg-gold/10 px-5 py-4">
-              <p className="font-semibold text-ink">
-                {formatMoney(outstanding)} still to pay
-              </p>
-              <p className="mt-0.5 text-sm text-ink-soft">
-                The &ldquo;Pay&rdquo; links below take you straight to the right invoice.
-              </p>
+            <div className="card ac-figure" style={{ marginTop: 28, padding: "22px 26px", borderLeft: "3px solid #c9973a" }}>
+              <b>{formatMoney(outstanding)}</b>
+              <span>Still to pay</span>
+              <p className="ac-small" style={{ margin: "6px 0 0" }}>The &ldquo;Pay&rdquo; links below take you straight to the right invoice.</p>
             </div>
           ) : upcoming.length ? (
-            <div className="mt-6 rounded-xl border border-verde-deep/30 bg-verde/30 px-5 py-4">
-              <p className="font-semibold text-ink">You&rsquo;re all paid up.</p>
-            </div>
+            <p className="ac-note" style={{ marginTop: 28 }}>You&rsquo;re all paid up.</p>
           ) : null}
 
           <Section
@@ -455,13 +407,13 @@ export default function MyBookingsPage({ params }) {
         </>
       )}
 
-      <p className="mt-10 border-t border-ink/10 pt-6 text-sm text-ink-muted">
+      <p className="ac-small" style={{ marginTop: 56, paddingTop: 24, borderTop: "1px solid var(--line)" }}>
         Something look wrong? Call us on{" "}
-        <a className="font-semibold text-brass-dark hover:underline" href={`tel:${PHONE.replace(/\D/g, "")}`}>
+        <a className="font-semibold text-ink underline" href={`tel:${PHONE.replace(/\D/g, "")}`}>
           {PHONE}
         </a>{" "}
         or email{" "}
-        <a className="font-semibold text-brass-dark hover:underline" href={`mailto:${MAILTO}`}>
+        <a className="font-semibold text-ink underline" href={`mailto:${MAILTO}`}>
           {MAILTO}
         </a>
         .

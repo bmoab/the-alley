@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import {
   getExhibitorByToken,
@@ -10,6 +9,7 @@ import {
 } from "@/lib/catalog.js";
 import ExhibitorEditForm from "@/components/ExhibitorEditForm.js";
 import AccountNudge from "@/components/account/AccountNudge.js";
+import PortalFrame, { PortalHead, PortalMissing } from "@/components/account/PortalFrame.js";
 
 export const metadata = { title: "Set up your exhibitor page" };
 
@@ -24,15 +24,11 @@ export default function ExhibitorTokenPage({ params }) {
 
   if (!exhibitor) {
     return (
-      <main className="brandpage flex min-h-screen items-center justify-center bg-paper-warm px-5">
-        <div className="card max-w-md p-8 text-center">
-          <h1 className="font-display text-2xl font-semibold text-ink">Link not found</h1>
-          <p className="mt-3 text-ink-muted">
-            This exhibitor link is invalid or has expired. Check your email for the correct link, or contact The Alley.
-          </p>
-          <Link href="/" className="btn-primary mt-6">Visit The Alley</Link>
-        </div>
-      </main>
+      <PortalFrame label="Exhibitor page">
+        <PortalMissing>
+          This exhibitor link is invalid or has expired. Check your email for the right link, or sign in to your account.
+        </PortalMissing>
+      </PortalFrame>
     );
   }
 
@@ -64,34 +60,21 @@ export default function ExhibitorTokenPage({ params }) {
   }
 
   return (
-    <main className="brandpage min-h-screen bg-paper-warm">
-      <header className="border-b border-ink/10 bg-paper">
-        <div className="container-content flex items-center justify-between py-4">
-          <Link href="/" className="font-display text-xl font-semibold text-ink">
-            The Alley <span className="text-brass-dark">On Center</span>
-          </Link>
-          <span className="text-sm text-ink-muted">Exhibitor page</span>
-        </div>
-      </header>
+    <PortalFrame label="Exhibitor page">
+      <PortalHead eyebrow="Your private exhibitor link" title="Set up your page">
+        Your spot on The Alley&apos;s Exhibitors page: your bio, a profile photo and photos of your work. Changes go live on
+        our website right away.
+      </PortalHead>
+      <AccountNudge email={exhibitor.contact_email} />
 
-      <div className="container-content max-w-2xl py-10">
-        <p className="eyebrow">Your private exhibitor link</p>
-        <h1 className="mt-2 font-display text-3xl font-semibold text-ink">Set up your page</h1>
-        <p className="mt-2 text-ink-muted">
-          This is your spot on The Alley&apos;s Exhibitors page. Add your bio, a profile photo, and photos of your
-          work — changes go live on our website right away. Bookmark this link to edit anytime.
-        </p>
-        <AccountNudge email={exhibitor.contact_email} />
-
-        <div className="mt-8">
-          <ExhibitorEditForm
-            exhibitor={{ ...exhibitor, links: parseExhibitorLinks(exhibitor) }}
-            saveAction={save}
-            addPhotoAction={addPhoto}
-            removePhotoAction={removePhoto}
-          />
-        </div>
+      <div style={{ marginTop: 36 }}>
+        <ExhibitorEditForm
+          exhibitor={{ ...exhibitor, links: parseExhibitorLinks(exhibitor) }}
+          saveAction={save}
+          addPhotoAction={addPhoto}
+          removePhotoAction={removePhoto}
+        />
       </div>
-    </main>
+    </PortalFrame>
   );
 }

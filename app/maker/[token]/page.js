@@ -1,9 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
-import { Suspense } from "react";
 import { getVendorByToken } from "@/lib/inventory.js";
 import MakerHome from "@/components/maker/MakerHome.js";
-import Toaster from "@/components/admin/ui/Toaster.js";
+import PortalFrame, { PortalMissing } from "@/components/account/PortalFrame.js";
 
 export const metadata = { title: "Your consignment · The Alley On Center", robots: { index: false } };
 // Per-token page: never cache one maker's view and serve it to another.
@@ -13,42 +11,28 @@ export const dynamic = "force-dynamic";
 export default function MakerLinkPage({ params }) {
   const vendor = getVendorByToken(params.token);
   return (
-    <div className="admin-ui min-h-screen bg-paper-warm">
-      <header className="border-b border-line bg-paper/95">
-        <div className="mx-auto flex max-w-3xl items-center gap-2.5 px-4 py-3">
-          <Image src="/brand/emblem-black.png" alt="The Alley" width={28} height={28} className="h-7 w-7 object-contain" />
-          <span className="text-sm font-semibold text-ink">
-            The Alley <span className="text-verde-deep">On Center</span>
-          </span>
-          <Link href="/account/sign-in" className="ml-auto text-xs font-semibold text-ink-muted hover:text-ink">
-            Sign in
-          </Link>
-        </div>
-      </header>
-      <main className="mx-auto max-w-3xl px-4 py-6 pb-16">
-        {vendor ? (
-          <>
-            {vendor.email ? (
-              <p className="mb-5 rounded-xl border border-line bg-paper-dim px-4 py-3 text-sm text-ink-soft">
-                Prefer a password?{" "}
-                <Link href="/account/sign-up" className="font-semibold text-ink underline">
-                  Make an account
-                </Link>{" "}
-                with {vendor.email} — it shows this, plus a copy of every email we send you, in one place.
+    <PortalFrame label="Consignment" toaster>
+      {vendor ? (
+        <MakerHome
+          vendorId={vendor.id}
+          hidden={{ token: params.token }}
+          notice={
+            vendor.email ? (
+              <p className="ac-note">
+                <span>
+                  Prefer a password?{" "}
+                  <Link href="/account/sign-up" style={{ fontWeight: 600, textDecoration: "underline" }}>
+                    Create an account
+                  </Link>{" "}
+                  with {vendor.email} — it shows this, plus a copy of every email we send you, in one place.
+                </span>
               </p>
-            ) : null}
-            <MakerHome vendorId={vendor.id} hidden={{ token: params.token }} />
-          </>
-        ) : (
-          <div className="card p-8 text-center">
-            <h1 className="text-xl font-semibold text-ink">Link not found</h1>
-            <p className="mt-2 text-sm text-ink-muted">This link isn&apos;t active any more. Ask us for a new one, or sign in.</p>
-          </div>
-        )}
-      </main>
-      <Suspense fallback={null}>
-        <Toaster />
-      </Suspense>
-    </div>
+            ) : null
+          }
+        />
+      ) : (
+        <PortalMissing>This link isn&apos;t active any more. Ask us for a new one, or sign in to your account.</PortalMissing>
+      )}
+    </PortalFrame>
   );
 }
