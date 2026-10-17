@@ -17,7 +17,7 @@ const COOKIE = "alley_session"; // lib/auth.js COOKIE_NAME
 
 // Pages that must work signed out: the login itself, password help, and the
 // per-employee calendar feed (its token is the credential).
-const OPEN = [/^\/admin\/login\/?$/, /^\/admin\/forgot\/?$/, /^\/admin\/reset\/?$/, /^\/admin\/set-password\/?$/, /^\/staff\/calendar\//];
+const OPEN = [/^\/admin\/login\/?$/, /^\/admin\/forgot\/?$/, /^\/admin\/reset\/?$/, /^\/admin\/set-password\/?$/, /^\/admin\/welcome\/?$/, /^\/staff\/calendar\//];
 
 function looksSignedIn(token) {
   if (!token) return false;

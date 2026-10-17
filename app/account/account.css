@@ -378,3 +378,12 @@ a.ac-row:hover .ac-row-chev { transform: translateX(4px); color: var(--ink); }
   color: var(--ink); background: #fff; border: 1px solid var(--line-strong); transition: background .2s, color .2s;
 }
 .ac input[type="file"]::file-selector-button:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+/* Phones: a row with a status tag puts the tag under its title, so the title
+   keeps the full width instead of being squeezed to a few letters. */
+@media (max-width: 600px) {
+  .ac-row:has(> .ac-pill) { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 8px; }
+  .ac-row:has(> .ac-pill) > .ac-row-main { grid-column: 1; grid-row: 1; }
+  .ac-row:has(> .ac-pill) > .ac-pill { grid-column: 1; grid-row: 2; justify-self: start; }
+  .ac-row:has(> .ac-pill) > .ac-row-chev { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+}

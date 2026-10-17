@@ -14,6 +14,8 @@ import {
   runPortalAnnouncement,
   previewTenantAnnouncement,
   runTenantEventsAnnouncement,
+  previewAccountsAnnouncement,
+  runAccountsAnnouncement,
   ANNOUNCE_BATCH,
 } from "@/lib/announce.js";
 import { requireBookingManager } from "@/lib/auth.js";
@@ -181,6 +183,65 @@ async function sendTenantEventsAnnouncement() {
   );
 }
 
+/** "Your new Alley account" — tenants get their version, everyone else theirs. */
+async function sendAccountsAnnouncement(formData) {
+  "use server";
+  if (!(await requireBookingManager())) {
+    redirect(`/admin/settings?toast=${encodeURIComponent("You don't have permission to send announcements.")}&toastType=error`);
+  }
+  const audience = formData.get("audience") === "tenants" ? "tenants" : "others";
+  const { sent, failed, remaining } = await runAccountsAnnouncement({ audience, actor: await getActor() });
+  revalidatePath("/admin/settings");
+  const who = audience === "tenants" ? (sent === 1 ? "tenant" : "tenants") : sent === 1 ? "person" : "people";
+  const parts = [`Sent to ${sent} ${who}.`];
+  if (failed.length) parts.push(`${failed.length} couldn't be delivered — they'll be retried next time.`);
+  if (remaining) parts.push(`${remaining} still to go — press again to send the next batch.`);
+  redirect(`/admin/settings?toast=${encodeURIComponent(parts.join(" "))}&toastType=${failed.length ? "neutral" : "success"}#accounts-announce`);
+}
+
+function AccountsAudience({ audience, data, title, blurb }) {
+  const n = Math.min(data.total, ANNOUNCE_BATCH);
+  const noun = audience === "tenants" ? (n === 1 ? "tenant" : "tenants") : n === 1 ? "person" : "people";
+  return (
+    <form action={sendAccountsAnnouncement} className="rounded-xl border border-line bg-paper-dim px-4 py-4">
+      <input type="hidden" name="audience" value={audience} />
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="font-semibold text-ink">{title}</p>
+        <a href={`/admin/announce/accounts/${audience}`} target="_blank" rel="noreferrer" className="text-sm font-semibold text-verde-deep underline">
+          Preview the email ↗
+        </a>
+      </div>
+      <p className="mt-0.5 text-sm text-ink-muted">{blurb}</p>
+      {data.total === 0 ? (
+        <p className="mt-3 text-sm text-ink">Everyone here has been told.</p>
+      ) : (
+        <>
+          <p className="mt-3 text-sm font-semibold text-ink">
+            {data.total} to email
+            {data.total > ANNOUNCE_BATCH ? ` · ${ANNOUNCE_BATCH} per press, so ${Math.ceil(data.total / ANNOUNCE_BATCH)} presses` : ""}
+          </p>
+          <ul className="mt-1 space-y-0.5 text-sm text-ink-muted">
+            {data.sample.map((r) => (
+              <li key={r.email}>
+                {r.name || "(no name)"} · {r.email}
+              </li>
+            ))}
+            {data.total > data.sample.length ? <li className="text-ink-muted/70">…and {data.total - data.sample.length} more</li> : null}
+          </ul>
+          <div className="mt-3">
+            <ConfirmButton
+              label={`Email ${n} ${noun}`}
+              confirmLabel="Send it"
+              pendingLabel="Sending…"
+              question={`This sends a real email to ${n} ${noun} right now. It can't be unsent, and nobody gets it twice.`}
+            />
+          </div>
+        </>
+      )}
+    </form>
+  );
+}
+
 const REFUND_VALUES = ["full", "deposit_only", "none"];
 
 async function saveCancellationPolicy(formData) {
@@ -209,6 +270,7 @@ export default async function SettingsPage() {
   // previewAnnouncement mints nothing and sends nothing.
   const announce = previewAnnouncement();
   const tenantAnnounce = previewTenantAnnouncement();
+  const accountsAnnounce = previewAccountsAnnouncement();
 
   return (
     <div>
@@ -449,9 +511,35 @@ export default async function SettingsPage() {
         <CancellationPolicyForm action={saveCancellationPolicy} values={s} />
       </div>
 
-      {/* Its own form, deliberately OUTSIDE the settings form above — nesting
+      {/* Its own forms, deliberately OUTSIDE the settings form above — nesting
           forms is invalid, and "Save changes" must never be able to email
           anybody. */}
+      <div id="accounts-announce" className="mt-5">
+        <Card pad="md">
+          <h2 className="text-lg font-semibold text-ink">Tell everyone about accounts</h2>
+          <p className="mt-1 text-sm text-ink-muted">
+            &ldquo;Your new Alley account — everything in one place,&rdquo; with screenshots. Tenants get a version about their
+            business page and bills (staff costs &ldquo;if applicable&rdquo;); everyone else gets one about bookings, listings and
+            consignment, with nothing about staff costs. Each address is emailed once, whichever version it gets, and a copy
+            lands in their account inbox.
+          </p>
+          <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+            <AccountsAudience
+              audience="tenants"
+              data={accountsAnnounce.tenants}
+              title="Tenants"
+              blurb="Current businesses in the directory, at their contact email."
+            />
+            <AccountsAudience
+              audience="others"
+              data={accountsAnnounce.others}
+              title="Everyone else"
+              blurb="Past renters, event hosts, exhibitors and makers who aren't tenants."
+            />
+          </div>
+        </Card>
+      </div>
+
       <form action={sendPortalAnnouncement} className="mt-5">
         <Card pad="md">
           <h2 className="text-lg font-semibold text-ink">Tell past clients about their dashboard</h2>
