@@ -13,6 +13,7 @@ import {
   monthLabel,
   saveAccount,
   saveBill,
+  shareLabel,
   sharesFor,
   thisMonth,
 } from "@/lib/money.js";
@@ -135,8 +136,8 @@ function AccountFields({ a = {}, month }) {
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-[0.6fr_1fr_1.4fr]">
         <div className="min-w-0">
-          <label className="label">Their share %</label>
-          <input name="share_pct" inputMode="decimal" defaultValue={a.share_pct || ""} placeholder="0" className="field" />
+          <label className="label">Their share</label>
+          <input name="share_pct" defaultValue={a.share_pct ? shareLabel(a.share_pct) : ""} placeholder="1/3, 50% or 100%" className="field" />
         </div>
         <div className="min-w-0">
           <label className="label">Who pays it</label>
@@ -194,7 +195,7 @@ export default async function BillsPage({ searchParams }) {
                     <p className="text-xs text-ink-muted">
                       {CATEGORIES[b.category] || b.category}
                       {b.due_date ? ` · due ${formatDateShort(b.due_date)}` : ""}
-                      {b.share_pct ? ` · ${b.share_name} pays ${Number(b.share_pct)}%${b.share ? ` (${formatMoney(b.share)})` : ""}` : ""}
+                      {b.share_pct ? ` · ${b.share_name} pays ${shareLabel(b.share_pct)}${b.share ? ` (${formatMoney(b.share)})` : ""}` : ""}
                     </p>
                     {late ? <Badge tone="danger">past due</Badge> : null}
                   </div>
@@ -235,7 +236,7 @@ export default async function BillsPage({ searchParams }) {
                   <ul className="mt-2 space-y-0.5 text-sm text-ink-soft">
                     {p.items.map((i) => (
                       <li key={i.name} className="flex justify-between gap-2">
-                        <span>{i.name} · {formatMoney(i.bill)} × {Number(i.pct)}%</span>
+                        <span>{i.name} · {formatMoney(i.bill)} × {shareLabel(i.pct)}</span>
                         <span className="tabular-nums">{formatMoney(i.share)}</span>
                       </li>
                     ))}
@@ -292,8 +293,8 @@ export default async function BillsPage({ searchParams }) {
       <details className="card mt-6 p-5">
         <summary className="cursor-pointer font-semibold text-ink">The bills we track (add, change, or stop one)</summary>
         <p className="mt-2 text-sm text-ink-muted">
-          Each one appears every month. “Their share %” sends that part to a co-payer — Jay pays a third (33.33%) of the
-          utilities for the basement.
+          Each one appears every month. “Their share” sends that part to a co-payer — type 1/3, 50% or 100%. Jay pays a third of
+          most building bills and all of the basement gas meter.
         </p>
         <div className="mt-4 space-y-4">
           {accounts.map((a) => (
