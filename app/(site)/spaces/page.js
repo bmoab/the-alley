@@ -2,7 +2,7 @@ import { Fragment } from "react";
 import { SPACES } from "@/lib/constants.js";
 import { spaceRules } from "@/lib/spaces.js";
 import { getSettings, getContent, getContentValue } from "@/lib/db.js";
-import { listSpacePhotos } from "@/lib/catalog.js";
+import { listSpacePhotos, spacePhotosKey } from "@/lib/catalog.js";
 import PageHero from "@/components/site/PageHero.js";
 import SpaceGallery from "@/components/site/SpaceGallery.js";
 import RequestButton from "@/components/site/RequestButton.js";
@@ -71,7 +71,7 @@ export default function SpacesPage() {
             ].filter(Boolean);
             return (
             <div key={r.id} id={r.id} className={"space-row reveal" + (i % 2 ? " is-rev" : "")}>
-              <SpaceGallery photos={listSpacePhotos(r.id)} lead={LEAD_VARIANTS[i % LEAD_VARIANTS.length]} label={r.name} />
+              <SpaceGallery photos={listSpacePhotos(r.id)} lead={LEAD_VARIANTS[i % LEAD_VARIANTS.length]} label={r.name} editKey={spacePhotosKey(r.id)} />
               <div>
                 <div className="space-meta">
                   {meta.map((m, mi) => (

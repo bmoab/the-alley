@@ -13,6 +13,10 @@
   font-family: var(--font-body);
   line-height: 1.65;
 }
+/* The page colour reaches the very top of a phone's screen (status bar and the
+   overscroll bounce) instead of the white body behind it. */
+html:has(.dir-b), html:has(.dir-b) body { background: var(--verde); }
+html:has(.sh[data-theme="dark"]), html:has(.sh[data-theme="dark"]) body { background: #1a1a17; }
 .dir-b ::selection { background: var(--verde-deep); color: #fff; }
 .dir-b img { display: block; max-width: 100%; }
 .dir-b a { color: inherit; text-decoration: none; }

@@ -7,7 +7,6 @@ import {
   Wallet,
   Building2,
   Store,
-  Images,
   LayoutGrid,
   Settings,
   ClipboardList,
@@ -64,7 +63,6 @@ export const NAV = [
     icon: LayoutGrid,
     items: [
       { href: "/admin/pages", label: "Pages", icon: LayoutTemplate },
-      { href: "/admin/spaces", label: "Spaces Photos", icon: Images },
       { href: "/admin/gallery", label: "Gallery", icon: LayoutGrid },
     ],
   },

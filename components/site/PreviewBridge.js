@@ -15,7 +15,11 @@ export default function PreviewBridge() {
       if (!data || data.type !== "alley-edit-highlight" || !data.key) return;
       const el = document.querySelector(`[data-edit="${CSS.escape(data.key)}"]`);
       if (!el) return;
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Scroll the preview's own window. (scrollIntoView would also scroll the
+      // editor page around the preview — jumping it while you click a button.)
+      const r = el.getBoundingClientRect();
+      const top = window.scrollY + r.top - Math.max(0, (window.innerHeight - r.height) / 2);
+      window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
       el.classList.remove("alley-edit-flash");
       // Force reflow so the animation restarts if the same element is reselected.
       void el.offsetWidth;

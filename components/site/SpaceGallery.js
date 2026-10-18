@@ -13,7 +13,7 @@ import Lightbox from "@/components/site/Lightbox.js";
  * frame is a preview, not a look at the room. Thumbnails keep their swap
  * behaviour so you can still browse in place without leaving the page.
  */
-export default function SpaceGallery({ photos = [], lead = "verde", label = "" }) {
+export default function SpaceGallery({ photos = [], lead = "verde", label = "", editKey }) {
   const real = photos.filter((p) => p.image_path);
   const shots = real.length
     ? real.map((p) => ({ src: p.image_path, tag: p.caption || "", variant: lead }))
@@ -25,7 +25,7 @@ export default function SpaceGallery({ photos = [], lead = "verde", label = "" }
   const cur = shots[index];
 
   return (
-    <div className="space-gallery">
+    <div className="space-gallery" data-edit={editKey}>
       {cur.src ? (
         <button
           type="button"

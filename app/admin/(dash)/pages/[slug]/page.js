@@ -7,6 +7,7 @@ import PagesEditor from "@/components/admin/PagesEditor.js";
 import { cx } from "@/components/admin/ui/cx.js";
 import { requireAdmin } from "@/lib/auth.js";
 import { SPACES } from "@/lib/constants.js";
+import { listSpacePhotos, setSpacePhotos, spacePhotosKey } from "@/lib/catalog.js";
 
 /**
  * Visual "Pages" editor: pick a page, edit its words/photos/lists on the left,
@@ -69,18 +70,14 @@ const IMG = {
     kind: "crop",
   },
   about_image: { label: "Story photo (beside the text)", hint: "Click or drag on the photo to choose what stays in view.", kind: "framing" },
-  ...Object.fromEntries(
-    SPACES.map((s) => [
-      `space_${s.id}_image`,
-      {
-        label: `${s.name.replace("The Alley ", "")} lead photo`,
-        hint: "Shown if no photos are added for this room under Spaces Photos.",
-        kind: "plain",
-      },
-    ])
-  ),
 };
-const IMG_EXTRA = { crop: ["_crop"], framing: ["_fit", "_pos"], plain: [] };
+const IMG_EXTRA = { crop: ["_crop"], framing: ["_fit", "_pos"] };
+
+// Photo galleries: each room's photos (the space_photos table, not page text).
+// Posted as JSON [{ path, caption }]; the first is the room's main photo.
+const GALLERY = Object.fromEntries(
+  SPACES.map((s) => [spacePhotosKey(s.id), { label: `${s.name} photos`, space: s.id }])
+);
 const imageKeys = (key) => [key, ...IMG_EXTRA[IMG[key].kind].map((s) => key + s)];
 
 // Structured list / composite fields.
@@ -150,8 +147,7 @@ const PAGES = {
   spaces: {
     label: "Spaces", route: "/spaces",
     text: ["spaces_hero_eyebrow", "spaces_hero_title", "spaces_hero_lede", "spaces_listing_heading", "spaces_listing_body", "spaces_book_heading", "spaces_book_body"],
-    list: [], image: SPACES.map((s) => `space_${s.id}_image`),
-    note: "Each room's photo set is managed under Site Content → Spaces Photos.",
+    list: [], image: [], gallery: SPACES.map((s) => spacePhotosKey(s.id)),
   },
   directory: {
     label: "Directory", route: "/directory",
@@ -205,6 +201,20 @@ async function save(formData) {
     }
   }
 
+  // Room photos go to their own table, in the order shown.
+  for (const key of page.gallery || []) {
+    const raw = formData.get(key);
+    if (raw == null) continue;
+    try {
+      const photos = JSON.parse(raw.toString());
+      if (Array.isArray(photos)) setSpacePhotos(GALLERY[key].space, photos);
+      else bad.push(GALLERY[key].label);
+    } catch {
+      bad.push(GALLERY[key].label);
+    }
+  }
+  if (page.gallery?.length) revalidatePath("/");
+
   revalidatePath(page.route);
   revalidatePath(`/admin/pages/${slug}`);
   const base = `/admin/pages/${slug}?saved=${Date.now()}`;
@@ -228,9 +238,13 @@ export default async function PageEditor({ params, searchParams }) {
     text: page.text.map((key) => ({ key, ...TEXT[key] })),
     image: page.image.map((key) => ({ key, ...IMG[key] })),
     list: page.list.map((key) => ({ key, ...LIST[key] })),
+    gallery: (page.gallery || []).map((key) => ({ key, label: GALLERY[key].label })),
   };
   const keys = [...page.text, ...page.image.flatMap(imageKeys), ...page.list];
   const values = Object.fromEntries(keys.map((k) => [k, c[k] || ""]));
+  for (const key of page.gallery || []) {
+    values[key] = JSON.stringify(listSpacePhotos(GALLERY[key].space).map((p) => ({ path: p.image_path, caption: p.caption || "" })));
+  }
 
   return (
     <div>

@@ -12,6 +12,11 @@ import { allSpaceRules } from "@/lib/spaces.js";
 // database — at build time. Applies to every route under (site).
 export const dynamic = "force-dynamic";
 
+// The phone's status bar (and the bounce above the page) takes the page's own
+// colour, not white: older iPhones read theme-color, newer ones the page's
+// background (see html:has(.dir-b) in site.css).
+export const viewport = { themeColor: "#e6ebdb" };
+
 export default function SiteLayout({ children }) {
   const s = getSettings();
   const bookingConfig = {

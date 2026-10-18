@@ -3,6 +3,8 @@ import { getContentValue } from "@/lib/db.js";
 import GalleryHall from "@/components/GalleryHall.js";
 
 export const metadata = { title: "The Gallery" };
+// The dark hall runs right up under the phone's status bar.
+export const viewport = { themeColor: "#1a1a17" };
 
 export default function GalleryPage() {
   const rows = listGallery();
