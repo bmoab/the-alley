@@ -2,14 +2,12 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireStaffManager } from "@/lib/auth.js";
-import { MONTH_RE, monthLabel, moneyOverview, markRent, unmarkRent, summaryForQuestions, thisMonth } from "@/lib/money.js";
-import { askAboutMoney, canAsk } from "@/lib/ask.js";
+import { MONTH_RE, monthLabel, moneyOverview, markRent, unmarkRent, thisMonth } from "@/lib/money.js";
 import { formatDateShort, formatMoney, shiftDate } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
 import Button from "@/components/admin/ui/Button.js";
 import Badge from "@/components/admin/ui/Badge.js";
-import AskBox from "@/components/admin/money/AskBox.js";
 import { Bars, Delta, TrendChart } from "@/components/admin/money/Charts.js";
 
 export const metadata = { title: "Money" };
@@ -40,18 +38,6 @@ async function rentUndo(formData) {
   const month = monthOf(formData);
   unmarkRent(formData.get("directory_id"), month);
   back(month, "Rent unmarked.", "neutral");
-}
-
-async function ask(question, month) {
-  "use server";
-  await requireStaffManager();
-  try {
-    const m = MONTH_RE.test(month || "") ? month : thisMonth();
-    const answer = await askAboutMoney(question, summaryForQuestions(await moneyOverview(m)));
-    return { answer };
-  } catch (err) {
-    return { error: err.message };
-  }
 }
 
 function Stat({ label, value, sub, tone }) {
@@ -123,6 +109,11 @@ export default async function MoneyPage({ searchParams }) {
       <PageHeader
         title="Money"
         subtitle="The whole Alley at a glance — what came in, what went out, what's owed, and what's doing best. Tap anything for the detail."
+        actions={
+          <Button href={billsHref} size="sm">
+            Bills{unenteredBills ? ` · ${unenteredBills} to enter` : ""}
+          </Button>
+        }
       />
 
       {/* Month switcher */}
@@ -153,17 +144,6 @@ export default async function MoneyPage({ searchParams }) {
         ) : null}
         .{unenteredBills ? <> · <Link href={billsHref} className="font-semibold text-rust underline">{unenteredBills} of this month&apos;s bills still need an amount</Link></> : null}
       </p>
-
-      <div className="mt-5">
-        {canAsk() ? (
-          <AskBox ask={ask} month={month} />
-        ) : (
-          <p className="rounded-xl border border-dashed border-line px-4 py-3 text-sm text-ink-muted">
-            <strong className="text-ink">Ask about the numbers in plain English</strong> — switched off until an AI key is added to the
-            site (ANTHROPIC_API_KEY). Everything else here works without it.
-          </p>
-        )}
-      </div>
 
       {/* In / out */}
       <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
