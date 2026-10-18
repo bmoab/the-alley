@@ -57,7 +57,7 @@ export default function AboutPage() {
             <div className="founders-grid" data-edit="about_founders">
               {founders.map((f) => (
                 <div key={f.name} className="founder reveal">
-                  <PhotoSlot src={f.photo || null} tag="" variant="soft" showTag={false} />
+                  <PhotoSlot src={f.photo || null} tag="" variant="soft" showTag={false} objectPosition={f.photo_pos || undefined} />
                   <div>
                     <h3>{f.name}</h3>
                     <div className="role">{f.role}</div>

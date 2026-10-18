@@ -29,11 +29,27 @@ function looksSignedIn(token) {
   }
 }
 
+// The Pages editor's live preview: a signed-in admin's request for a public page
+// with ?draft=<id> shows that draft's unsaved edits (lib/db.js getContent). The
+// header is always stripped from incoming requests, so nobody can set it.
+function publicPage(request) {
+  const headers = new Headers(request.headers);
+  headers.delete("x-alley-draft");
+  const draft = request.nextUrl.searchParams.get("draft");
+  if (draft && /^[A-Za-z0-9_-]{16,64}$/.test(draft) && looksSignedIn(request.cookies.get(COOKIE)?.value)) {
+    headers.set("x-alley-draft", draft);
+  }
+  return NextResponse.next({ request: { headers } });
+}
+
 export function middleware(request) {
   const { pathname } = request.nextUrl;
+  if (!pathname.startsWith("/admin") && !pathname.startsWith("/staff")) return publicPage(request);
   if (OPEN.some((re) => re.test(pathname))) return NextResponse.next();
   if (looksSignedIn(request.cookies.get(COOKIE)?.value)) return NextResponse.next();
   return NextResponse.redirect(new URL("/admin/login", request.url));
 }
 
-export const config = { matcher: ["/admin/:path*", "/staff/:path*"] };
+export const config = {
+  matcher: ["/admin/:path*", "/staff/:path*", "/((?!_next/|api/|uploads/|.*\\.[a-zA-Z0-9]+$).*)"],
+};

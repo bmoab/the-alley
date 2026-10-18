@@ -146,11 +146,11 @@
 .ac-panel-back { font-size: 11px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-soft); }
 .ac-panel-back:hover { color: var(--ink); }
 .ac-panel-copy { display: none; }
-/* The facade drawing: a background so it can be cropped from the top and
-   always keep the street line at the bottom, whatever the panel's height. */
+/* The facade drawing: always the WHOLE building, as big as the space left
+   under the copy allows (contain), sitting on the panel's bottom edge. */
 .ac-panel-art {
-  flex: 1 1 auto; min-height: 0; margin: 14px -20px 0;
-  background: url("/brand/building-front.webp") no-repeat center bottom / 112% auto;
+  flex: 1 1 auto; min-height: 0; margin: 14px 0 0;
+  background: url("/brand/building-front.webp") no-repeat center bottom / contain;
   mix-blend-mode: multiply; opacity: .42; pointer-events: none;
   animation: ac-fade 1.2s .1s var(--ac-ease) both;
 }
@@ -175,7 +175,7 @@
   .ac-panel-list { margin: 26px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
   .ac-panel-list li { display: flex; align-items: center; gap: 12px; font-size: 15px; color: var(--ink-soft); font-weight: 300; }
   .ac-panel-list li::before { content: ""; width: 18px; height: 1px; background: var(--verde-deep); }
-  .ac-panel-art { margin: 32px -48px 0; min-height: 140px; background-size: 104% auto; opacity: .42; }
+  .ac-panel-art { margin: 32px 0 0; min-height: 140px; opacity: .42; }
   .ac-form-side { padding: 48px clamp(40px, 6vw, 96px); }
 }
 
@@ -399,3 +399,16 @@ a.ac-row:hover .ac-row-chev { transform: translateX(4px); color: var(--ink); }
 .ac-explore-item[open] .ac-explore-chev { transform: rotate(180deg); color: var(--ink); }
 .ac-explore-body { padding: 0 18px 18px 68px; animation: ac-rise .35s var(--ac-ease) both; }
 @media (max-width: 600px) { .ac-explore-body { padding-left: 18px; } .ac-explore-item .ac-pill { display: none; } }
+
+/* Staff schedule (tenants who share the staff cost) */
+.ac-sched-week + .ac-sched-week { margin-top: 18px; }
+.ac-sched-week > .ac-eyebrow { margin: 0 0 4px; }
+.ac-sched-day { display: flex; align-items: baseline; gap: 14px; padding: 10px 0; }
+.ac-sched-date { flex: none; width: 104px; font-size: 14px; font-weight: 600; color: var(--ink); }
+.ac-sched-date.is-today { color: var(--verde-deep); }
+.ac-sched-shifts { display: flex; flex-wrap: wrap; gap: 6px 8px; min-width: 0; }
+.ac-sched-shift { font-size: 13px; font-weight: 300; color: var(--ink-soft); background: var(--paper-warm, #f6f1e7); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+.ac-sched-shift b { font-weight: 600; color: var(--ink); }
+.ac-sched-none { font-size: 13px; font-weight: 300; color: var(--ink-muted); }
+.ac-sched-foot { margin: 14px 0 0; font-size: 12px; font-weight: 300; color: var(--ink-muted); }
+@media (max-width: 520px) { .ac-sched-date { width: 84px; font-size: 13px; } }

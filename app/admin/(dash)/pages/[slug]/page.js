@@ -6,11 +6,14 @@ import PageHeader from "@/components/admin/ui/PageHeader.js";
 import PagesEditor from "@/components/admin/PagesEditor.js";
 import { cx } from "@/components/admin/ui/cx.js";
 import { requireAdmin } from "@/lib/auth.js";
+import { SPACES } from "@/lib/constants.js";
 
 /**
  * Visual "Pages" editor: pick a page, edit its words/photos/lists on the left,
- * see a preview of the real public page on the right (refreshes on Save).
- * The PAGES manifest only surfaces fields each page actually renders.
+ * see the real public page on the right — with your unsaved edits in it, at
+ * desktop, tablet or phone size. Nothing goes live until Save.
+ * The PAGES manifest only surfaces fields each page actually renders. Every
+ * site photo is edited here, on the page it appears on (Site Photos is gone).
  */
 
 // Plain text fields (label + optional textarea).
@@ -56,10 +59,29 @@ const TEXT = {
   calendar_hero_lede: { label: "Hero intro", textarea: true, rows: 3 },
 };
 
-// Image fields (ContentImageField).
+// Photo fields. kind: "crop" = drag a box over the photo (its shape sets the
+// banner's height; also saves `${key}_crop`); "framing" = pick what stays in
+// view (saves `${key}_fit` + `${key}_pos`); "plain" = just the photo.
 const IMG = {
-  about_image: { label: "About photo", hint: "Image on the About page." },
+  home_hero_image: {
+    label: "Hero banner photo (above the headline)",
+    hint: "Wide banner across the top of the homepage. Use “Adjust crop” to frame exactly what shows.",
+    kind: "crop",
+  },
+  about_image: { label: "Story photo (beside the text)", hint: "Click or drag on the photo to choose what stays in view.", kind: "framing" },
+  ...Object.fromEntries(
+    SPACES.map((s) => [
+      `space_${s.id}_image`,
+      {
+        label: `${s.name.replace("The Alley ", "")} lead photo`,
+        hint: "Shown if no photos are added for this room under Spaces Photos.",
+        kind: "plain",
+      },
+    ])
+  ),
 };
+const IMG_EXTRA = { crop: ["_crop"], framing: ["_fit", "_pos"], plain: [] };
+const imageKeys = (key) => [key, ...IMG_EXTRA[IMG[key].kind].map((s) => key + s)];
 
 // Structured list / composite fields.
 const LIST = {
@@ -83,6 +105,7 @@ const LIST = {
     schema: {
       kind: "objects", addLabel: "Add founder",
       fields: [
+        { key: "photo", label: "Photo", type: "image" },
         { key: "name", label: "Name", placeholder: "Chelsea Funk" },
         { key: "role", label: "Role", placeholder: "Co-Founder" },
         { key: "bio", label: "Bio", textarea: true },
@@ -101,7 +124,7 @@ const PAGES = {
     label: "Home", route: "/",
     text: ["home_hero_eyebrow", "home_hero_lede", "home_cta_heading", "home_cta_subtitle", "social_instagram"],
     list: ["home_hero_rotate", "home_destinations"],
-    image: [],
+    image: ["home_hero_image"],
   },
   about: {
     label: "About", route: "/about",
@@ -127,8 +150,8 @@ const PAGES = {
   spaces: {
     label: "Spaces", route: "/spaces",
     text: ["spaces_hero_eyebrow", "spaces_hero_title", "spaces_hero_lede", "spaces_listing_heading", "spaces_listing_body", "spaces_book_heading", "spaces_book_body"],
-    list: [], image: [],
-    note: "Room photos are managed under Site Content → Spaces Photos.",
+    list: [], image: SPACES.map((s) => `space_${s.id}_image`),
+    note: "Each room's photo set is managed under Site Content → Spaces Photos.",
   },
   directory: {
     label: "Directory", route: "/directory",
@@ -163,8 +186,9 @@ async function save(formData) {
   const page = PAGES[slug];
   if (!page) redirect("/admin/pages/home");
 
-  // Text + image keys: persist whatever was submitted (allows clearing).
-  for (const key of [...page.text, ...page.image]) {
+  // Text + image keys (and each photo's crop/framing): persist whatever was
+  // submitted (allows clearing).
+  for (const key of [...page.text, ...page.image.flatMap(imageKeys)]) {
     setContent(key, (formData.get(key) || "").toString());
   }
   // List keys arrive as JSON from the structured editors (always valid); still
@@ -205,7 +229,7 @@ export default async function PageEditor({ params, searchParams }) {
     image: page.image.map((key) => ({ key, ...IMG[key] })),
     list: page.list.map((key) => ({ key, ...LIST[key] })),
   };
-  const keys = [...page.text, ...page.image, ...page.list];
+  const keys = [...page.text, ...page.image.flatMap(imageKeys), ...page.list];
   const values = Object.fromEntries(keys.map((k) => [k, c[k] || ""]));
 
   return (
@@ -213,7 +237,7 @@ export default async function PageEditor({ params, searchParams }) {
       <PageHeader
         eyebrow="Site Content"
         title="Pages"
-        subtitle="Edit a page's words and photos with a preview of the real page beside it. Save to update both."
+        subtitle="Edit a page's words and photos and see them in the real page beside it, at desktop, tablet or phone size. Nothing goes live until you Save."
       />
 
       {/* Page switcher */}

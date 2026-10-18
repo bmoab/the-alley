@@ -36,7 +36,9 @@ export default function ImageCropField({ name, label, hint, value = "", crop: cr
   const [error, setError] = useState("");
   const [open, setOpen] = useState(false);
 
-  // Ensure we know the natural size (and have a default crop) for any path.
+  // Learn the photo's natural size. A photo that was never framed stays
+  // unframed (no crop is saved for it) until someone adjusts it, so opening the
+  // editor never changes what the site shows by itself.
   useEffect(() => {
     let cancelled = false;
     if (!path) {
@@ -44,12 +46,11 @@ export default function ImageCropField({ name, label, hint, value = "", crop: cr
       setCrop(null);
       return;
     }
-    if (nat && crop) return;
+    if (nat) return;
     loadNatural(path)
       .then(({ nw, nh }) => {
         if (cancelled) return;
         setNat({ nw, nh });
-        setCrop((prev) => prev || defaultCrop(nw, nh));
       })
       .catch(() => {});
     return () => {
@@ -93,9 +94,11 @@ export default function ImageCropField({ name, label, hint, value = "", crop: cr
             data-crop-preview
           />
         ) : (
-          <div className="mb-3 flex h-40 w-full items-center justify-center rounded-lg bg-paper-warm text-sm text-ink-muted">
-            Reading photo…
-          </div>
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={path} alt={`${label} preview`} className="mb-2 w-full rounded-lg" />
+            <p className="mb-3 text-xs text-ink-muted">Not framed yet. Tap &ldquo;Adjust crop&rdquo; to choose exactly what shows.</p>
+          </>
         )
       ) : (
         <div className="mb-3 flex h-40 w-full items-center justify-center rounded-lg bg-paper-warm text-sm text-ink-muted">
@@ -110,7 +113,10 @@ export default function ImageCropField({ name, label, hint, value = "", crop: cr
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
-        <input type="file" accept="image/*" onChange={onPick} className="block text-sm" />
+        <label className="inline-flex cursor-pointer items-center rounded-lg border border-line-strong bg-paper px-3 py-1.5 text-sm font-semibold text-ink-soft hover:text-ink">
+          {uploading ? "Uploading…" : path ? "Change photo" : "Upload a photo"}
+          <input type="file" accept="image/*" onChange={onPick} className="hidden" />
+        </label>
         {path && nat ? (
           <button
             type="button"
@@ -345,7 +351,7 @@ function CropModal({ src, nat, initial, onCancel, onSave }) {
               cursor: "pointer",
             }}
           >
-            Save crop
+            Use this crop
           </button>
         </div>
       </div>

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { CalendarDays, ChevronDown, ChevronRight, Inbox, Megaphone, Package, Palette, Store } from "lucide-react";
 import { requireAccount, whatsMine, listInbox } from "@/lib/accounts.js";
 import TenantBills from "@/components/account/TenantBills.js";
+import StaffSchedule from "@/components/account/StaffSchedule.js";
+import { sharesStaffCost } from "@/lib/staff-schedule.js";
 import { makerOverview } from "@/lib/inventory.js";
 import { venueDayOf, formatDate, formatDateShort, formatMoney, venueNow, venueToday } from "@/lib/constants.js";
 
@@ -62,7 +64,7 @@ const FEATURES = [
     key: "businesses",
     icon: Store,
     title: "Your business in the building",
-    body: "Tenants get a page in our directory, can post the events they run in their own space, and see their rent and shared bills here with a Pay button.",
+    body: "Tenants get a page in our directory, can post the events they run in their own space, and see their rent and shared bills here with a Pay button. Tenants who share the shop's staff also see who's working this week and next.",
     cta: ["See the directory", "/directory"],
   },
   {
@@ -256,6 +258,7 @@ export default async function AccountHome() {
           {mine.businesses.map((b) => (
             <TenantBills key={`bills${b.id}`} directoryId={b.id} name={mine.businesses.length > 1 ? b.business_name : ""} />
           ))}
+          {mine.businesses.some((b) => sharesStaffCost(b.id)) ? <StaffSchedule /> : null}
           {tiles.map((render, i) => render(tiles.length % 2 === 1 && i === tiles.length - 1))}
 
           {mine.listings.length ? (

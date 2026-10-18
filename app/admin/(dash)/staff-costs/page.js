@@ -381,7 +381,8 @@ export default async function StaffCostsPage({ searchParams }) {
             <p className="label">Tenants who pay a share</p>
             <p className="mb-2 text-xs text-ink-muted">
               The cost is split evenly between everyone ticked here plus the shop. Bills go to the billing email, or their
-              directory contact email when that&apos;s blank.
+              directory contact email when that&apos;s blank. Everyone ticked also sees who&apos;s working this week and next on
+              their account page, read from the schedule published in Square (first names and times only).
             </p>
             <ul className="space-y-2">
               {candidates.map((c) => (

@@ -161,7 +161,10 @@ export default function ContentImageField({
       ) : null}
 
       <div className="flex items-center gap-3">
-        <input type="file" accept="image/*" onChange={onPick} className="block text-sm" />
+        <label className="inline-flex cursor-pointer items-center rounded-lg border border-line-strong bg-paper px-3 py-1.5 text-sm font-semibold text-ink-soft hover:text-ink">
+          {uploading ? "Uploading…" : path ? "Change photo" : "Upload a photo"}
+          <input type="file" accept="image/*" onChange={onPick} className="hidden" />
+        </label>
         {path ? (
           <button
             type="button"

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { Plus, X, ChevronUp, ChevronDown } from "lucide-react";
+import ListImageCell from "./ListImageCell.js";
 
 /**
  * Friendly repeater for the structured content lists — replaces the raw JSON
@@ -15,7 +16,8 @@ import { Plus, X, ChevronUp, ChevronDown } from "lucide-react";
  *
  * `schema.kind`:
  *   "strings" → each item is a string (one input per row).
- *   "objects" → each item is an object; `schema.fields:[{key,label,placeholder,textarea?}]`.
+ *   "objects" → each item is an object; `schema.fields:[{key,label,placeholder,textarea?,type?}]`.
+ *               type "image" = an uploaded photo, stored as `key` + `${key}_pos` (what stays in view).
  *   "tuples"  → each item is a positional array; `schema.fields:[{label,placeholder,textarea?}]`.
  */
 
@@ -51,7 +53,10 @@ function clean(items, schema) {
   return items
     .map((o) => {
       const out = {};
-      for (const f of schema.fields) out[f.key] = (o[f.key] || "").trim();
+      for (const f of schema.fields) {
+        out[f.key] = (o[f.key] || "").trim();
+        if (f.type === "image") out[`${f.key}_pos`] = o[`${f.key}_pos`] || "";
+      }
       return out;
     })
     .filter((o) => schema.fields.some((f) => o[f.key]));
@@ -81,7 +86,9 @@ export default function StructuredListField({ name, value = "[]", schema, onChan
       return copy;
     });
 
-  const Field = ({ textarea, ...p }) =>
+  // Called as a function, not <Field/>: a component made during render would be
+  // a new type every keystroke, remounting the input and dropping its focus.
+  const field = ({ textarea, ...p }) =>
     textarea ? <textarea rows={2} className="field" {...p} /> : <input className="field" {...p} />;
 
   return (
@@ -100,11 +107,11 @@ export default function StructuredListField({ name, value = "[]", schema, onChan
             <div className="flex items-start gap-3">
               <div className="min-w-0 flex-1 space-y-2">
                 {schema.kind === "strings" ? (
-                  <Field
-                    value={item}
-                    placeholder={schema.placeholder || schema.itemLabel}
-                    onChange={(e) => setCell(i, null, e.target.value)}
-                  />
+                  field({
+                    value: item,
+                    placeholder: schema.placeholder || schema.itemLabel,
+                    onChange: (e) => setCell(i, null, e.target.value),
+                  })
                 ) : (
                   schema.fields.map((f, k) => {
                     const key = schema.kind === "tuples" ? k : f.key;
@@ -114,12 +121,20 @@ export default function StructuredListField({ name, value = "[]", schema, onChan
                         <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
                           {f.label}
                         </label>
-                        <Field
-                          textarea={f.textarea}
-                          value={val}
-                          placeholder={f.placeholder}
-                          onChange={(e) => setCell(i, key, e.target.value)}
-                        />
+                        {f.type === "image" ? (
+                          <ListImageCell
+                            path={item[f.key] || ""}
+                            pos={item[`${f.key}_pos`] || "50% 50%"}
+                            onChange={({ path, pos }) => update(i, { ...items[i], [f.key]: path, [`${f.key}_pos`]: pos })}
+                          />
+                        ) : (
+                          field({
+                            textarea: f.textarea,
+                            value: val,
+                            placeholder: f.placeholder,
+                            onChange: (e) => setCell(i, key, e.target.value),
+                          })
+                        )}
                       </div>
                     );
                   })
