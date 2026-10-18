@@ -218,7 +218,11 @@ function AccountsAudience({ audience, data, title, blurb }) {
                   {l} ↗
                 </a>
               ))
-            : null}
+            : (
+                <a href="/admin/announce/accounts/tenants?as=noshare" target="_blank" rel="noreferrer" className="text-verde-deep underline">
+                  without the staff share ↗
+                </a>
+              )}
         </span>
       </div>
       <p className="mt-0.5 text-sm text-ink-muted">{blurb}</p>
