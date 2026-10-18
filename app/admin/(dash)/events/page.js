@@ -8,6 +8,7 @@ import { listClosures, createClosure, deleteClosure } from "@/lib/closures.js";
 import { adminCalendarItems, closedDateMarkers, SPACE_LABEL } from "@/lib/calendar-items.js";
 import { getCurrentUser, canManageBookings, requireAdmin } from "@/lib/auth.js";
 import {
+  venueDayOf,
   SPACES,
   DATE_PRESETS,
   DEFAULT_DATE_PRESET,
@@ -17,6 +18,7 @@ import {
   formatDateShort,
   formatTime,
   formatMoney,
+  upperFirst,
 } from "@/lib/constants.js";
 import { eventTimeLabel } from "@/lib/event-time.js";
 import AdminCalendar from "@/components/AdminCalendar.js";
@@ -25,7 +27,8 @@ import Card from "@/components/admin/ui/Card.js";
 import Badge from "@/components/admin/ui/Badge.js";
 import Button from "@/components/admin/ui/Button.js";
 import BookingActionsMenu from "@/components/admin/BookingActionsMenu.js";
-import { DataTable, Tr, Td } from "@/components/admin/ui/DataTable.js";
+import { DataTable, Td } from "@/components/admin/ui/DataTable.js";
+import LinkRow from "@/components/admin/ui/LinkRow.js";
 import { cx } from "@/components/admin/ui/cx.js";
 import ListingPanel, { NewEventForm } from "./ListingPanel.js";
 import { createEvent, inviteHost } from "./listing-actions.js";
@@ -39,6 +42,7 @@ import {
   restore,
   archive,
 } from "./booking-actions.js";
+import Select from "@/components/admin/ui/Select.js";
 
 export const metadata = { title: "Events" };
 export const dynamic = "force-dynamic";
@@ -363,28 +367,28 @@ export default async function EventsPage({ searchParams }) {
         </div>
         <div>
           <label className="label" htmlFor="show">Show</label>
-          <select id="show" name="show" defaultValue={show} className="field">
+          <Select id="show" name="show" defaultValue={show} submitOnChange>
             {SHOW.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label className="label" htmlFor="pub">Public?</label>
-          <select id="pub" name="pub" defaultValue={pub} className="field">
+          <Select id="pub" name="pub" defaultValue={pub} submitOnChange>
             {PUB.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label className="label" htmlFor="space">Space</label>
-          <select id="space" name="space" defaultValue={space} className="field">
+          <Select id="space" name="space" defaultValue={space} submitOnChange>
             <option value="">All spaces</option>
             {SPACES.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label className="label" htmlFor="preset">Dates</label>
-          <select id="preset" name="preset" defaultValue={preset} className="field">
+          <Select id="preset" name="preset" defaultValue={preset} submitOnChange>
             {DATE_PRESETS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
-          </select>
+          </Select>
         </div>
         {preset === "custom" ? (
           <>
@@ -505,10 +509,10 @@ export default async function EventsPage({ searchParams }) {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="label">Space</label>
-              <select name="space" className="field" defaultValue="all">
+              <Select name="space" defaultValue="all">
                 <option value="all">Whole building</option>
                 {SPACES.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
+              </Select>
             </div>
             <div><label className="label">From date</label><input name="start_date" type="date" required className="field" /></div>
             <div><label className="label">To date (optional)</label><input name="end_date" type="date" className="field" /></div>
@@ -566,7 +570,7 @@ function BookingRow({ b, listing, href, focused, tenant, canManage, filters }) {
   const dim = b.status === "cancelled" || b.archived;
   const comped = Number(b.total) === 0;
   return (
-    <Tr id={`b-${b.id}`} className={cx(dim && "opacity-55", focused && "bg-verde/50 hover:bg-verde/50")}>
+    <LinkRow href={href} id={`b-${b.id}`} className={cx(dim && "opacity-55", focused && "bg-verde/50 hover:bg-verde/50")}>
       <Td>
         <div className="whitespace-nowrap font-medium text-ink">{formatDateShort(b.date)}</div>
         <div className="text-xs text-ink-muted">
@@ -592,10 +596,10 @@ function BookingRow({ b, listing, href, focused, tenant, canManage, filters }) {
       <Td>
         <Badge status={b.status} />
         {b.status === "cancelled" && b.refund_type && b.refund_type !== "none" ? (
-          <div className="mt-0.5 text-xs text-ink-muted">refunded {formatMoney(b.refund_amount)}</div>
+          <div className="mt-0.5 text-xs text-ink-muted">Refunded {formatMoney(b.refund_amount)}</div>
         ) : null}
       </Td>
-      <Td>{listing ? <ListingTag status={listing.status} /> : <span className="text-xs text-ink-muted">no listing</span>}</Td>
+      <Td>{listing ? <ListingTag status={listing.status} /> : <ListingTag status="private" />}</Td>
       <Td className="capitalize">
         {comped && b.payment_status === "paid" ? (
           <span className="font-medium text-verde-deep">Free</span>
@@ -605,7 +609,7 @@ function BookingRow({ b, listing, href, focused, tenant, canManage, filters }) {
         {b.status === "held" && b.keep_on_calendar ? (
           <div className="text-xs normal-case font-medium text-verde-deep">Kept on calendar · won’t expire</div>
         ) : b.status === "held" && b.hold_expires_at ? (
-          <div className="text-xs normal-case text-ink-muted">holds until {formatDate(b.hold_expires_at.slice(0, 10))}</div>
+          <div className="text-xs normal-case text-ink-muted">Holds until {formatDate(venueDayOf(b.hold_expires_at))}</div>
         ) : null}
       </Td>
       <Td className="text-right font-medium text-ink">{formatMoney(b.total)}</Td>
@@ -630,7 +634,7 @@ function BookingRow({ b, listing, href, focused, tenant, canManage, filters }) {
           </Link>
         )}
       </Td>
-    </Tr>
+    </LinkRow>
   );
 }
 
@@ -648,9 +652,9 @@ function PhoneBookingCard({ b, listing, href, focused, canManage, filters }) {
         <p className="truncate text-xs text-ink-soft">{b.client_name}</p>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           <Badge status={b.status} />
-          {listing ? <ListingTag status={listing.status} /> : <span className="text-[11px] text-ink-muted">no listing</span>}
+          {listing ? <ListingTag status={listing.status} /> : <ListingTag status="private" />}
           <span className="text-xs text-ink-muted">
-            {formatMoney(b.total)} · {b.payment_status || "unpaid"}
+            {formatMoney(b.total)} · {upperFirst(b.payment_status || "unpaid")}
           </span>
         </div>
       </Link>
@@ -686,7 +690,7 @@ function PhoneListingCard({ e, href }) {
         <p className="truncate text-xs text-ink-soft">{e.host_name || "The Alley"}</p>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           <ListingTag status={e.status} />
-          <span className="text-xs text-ink-muted">{e.status === "draft" ? "waiting on the host" : "no booking"}</span>
+          <span className="text-xs text-ink-muted">{e.status === "draft" ? "Waiting on the host" : "No booking"}</span>
         </div>
       </Link>
     </li>
@@ -695,7 +699,7 @@ function PhoneListingCard({ e, href }) {
 
 function ListingRow({ e, href, focused, tenant }) {
   return (
-    <Tr id={`ev-${e.id}`} className={cx(focused && "bg-verde/50 hover:bg-verde/50")}>
+    <LinkRow href={href} id={`ev-${e.id}`} className={cx(focused && "bg-verde/50 hover:bg-verde/50")}>
       <Td>
         <div className="whitespace-nowrap font-medium text-ink">{e.date ? formatDateShort(e.date) : "No date"}</div>
         <div className="text-xs text-ink-muted">{eventTimeLabel(e) || ""}</div>
@@ -710,16 +714,16 @@ function ListingRow({ e, href, focused, tenant }) {
       </Td>
       <Td className="whitespace-nowrap">{e.space ? spaceName(e.space).replace("The Alley ", "") : "—"}</Td>
       <Td>
-        <span className="text-xs text-ink-muted">{e.status === "draft" ? "waiting on host" : "listing only"}</span>
+        <span className="text-xs text-ink-muted">{e.status === "draft" ? "Waiting on host" : "Listing only"}</span>
       </Td>
       <Td><ListingTag status={e.status} /></Td>
-      <Td className="text-xs text-ink-muted">{e.ticket_price != null ? `tickets $${Number(e.ticket_price).toFixed(2)}` : "—"}</Td>
+      <Td className="text-xs text-ink-muted">{e.ticket_price != null ? `Tickets $${Number(e.ticket_price).toFixed(2)}` : "—"}</Td>
       <Td className="text-right text-ink-muted">—</Td>
       <Td className="text-right">
         <Link href={href} scroll={false} className="whitespace-nowrap rounded-lg border border-line px-2.5 py-1 text-xs font-semibold text-ink hover:bg-paper-dim">
           Open
         </Link>
       </Td>
-    </Tr>
+    </LinkRow>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
+import Select from "@/components/admin/ui/Select.js";
 
 /**
  * The paper intake sheet, on a screen: which maker, then a row per item —
@@ -83,15 +84,14 @@ export default function ReceiveStockForm({
           <div>
             <label className="label">Maker</label>
             {dropoff ? <input type="hidden" name="vendor_id" value={vendorId} /> : null}
-            <select
+            <Select
               name={dropoff ? undefined : "vendor_id"}
               value={vendorId}
               disabled={!!dropoff}
-              onChange={(e) => {
-                setVendorId(e.target.value);
+              onChange={(v) => {
+                setVendorId(v);
                 setRows([blankRow()]);
               }}
-              className="field"
               required
             >
               <option value="" disabled>
@@ -103,7 +103,7 @@ export default function ReceiveStockForm({
                 </option>
               ))}
               <option value="new">+ Someone new</option>
-            </select>
+            </Select>
           </div>
           <div>
             <label className="label">Date received</label>
@@ -147,14 +147,14 @@ export default function ReceiveStockForm({
                 <div className="sm:col-span-4">
                   <label className="label">Item {idx + 1}</label>
                   {items.length ? (
-                    <select value={r.itemId} onChange={(e) => pickItem(r.key, e.target.value)} className="field mb-1">
+                    <Select value={r.itemId} onChange={(v) => pickItem(r.key, v)} className="mb-1">
                       <option value="">Something new…</option>
                       {items.map((i) => (
                         <option key={i.id} value={i.id}>
                           {i.name} · {i.sku}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   ) : null}
                   {!r.itemId ? (
                     <input

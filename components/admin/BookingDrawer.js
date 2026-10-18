@@ -8,7 +8,7 @@ import {
   denverTime,
   DELIVERY_COLOR,
 } from "@/lib/activity-meta.js";
-import { spaceName, formatDate, formatTime, formatMoney } from "@/lib/constants.js";
+import { spaceName, formatDate, formatTime, formatMoney, upperFirst } from "@/lib/constants.js";
 
 /**
  * Booking activity drawer. Slides in from the right (full-screen on mobile)
@@ -154,7 +154,7 @@ export default function BookingDrawer() {
               </h2>
               {booking ? (
                 <p className="mt-0.5 text-sm text-paper/70">
-                  {spaceName(booking.space)} · {booking.status}
+                  {spaceName(booking.space)} · {upperFirst(booking.status)}
                 </p>
               ) : null}
             </div>
@@ -292,7 +292,7 @@ function TimelineItem({ item, last }) {
       />
       <div className="min-w-0 flex-1">
         <div className="text-[11px] text-ink-muted">{denverTime(item.created_at)}</div>
-        <div className="text-sm font-medium text-ink">{item.description}</div>
+        <div className="text-sm font-medium text-ink">{upperFirst(item.description)}</div>
         {metaBits.length || tag ? (
           <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-ink-soft">
             {metaBits.length ? <span>{metaBits.join(" · ")}</span> : null}
@@ -301,13 +301,13 @@ function TimelineItem({ item, last }) {
                 className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
                 style={{ background: tag.bg, color: tag.fg }}
               >
-                {item.delivery_status}
+                {upperFirst(item.delivery_status)}
               </span>
             ) : null}
           </div>
         ) : null}
         <div className="mt-0.5 text-xs text-ink-muted">
-          {isSystem ? "system" : `by ${item.actor_name}`}
+          {isSystem ? "System" : `By ${item.actor_name}`}
         </div>
       </div>
     </div>
@@ -322,16 +322,16 @@ function Details({ booking }) {
     ["Space", spaceName(booking.space)],
     ["Date", formatDate(booking.date)],
     ["Time", `${formatTime(booking.start_time)} · ${booking.hours} hrs`],
-    booking.event_type ? ["Event type", booking.event_type] : null,
+    booking.event_type ? ["Event type", upperFirst(booking.event_type)] : null,
     booking.guests ? ["Guests", booking.guests] : null,
     ["Alcohol", booking.alcohol ? "Yes" : "No"],
-    booking.is_recurring ? ["Recurring", booking.recurring_schedule || "Yes"] : null,
+    booking.is_recurring ? ["Recurring", upperFirst(booking.recurring_schedule || "Yes")] : null,
     booking.series_id ? ["Series session", `${booking.series_index} of ${booking.series_total}`] : null,
     booking.series_id && booking.is_deposit_holder
-      ? ["Series deposit", `${formatMoney(booking.deposit)} · ${booking.deposit_payment_status || "unpaid"}`]
+      ? ["Series deposit", `${formatMoney(booking.deposit)} · ${upperFirst(booking.deposit_payment_status || "unpaid")}`]
       : null,
-    ["Status", booking.status],
-    ["Payment", booking.payment_status || "unpaid"],
+    ["Status", upperFirst(booking.status)],
+    ["Payment", upperFirst(booking.payment_status || "unpaid")],
     ["Deposit", formatMoney(booking.deposit)],
     ["Total", formatMoney(booking.total)],
   ].filter(Boolean);

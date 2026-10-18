@@ -153,7 +153,24 @@ export default function ImageCropField({ name, label, hint, value = "", crop: cr
   );
 }
 
-const HANDLES = ["nw", "ne", "sw", "se"];
+// Corners resize both ways; the edge handles make it easy to just make the
+// banner taller or shorter (top/bottom) or narrower (sides).
+const HANDLES = ["nw", "ne", "sw", "se", "n", "s", "e", "w"];
+
+// Where each handle sits on the box.
+function handlePos(h) {
+  const v = h.includes("n") ? "n" : h.includes("s") ? "s" : "";
+  const x = h.includes("w") ? "w" : h.includes("e") ? "e" : "";
+  const edge = h.length === 1;
+  return {
+    width: edge && !x ? 28 : 16,
+    height: edge && !v ? 28 : 16,
+    top: v === "n" ? -8 : v === "s" ? undefined : "calc(50% - 14px)",
+    bottom: v === "s" ? -8 : undefined,
+    left: x === "w" ? -8 : x === "e" ? undefined : "calc(50% - 14px)",
+    right: x === "e" ? -8 : undefined,
+  };
+}
 
 function CropModal({ src, nat, initial, onCancel, onSave }) {
   const [box, setBox] = useState(initial);
@@ -240,8 +257,9 @@ function CropModal({ src, nat, initial, onCancel, onSave }) {
       >
         <h3 style={{ margin: "0 0 4px", fontSize: 17, fontWeight: 700 }}>Frame the homepage banner</h3>
         <p style={{ margin: "0 0 14px", fontSize: 13, color: "var(--ink-soft, #5b5147)" }}>
-          Drag inside the box to move it, or drag a corner to resize. Only what&rsquo;s inside the box
-          shows on the homepage — the box&rsquo;s shape also sets the banner&rsquo;s height.
+          Drag inside the box to move it. Drag the top or bottom handle to make the banner taller or
+          shorter, or a corner to resize. Only what&rsquo;s inside the box shows on the homepage — the
+          box&rsquo;s shape sets the banner&rsquo;s height.
         </p>
 
         <div
@@ -285,15 +303,10 @@ function CropModal({ src, nat, initial, onCancel, onSave }) {
                 onPointerDown={(e) => startDrag(e, h)}
                 style={{
                   position: "absolute",
-                  width: 16,
-                  height: 16,
+                  ...handlePos(h),
                   background: "#fff",
                   border: "1px solid rgba(0,0,0,.4)",
                   borderRadius: 3,
-                  top: h[0] === "n" ? -8 : undefined,
-                  bottom: h[0] === "s" ? -8 : undefined,
-                  left: h[1] === "w" ? -8 : undefined,
-                  right: h[1] === "e" ? -8 : undefined,
                   cursor: `${h}-resize`,
                   touchAction: "none",
                 }}

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Select from "@/components/admin/ui/Select.js";
 
 /**
  * Date + start-time picker for the admin "Change date" page.
@@ -51,13 +52,12 @@ export default function AdminReschedulePicker({ booking }) {
 
       <div>
         <label className="label" htmlFor="start_time">New start time</label>
-        <select
+        <Select
           id="start_time"
           name="start_time"
           required
           value={start}
-          onChange={(e) => setStart(e.target.value)}
-          className="field"
+          onChange={setStart}
           disabled={!date || loading}
         >
           <option value="">
@@ -66,7 +66,7 @@ export default function AdminReschedulePicker({ booking }) {
           {open.map((s) => (
             <option key={s.time} value={s.time}>{s.time}</option>
           ))}
-        </select>
+        </Select>
         {date && !loading ? (
           <p className="mt-1 text-xs text-ink-muted">
             {open.length

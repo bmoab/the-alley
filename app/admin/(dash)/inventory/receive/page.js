@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin, getActor } from "@/lib/auth.js";
@@ -103,11 +102,6 @@ export default async function ReceivePage({ searchParams }) {
         title="Receive stock"
         subtitle="When a maker drops things off. This replaces the paper sheet — it puts everything into Square, taxed and with a barcode number, ready to ring up. (Things The Alley buys outright go straight into Square instead.)"
       />
-      <p className="mb-4 text-sm">
-        <Link href="/admin/inventory" className="font-semibold text-ink-muted hover:text-ink">
-          ← Inventory
-        </Link>
-      </p>
       <ReceiveStockForm
         vendors={vendors.map((v) => ({ id: v.id, name: v.name, kind: v.kind, default_split: v.default_split }))}
         itemsByVendor={itemsByVendor}

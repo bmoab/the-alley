@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import { getEvent, parseEventLinks, getEventSessions } from "@/lib/catalog.js";
 import { getBooking } from "@/lib/bookings.js";
 import { canSellTickets, ticketsSold, ticketsLeft, salesTaxes } from "@/lib/tickets.js";
-import { SPACES, spaceName, formatDate, venueToday } from "@/lib/constants.js";
+import { SPACES, spaceName, formatDate, venueToday, upperFirst } from "@/lib/constants.js";
 import { eventTimeLabel } from "@/lib/event-time.js";
 import LinksEditor from "@/components/LinksEditor.js";
 import EventMediaField from "@/components/admin/EventMediaField.js";
@@ -20,6 +20,7 @@ import {
   openTickets,
   toggleTickets,
 } from "./listing-actions.js";
+import Select from "@/components/admin/ui/Select.js";
 
 const APP_URL = process.env.APP_URL || "";
 
@@ -74,7 +75,7 @@ export default async function ListingPanel({ id, closeHref }) {
               {ev ? (
                 <p className="mt-0.5 text-sm text-paper/70">
                   {ev.host_name ? `${ev.host_name} · ` : ""}
-                  {ev.date ? formatDate(ev.date) : "no date yet"}
+                  {ev.date ? formatDate(ev.date) : "No date yet"}
                   {eventTimeLabel(ev) ? ` · ${eventTimeLabel(ev)}` : ""}
                   {ev.space ? ` · ${spaceName(ev.space)}` : ""}
                 </p>
@@ -147,7 +148,7 @@ async function ListingBody({ ev }) {
         ) : null}
         {booking ? (
           <Link href={`/admin/events?b=${booking.id}`} scroll={false} className="text-sm font-semibold text-verde-deep hover:underline">
-            Booking: {booking.client_name} · {booking.status} →
+            Booking: {booking.client_name} · {upperFirst(booking.status)} →
           </Link>
         ) : null}
         <form action={removeEvent} className="ml-auto">
@@ -299,10 +300,10 @@ export function NewEventForm({ createEvent }) {
         <div><label className="label">Time</label><input type="time" name="time" className="field" /></div>
         <div>
           <label className="label">Space</label>
-          <select name="space" className="field">
+          <Select name="space">
             <option value="">—</option>
             {SPACES.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
+          </Select>
         </div>
         <div><label className="label">Spots</label><input type="number" name="tickets" className="field" /></div>
       </div>

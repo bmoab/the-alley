@@ -1,4 +1,6 @@
+import { Children } from "react";
 import { cx } from "./cx.js";
+import { upperFirst } from "@/lib/constants.js";
 
 /**
  * Status-aware pill. Centralizes the STATUS_STYLES map that was duplicated in
@@ -30,6 +32,11 @@ const TONE_STYLES = {
   sky: "bg-sky-100 text-sky-800 border-sky-200",
 };
 
+// Text children, or text followed by a value ("paid {date}"): first letter up.
+function firstUp(content) {
+  return Children.map(content, (c, i) => (i === 0 && typeof c === "string" ? upperFirst(c) : c));
+}
+
 export default function Badge({ status, tone, children, className }) {
   const style =
     (status && STATUS_STYLES[status]) ||
@@ -39,12 +46,13 @@ export default function Badge({ status, tone, children, className }) {
   return (
     <span
       className={cx(
-        "ui-badge inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize",
+        "ui-badge inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold",
         style,
         className
       )}
     >
-      {children ?? status}
+      {/* First letter up ("Held", "Terms not agreed") without Title Casing every word. */}
+      {firstUp(children ?? status)}
     </span>
   );
 }

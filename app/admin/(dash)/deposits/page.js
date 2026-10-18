@@ -85,7 +85,7 @@ export default async function DepositsPage() {
                     <p className="text-sm text-ink-muted">
                       {spaceName(b.space)} · {formatDate(b.date)} ·{" "}
                       <span className={ago >= 3 ? "font-semibold text-rust" : ""}>
-                        {ago === 0 ? "today" : `${ago} day${ago === 1 ? "" : "s"} ago`}
+                        {ago === 0 ? "Today" : `${ago} day${ago === 1 ? "" : "s"} ago`}
                       </span>
                     </p>
                     <a

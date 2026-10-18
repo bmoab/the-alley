@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useFormStatus, createPortal } from "react-dom";
 import { DENIAL_REASONS } from "@/lib/denial.js";
 import Button from "@/components/admin/ui/Button.js";
+import Select from "@/components/admin/ui/Select.js";
 
 /**
  * Deny-a-request dialog. Captures a structured reason BEFORE the denial is
@@ -58,17 +59,16 @@ export default function DenyDialog({ bookingId, clientName, denyAction }) {
 
               <div>
                 <label className="label" htmlFor={`reason-${bookingId}`}>Reason (internal)</label>
-                <select
+                <Select
                   id={`reason-${bookingId}`}
                   name="reason"
                   value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  className="field"
+                  onChange={setReason}
                 >
                   {DENIAL_REASONS.map((r) => (
                     <option key={r.value} value={r.value}>{r.label}</option>
                   ))}
-                </select>
+                </Select>
               </div>
 
               <div>

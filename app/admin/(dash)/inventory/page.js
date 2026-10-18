@@ -16,12 +16,13 @@ import {
 import { isSquareConfigured } from "@/lib/square.js";
 import { getSetting } from "@/lib/db.js";
 import { logActivity } from "@/lib/activity.js";
-import { formatDateShort, formatMoney } from "@/lib/constants.js";
+import { venueDayOf, formatDateShort, formatMoney } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
 import Badge from "@/components/admin/ui/Badge.js";
 import Button from "@/components/admin/ui/Button.js";
 import StatCard from "@/components/admin/ui/StatCard.js";
+import Select from "@/components/admin/ui/Select.js";
 
 export const metadata = { title: "Inventory" };
 export const dynamic = "force-dynamic";
@@ -108,12 +109,7 @@ export default async function InventoryPage({ searchParams }) {
       />
 
       <div className="mb-5 flex flex-wrap gap-2">
-        <Button href="/admin/inventory/dropoffs" variant="accent">
-          Drop-offs{waiting ? ` (${waiting} waiting)` : ""}
-        </Button>
-        <Button href="/admin/inventory/receive" variant="ghost">+ Receive stock</Button>
-        <Button href="/admin/inventory/tags" variant="ghost">Price tags</Button>
-        <Button href="/admin/inventory/count" variant="ghost">Shelf count</Button>
+        <Button href="/admin/inventory/receive" variant="accent">+ Receive stock</Button>
         <form action={syncNow}>
           <Button type="submit" variant="ghost">Sync with Square</Button>
         </form>
@@ -136,19 +132,19 @@ export default async function InventoryPage({ searchParams }) {
 
       <form className="mb-4 flex flex-wrap gap-2">
         <input name="q" defaultValue={q} placeholder="Search name, SKU or maker" className="field max-w-xs" />
-        <select name="vendor" defaultValue={vendorId || ""} className="field max-w-[14rem]">
+        <Select name="vendor" defaultValue={vendorId || ""} className="max-w-[14rem]" submitOnChange>
           <option value="">Everyone</option>
           {vendors.map((v) => (
             <option key={v.id} value={v.id}>
               {v.name}
             </option>
           ))}
-        </select>
-        <select name="status" defaultValue={status} className="field max-w-[10rem]">
+        </Select>
+        <Select name="status" defaultValue={status} className="max-w-[10rem]" submitOnChange>
           <option value="active">On the shelf</option>
           <option value="returned">Returned</option>
           <option value="all">All</option>
-        </select>
+        </Select>
         <Button type="submit" variant="ghost">Filter</Button>
       </form>
 
@@ -183,7 +179,7 @@ export default async function InventoryPage({ searchParams }) {
                 </summary>
                 <p className="mt-2 text-xs text-ink-muted">
                   {terms} · {i.qty_received} received in total
-                  {i.synced_at ? ` · count checked ${formatDateShort(i.synced_at.slice(0, 10))}` : ""}
+                  {i.synced_at ? ` · count checked ${formatDateShort(venueDayOf(i.synced_at))}` : ""}
                 </p>
                 <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
                   <form action={saveItem} className="rounded-lg bg-paper-dim p-3">

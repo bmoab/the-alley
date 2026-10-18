@@ -20,6 +20,7 @@ import {
 } from "@/lib/announce.js";
 import { requireBookingManager } from "@/lib/auth.js";
 import ConfirmButton from "@/components/admin/ui/ConfirmButton.js";
+import Select from "@/components/admin/ui/Select.js";
 
 export const metadata = { title: "Settings" };
 
@@ -312,35 +313,33 @@ export default async function SettingsPage() {
               <label className="label" htmlFor="open_hour">
                 Opens at
               </label>
-              <select
+              <Select
                 id="open_hour"
                 name="open_hour"
                 defaultValue={s.open_hour ?? "8"}
-                className="field"
               >
                 {HOUR_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="label" htmlFor="close_hour">
                 Closes at
               </label>
-              <select
+              <Select
                 id="close_hour"
                 name="close_hour"
                 defaultValue={s.close_hour ?? "23"}
-                className="field"
               >
                 {HOUR_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
         </Card>
@@ -417,15 +416,14 @@ export default async function SettingsPage() {
             <label className="label" htmlFor="listing_auto_publish">
               Auto-publish host event listings
             </label>
-            <select
+            <Select
               id="listing_auto_publish"
               name="listing_auto_publish"
               defaultValue={s.listing_auto_publish === "true" ? "true" : "false"}
-              className="field"
             >
               <option value="false">No — review each listing before it goes live</option>
               <option value="true">Yes — publish to the calendar automatically</option>
-            </select>
+            </Select>
             <p className="mt-1 text-xs text-ink-muted">
               When off, host submissions wait for your approval in the Events tab.
             </p>

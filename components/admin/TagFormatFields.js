@@ -1,4 +1,5 @@
 import { TAG_FORMATS, TAG_CODES } from "@/lib/inventory.js";
+import Select from "@/components/admin/ui/Select.js";
 
 /** Label type, QR or barcode, and "start at" for a part-used sheet. Shared by every Print tags form. */
 export default function TagFormatFields({ format = "sheet30" }) {
@@ -6,23 +7,23 @@ export default function TagFormatFields({ format = "sheet30" }) {
     <>
       <div className="min-w-[14rem] flex-1">
         <label className="label">Labels</label>
-        <select name="format" defaultValue={format} className="field">
+        <Select name="format" defaultValue={format}>
           {Object.entries(TAG_FORMATS).map(([k, f]) => (
             <option key={k} value={k}>
               {f.label}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 <div className="w-36">
         <label className="label">Code</label>
-        <select name="code" defaultValue="qr" className="field">
+        <Select name="code" defaultValue="qr">
           {Object.entries(TAG_CODES).map(([k, label]) => (
             <option key={k} value={k}>
               {label}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       <div className="w-28">
         <label className="label">Start at label #</label>

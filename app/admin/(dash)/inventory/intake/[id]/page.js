@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin, getActor } from "@/lib/auth.js";
@@ -38,6 +37,7 @@ async function printTags(formData) {
       startAt: formData.get("start_at"),
       items: tagItemsForIntake(id),
       by: actor.actorName,
+      intakeId: id,
     });
   } catch (err) {
     redirect(`/admin/inventory/intake/${id}?toast=${encodeURIComponent(err.message)}&toastType=error`);
@@ -59,9 +59,6 @@ export default async function IntakePage({ params }) {
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-4 flex flex-wrap items-center gap-2 print:hidden">
-        <Link href="/admin/inventory" className="text-sm font-semibold text-ink-muted hover:text-ink">
-          ← Inventory
-        </Link>
         <div className="ml-auto flex gap-2">
           <Button href={`/admin/vendors/${intake.vendor_id}`} variant="ghost" size="sm">
             {intake.vendor_name}

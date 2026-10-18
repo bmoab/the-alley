@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { requireAdmin, getActor } from "@/lib/auth.js";
 import { listDropoffs, getDropoff, declineDropoff } from "@/lib/inventory.js";
 import { logActivity } from "@/lib/activity.js";
-import { formatDateShort, formatMoney } from "@/lib/constants.js";
+import { formatDateShort, formatMoney, venueDayOf } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
 import Badge from "@/components/admin/ui/Badge.js";
@@ -59,7 +59,7 @@ export default async function DropoffsPage() {
                   {d.vendor_name}
                 </Link>
                 <span className="text-sm text-ink-muted">
-                  listed {formatDateShort(d.created_at.slice(0, 10))} · {d.units} item{d.units === 1 ? "" : "s"} · {formatMoney(d.value)}
+                  Listed {formatDateShort(venueDayOf(d.created_at))} · {d.units} item{d.units === 1 ? "" : "s"} · {formatMoney(d.value)}
                 </span>
               </div>
               <ul className="mt-2 text-sm text-ink-soft">
@@ -96,7 +96,7 @@ export default async function DropoffsPage() {
               <li key={d.id} className="flex flex-wrap items-center gap-2 py-2">
                 <span className="font-semibold text-ink">{d.vendor_name}</span>
                 <span className="text-ink-muted">
-                  {formatDateShort(d.created_at.slice(0, 10))} · {d.units} item{d.units === 1 ? "" : "s"}
+                  {formatDateShort(venueDayOf(d.created_at))} · {d.units} item{d.units === 1 ? "" : "s"}
                 </span>
                 <Badge tone={STATUS[d.status]?.tone || "neutral"}>{STATUS[d.status]?.label || d.status}</Badge>
                 {d.intake_id ? (

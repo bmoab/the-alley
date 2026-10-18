@@ -30,14 +30,12 @@ import {
 // { href, label, icon } or a group { group, icon, items:[...] }.
 export const NAV = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  // One page for the calendar, every booking and every listing.
-  { href: "/admin/events", label: "Events", icon: CalendarDays },
-  // The whole Alley's finances. Owners and admins.
-  { href: "/admin/money", label: "Money", icon: ChartNoAxesCombined, needsStaff: true },
   {
-    group: "Reservations",
-    icon: ClipboardList,
+    group: "Events",
+    icon: CalendarDays,
     items: [
+      // One page for the calendar, every booking and every listing.
+      { href: "/admin/events", label: "List of events", icon: ClipboardList },
       // Requests (approve/deny) and Deposits (refunds) are booking-management
       // surfaces — hidden from a limited "user" (server-guarded regardless).
       { href: "/admin/requests", label: "Requests", icon: Inbox, needsBookings: true },
@@ -45,6 +43,8 @@ export const NAV = [
       { href: "/admin/activity", label: "Activity", icon: Activity },
     ],
   },
+  // The whole Alley's finances. Owners and admins.
+  { href: "/admin/money", label: "Money", icon: ChartNoAxesCombined, needsStaff: true },
   {
     group: "Shop",
     icon: ShoppingBag,

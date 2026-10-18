@@ -11,6 +11,7 @@ import {
 } from "@/lib/bookings.js";
 import { getDraftEventForBooking } from "@/lib/catalog.js";
 import {
+  venueDayOf,
   spaceName,
   formatDate,
   formatDateShort,
@@ -106,7 +107,7 @@ function PaymentLine({ b }) {
       ) : null}
       {!rentalPaid && b.status === "held" && b.hold_expires_at ? (
         <span className="text-sm text-ink-muted">
-          Please pay by {formatDateShort(String(b.hold_expires_at).slice(0, 10))}
+          Please pay by {formatDateShort(venueDayOf(b.hold_expires_at))}
         </span>
       ) : null}
     </div>

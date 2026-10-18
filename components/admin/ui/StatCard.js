@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cx } from "./cx.js";
+import { upperFirst } from "@/lib/constants.js";
 
 /**
  * Dashboard stat tile: big number + label + hint, with an optional icon chip.
@@ -23,7 +24,7 @@ export default function StatCard({ label, value, href, hint, icon: Icon, accent 
         ) : null}
       </div>
       <div className="mt-2 text-sm font-semibold text-ink-soft">{label}</div>
-      {hint ? <div className="mt-0.5 text-xs text-ink-muted">{hint}</div> : null}
+      {hint ? <div className="mt-0.5 text-xs text-ink-muted">{typeof hint === "string" ? upperFirst(hint) : hint}</div> : null}
     </>
   );
 

@@ -3,7 +3,7 @@ import { CalendarDays, ChevronDown, ChevronRight, Inbox, Megaphone, Package, Pal
 import { requireAccount, whatsMine, listInbox } from "@/lib/accounts.js";
 import TenantBills from "@/components/account/TenantBills.js";
 import { makerOverview } from "@/lib/inventory.js";
-import { formatDate, formatDateShort, formatMoney, venueNow, venueToday } from "@/lib/constants.js";
+import { venueDayOf, formatDate, formatDateShort, formatMoney, venueNow, venueToday } from "@/lib/constants.js";
 
 export const metadata = { title: "Your account" };
 
@@ -306,7 +306,7 @@ export default async function AccountHome() {
                   <span className="ac-row-main">
                     <span className="ac-row-title">{m.subject}</span>
                   </span>
-                  <span className="ac-mail-date">{formatDateShort(m.sent_at.slice(0, 10))}</span>
+                  <span className="ac-mail-date">{formatDateShort(venueDayOf(m.sent_at))}</span>
                   <ChevronRight className="ac-row-chev" width={18} height={18} aria-hidden="true" />
                 </Link>
               </li>

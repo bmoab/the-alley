@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAccount, getInboxMessage } from "@/lib/accounts.js";
-import { formatDate } from "@/lib/constants.js";
+import { venueDayOf, formatDate } from "@/lib/constants.js";
 
 export const metadata = { title: "Inbox" };
 
@@ -33,7 +33,7 @@ export default async function MessagePage({ params }) {
           <div style={{ minWidth: 0 }}>
             <p style={{ margin: 0, fontWeight: 600 }}>The Alley On Center</p>
             <p className="ac-small" style={{ margin: 0 }}>
-              {m.mode === "inbox" ? "Posted" : "Sent"} {formatDate(m.sent_at.slice(0, 10))} to {m.to_email}
+              {m.mode === "inbox" ? "Posted" : "Sent"} {formatDate(venueDayOf(m.sent_at))} to {m.to_email}
               {attachments.length ? ` · came with ${attachments.join(", ")}` : ""}
             </p>
           </div>

@@ -1,5 +1,5 @@
 import { makerOverview, termsFor, needsTerms } from "@/lib/inventory.js";
-import { formatDate, formatDateShort, formatMoney, venueToday } from "@/lib/constants.js";
+import { venueDayOf, formatDate, formatDateShort, formatMoney, venueToday } from "@/lib/constants.js";
 import { agreeToTerms, withdrawDropoff, saveMakerDetails } from "@/app/maker/actions.js";
 import DropoffForm from "@/components/maker/DropoffForm.js";
 import Card from "@/components/admin/ui/Card.js";
@@ -137,7 +137,7 @@ export default function MakerHome({ vendorId, hidden, notice = null }) {
               const st = DROPOFF_STATUS[d.status] || DROPOFF_STATUS.cancelled;
               return (
                 <li key={d.id} className="flex flex-wrap items-center gap-2 py-2">
-                  <span className="font-semibold text-ink">{formatDateShort(d.created_at.slice(0, 10))}</span>
+                  <span className="font-semibold text-ink">{formatDateShort(venueDayOf(d.created_at))}</span>
                   <span className="text-ink-muted">
                     {d.units} item{d.units === 1 ? "" : "s"} · {formatMoney(d.value)}
                   </span>
@@ -248,7 +248,7 @@ export default function MakerHome({ vendorId, hidden, notice = null }) {
             <Button type="submit" variant="ghost">Save</Button>
             <p className="mt-2 text-xs text-ink-muted">
               To change your email ({v.email || "none on file"}) or your share, ask us.
-              {v.terms_accepted_at ? ` You agreed to the terms on ${formatDateShort(v.terms_accepted_at.slice(0, 10))}.` : ""}
+              {v.terms_accepted_at ? ` You agreed to the terms on ${formatDateShort(venueDayOf(v.terms_accepted_at))}.` : ""}
             </p>
           </div>
         </form>

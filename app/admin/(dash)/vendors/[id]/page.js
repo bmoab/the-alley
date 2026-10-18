@@ -25,7 +25,7 @@ import {
 import { getAccountByEmail } from "@/lib/accounts.js";
 import { makerPayoutStatement } from "@/lib/email.js";
 import { logActivity } from "@/lib/activity.js";
-import { formatDateShort, formatMoney, venueToday } from "@/lib/constants.js";
+import { formatDateShort, formatMoney, venueToday, venueDayOf } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
 import Badge from "@/components/admin/ui/Badge.js";
@@ -158,11 +158,6 @@ export default async function VendorPage({ params }) {
 
   return (
     <div>
-      <p className="mb-2 text-sm">
-        <Link href="/admin/vendors" className="font-semibold text-ink-muted hover:text-ink">
-          ← Makers
-        </Link>
-      </p>
       <PageHeader
         title={vendor.name}
         subtitle={
@@ -187,7 +182,7 @@ export default async function VendorPage({ params }) {
             {!vendor.email
               ? "No email on file — add one below so they can make an account."
               : account?.email_verified_at
-                ? `Has an account (${vendor.email})${account.last_login_at ? `, last signed in ${formatDateShort(account.last_login_at.slice(0, 10))}` : ""}.`
+                ? `Has an account (${vendor.email})${account.last_login_at ? `, last signed in ${formatDateShort(venueDayOf(account.last_login_at))}` : ""}.`
                 : `No account yet. They can make one with ${vendor.email} at ${appUrl}/account/sign-up.`}
           </li>
           <li>
@@ -195,7 +190,7 @@ export default async function VendorPage({ params }) {
               ? vendor.terms_accepted_at
                 ? "The terms changed since they agreed — they'll be asked again."
                 : "Hasn't agreed to the consignment terms yet (they're asked first thing)."
-              : `Agreed to the terms ${formatDateShort(vendor.terms_accepted_at.slice(0, 10))} as “${vendor.terms_accepted_name}”.`}
+              : `Agreed to the terms ${formatDateShort(venueDayOf(vendor.terms_accepted_at))} as “${vendor.terms_accepted_name}”.`}
           </li>
         </ul>
         <div className="mt-3 rounded-lg bg-paper-dim p-3">
@@ -230,11 +225,11 @@ export default async function VendorPage({ params }) {
       <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Card pad="md">
           <p className="text-2xl font-semibold tabular-nums text-ink">{items.reduce((t, i) => t + i.qty_on_hand, 0)}</p>
-          <p className="text-xs text-ink-muted">on the shelf now</p>
+          <p className="text-xs text-ink-muted">On the shelf now</p>
         </Card>
         <Card pad="md">
           <p className="text-2xl font-semibold tabular-nums text-ink">{soldUnits}</p>
-          <p className="text-xs text-ink-muted">sold · {formatMoney(soldNet)} after discounts</p>
+          <p className="text-xs text-ink-muted">Sold · {formatMoney(soldNet)} after discounts</p>
         </Card>
         {consigned ? (
           <Card pad="md" className={balance.owed ? "border-verde-deep/40" : ""}>

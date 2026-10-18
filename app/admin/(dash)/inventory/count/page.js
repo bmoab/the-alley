@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin, getActor } from "@/lib/auth.js";
@@ -7,6 +6,7 @@ import { shopCatalog, applyCount } from "@/lib/inventory.js";
 import { logActivity } from "@/lib/activity.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Button from "@/components/admin/ui/Button.js";
+import Select from "@/components/admin/ui/Select.js";
 
 export const metadata = { title: "Shelf count" };
 export const dynamic = "force-dynamic";
@@ -67,20 +67,17 @@ export default async function CountPage({ searchParams }) {
         title="Shelf count"
         subtitle="Pick a shelf (each maker has their own category), count what's there, and Square's numbers are corrected to match."
       />
-      <p className="mb-4 text-sm">
-        <Link href="/admin/inventory" className="font-semibold text-ink-muted hover:text-ink">← Inventory</Link>
-      </p>
       {error ? <p className="mb-4 rounded-lg border border-rust/30 bg-rust/10 px-3 py-2 text-sm text-rust">Couldn&apos;t read Square: {error}</p> : null}
 
       <form className="mb-5 flex flex-wrap gap-2">
-        <select name="cat" defaultValue={cat} className="field max-w-xs">
+        <Select name="cat" defaultValue={cat} className="max-w-xs" submitOnChange>
           <option value="">Pick a category…</option>
           {categories.map((c) => (
             <option key={c} value={c}>
               {c}
             </option>
           ))}
-        </select>
+        </Select>
         <Button type="submit" variant="ghost">Show</Button>
       </form>
 

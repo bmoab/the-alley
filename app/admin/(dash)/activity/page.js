@@ -13,6 +13,7 @@ import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
 import Button from "@/components/admin/ui/Button.js";
 import { DataTable, Tr, Td } from "@/components/admin/ui/DataTable.js";
+import Select from "@/components/admin/ui/Select.js";
 
 export const metadata = { title: "Activity" };
 
@@ -42,12 +43,12 @@ export default async function ActivityFeedPage({ searchParams }) {
       <form className="mb-5 flex flex-wrap items-end gap-3" method="get">
         <div>
           <label className="label" htmlFor="type">Event type</label>
-          <select id="type" name="type" defaultValue={type} className="field min-w-[14rem]">
+          <Select id="type" name="type" defaultValue={type} className="min-w-[14rem]" submitOnChange>
             <option value="all">All events</option>
             {Object.keys(TYPE_LABELS).map((t) => (
               <option key={t} value={t}>{TYPE_LABELS[t]}</option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="flex-1 min-w-[12rem]">
           <label className="label" htmlFor="q">Search client</label>
@@ -110,7 +111,7 @@ export default async function ActivityFeedPage({ searchParams }) {
                     )}
                   </Td>
                   <Td className="whitespace-nowrap text-sm text-ink-soft">
-                    {!r.actor_name || r.actor_name === "system" ? "system" : r.actor_name}
+                    {!r.actor_name || r.actor_name === "system" ? "System" : r.actor_name}
                   </Td>
                 </Tr>
               );

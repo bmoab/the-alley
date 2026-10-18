@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { requireAccount, listInbox } from "@/lib/accounts.js";
-import { formatDate } from "@/lib/constants.js";
+import { venueDayOf, formatDate } from "@/lib/constants.js";
 
 export const metadata = { title: "Inbox" };
 
@@ -31,7 +31,7 @@ export default async function InboxPage() {
                   <span className="ac-row-title">{m.subject}</span>
                   <span className="ac-row-sub">{m.mode === "inbox" ? "Posted to your account" : "The Alley On Center"}</span>
                 </span>
-                <span className="ac-mail-date">{formatDate(m.sent_at.slice(0, 10))}</span>
+                <span className="ac-mail-date">{formatDate(venueDayOf(m.sent_at))}</span>
                 <ChevronRight className="ac-row-chev" width={18} height={18} aria-hidden="true" />
               </Link>
             </li>

@@ -8,7 +8,7 @@ import NavCount from "./NavCount.js";
 import { cx } from "./ui/cx.js";
 
 /**
- * Collapsible admin nav group (e.g. Reservations) for the desktop sidebar.
+ * Collapsible admin nav group (e.g. Events) for the desktop sidebar.
  * Light theme: charcoal text, verde active state. Starts open when you're on
  * one of its pages.
  */

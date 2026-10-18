@@ -18,12 +18,13 @@ import {
   thisMonth,
 } from "@/lib/money.js";
 import { emailShareBill } from "@/lib/email.js";
-import { formatDateShort, formatMoney, shiftDate, venueToday } from "@/lib/constants.js";
+import { venueDayOf, formatDateShort, formatMoney, shiftDate, venueToday } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
 import Button from "@/components/admin/ui/Button.js";
 import Badge from "@/components/admin/ui/Badge.js";
 import ConfirmButton from "@/components/admin/ui/ConfirmButton.js";
+import Select from "@/components/admin/ui/Select.js";
 
 export const metadata = { title: "Bills" };
 export const dynamic = "force-dynamic";
@@ -119,11 +120,11 @@ function AccountFields({ a = {}, month }) {
         </div>
         <div className="min-w-0">
           <label className="label">Kind</label>
-          <select name="category" defaultValue={a.category || "utility"} className="field">
+          <Select name="category" defaultValue={a.category || "utility"}>
             {Object.entries(CATEGORIES).map(([k, v]) => (
               <option key={k} value={k}>{v}</option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="min-w-0">
           <label className="label">Usual $</label>
@@ -250,7 +251,7 @@ export default async function BillsPage({ searchParams }) {
                   {p.bill?.error ? <p className="mt-2 text-xs text-rust">{p.bill.error}</p> : null}
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     {st === "paid" ? (
-                      <Badge tone="success">paid {p.bill.paid_at ? formatDateShort(p.bill.paid_at.slice(0, 10)) : ""}</Badge>
+                      <Badge tone="success">paid {p.bill.paid_at ? formatDateShort(venueDayOf(p.bill.paid_at)) : ""}</Badge>
                     ) : st === "sent" ? (
                       <>
                         <Badge tone="warning">sent — unpaid</Badge>

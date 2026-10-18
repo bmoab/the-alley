@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAdmin, getActor } from "@/lib/auth.js";
 import { shopCatalog, giveBarcodes, createTagPrint, TAG_FORMATS, TAG_CODES } from "@/lib/inventory.js";
@@ -7,6 +6,7 @@ import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
 import Button from "@/components/admin/ui/Button.js";
 import TagPicker from "@/components/admin/TagPicker.js";
+import { refreshTagWatch, tagsNeeded } from "@/lib/tag-watch.js";
 
 export const metadata = { title: "Price tags" };
 export const dynamic = "force-dynamic";
@@ -47,8 +47,10 @@ async function numberEverything() {
   );
 }
 
-export default async function TagsPage() {
+export default async function TagsPage({ searchParams }) {
   await requireAdmin();
+  await refreshTagWatch().catch((err) => console.error("[tags] Square check failed", err.message));
+  const needed = Object.fromEntries(tagsNeeded().map((t) => [t.variationId, t.unknown ? 0 : t.need]));
   let catalog;
   let error = null;
   try {
@@ -65,9 +67,6 @@ export default async function TagsPage() {
         title="Price tags"
         subtitle="Tags with the price and a barcode, for anything in Square — makers' items and The Alley's own. Scan the tag at the register and the item rings up."
       />
-      <p className="mb-4 text-sm">
-        <Link href="/admin/inventory" className="font-semibold text-ink-muted hover:text-ink">← Inventory</Link>
-      </p>
       {error ? (
         <p className="mb-4 rounded-lg border border-rust/30 bg-rust/10 px-3 py-2 text-sm text-rust">Couldn&apos;t read Square: {error}</p>
       ) : null}
@@ -93,7 +92,14 @@ export default async function TagsPage() {
         </Card>
       ) : null}
 
-      <TagPicker rows={catalog.rows} formats={TAG_FORMATS} codes={TAG_CODES} action={makeTags} />
+      <TagPicker
+        rows={catalog.rows}
+        formats={TAG_FORMATS}
+        codes={TAG_CODES}
+        action={makeTags}
+        needed={needed}
+        startWithNeeded={searchParams?.needed === "1"}
+      />
     </div>
   );
 }

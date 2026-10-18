@@ -1,6 +1,6 @@
 import { Receipt } from "lucide-react";
 import { tenantBills } from "@/lib/staff-costs.js";
-import { formatDateShort, formatMoney } from "@/lib/constants.js";
+import { venueDayOf, formatDateShort, formatMoney } from "@/lib/constants.js";
 
 /**
  * A tenant's bills with The Alley, in one card: monthly rent (with its pay
@@ -48,7 +48,7 @@ export default function TenantBills({ directoryId, name, wide = true }) {
                 <span className="ac-row-title" style={{ whiteSpace: "normal" }}>{r.label}</span>
                 <span className="ac-row-sub">
                   {formatMoney(r.amount)}
-                  {r.sent_at ? ` · sent ${formatDateShort(r.sent_at.slice(0, 10))}` : ""}
+                  {r.sent_at ? ` · sent ${formatDateShort(venueDayOf(r.sent_at))}` : ""}
                 </span>
               </span>
               {r.payment_link ? (

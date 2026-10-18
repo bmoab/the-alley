@@ -5,7 +5,7 @@ import { requireAdmin } from "@/lib/auth.js";
 import { salesSummary, syncSquareSales, consignorShare, round2, unmatchedRefunds } from "@/lib/inventory.js";
 import { isSquareConfigured } from "@/lib/square.js";
 import { getSetting } from "@/lib/db.js";
-import { formatDateShort, formatMoney, shiftDate, venueToday } from "@/lib/constants.js";
+import { venueDayOf, formatDateShort, formatMoney, shiftDate, venueToday, upperFirst } from "@/lib/constants.js";
 import { fmtDay } from "@/lib/shift-format.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
@@ -110,7 +110,7 @@ export default async function SalesPage({ searchParams }) {
       </div>
       <div className="mb-6 flex flex-wrap items-center gap-3 text-xs text-ink-muted">
         <span>
-          {formatDateShort(from)} – {formatDateShort(to)} · last pulled from Square{" "}
+          {formatDateShort(from)} – {formatDateShort(to)} · Last pulled from Square{" "}
           {lastRun ? new Date(lastRun).toLocaleString("en-US", { timeZone: "America/Denver", dateStyle: "medium", timeStyle: "short" }) : "never"}
         </span>
         <form action={syncNow}>
@@ -184,7 +184,7 @@ export default async function SalesPage({ searchParams }) {
             {loose.map((r) => (
               <li key={r.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2">
                 <span className="text-ink">
-                  {fmtDay(r.created_at.slice(0, 10))}
+                  {fmtDay(venueDayOf(r.created_at))}
                   <span className="text-ink-muted">
                     {" "}
                     · {r.lines.length ? r.lines.map((l) => `${l.name}${l.vendor_name ? ` (${l.vendor_name})` : ""}`).join(", ") : "order not in the synced sales"}
@@ -231,7 +231,7 @@ export default async function SalesPage({ searchParams }) {
                     </td>
                     <td className="py-1.5 pr-2 text-ink-soft">
                       {l.kind !== "retail" ? (
-                        ({ staffshare: "tenant's staff share", utilityshare: "utility share", rent: "rent" })[l.kind] || l.kind
+                        ({ staffshare: "Tenant's staff share", utilityshare: "Utility share", rent: "Rent" })[l.kind] || upperFirst(l.kind)
                       ) : l.vendor_id ? (
                         <Link href={`/admin/vendors/${l.vendor_id}`} className="hover:underline">
                           {l.vendor_name}

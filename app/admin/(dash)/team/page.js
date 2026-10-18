@@ -15,12 +15,14 @@ import {
 } from "@/lib/auth.js";
 import { emailTeamInvite, emailPasswordReset } from "@/lib/email.js";
 import { db } from "@/lib/db.js";
+import { formatDateShort, venueDayOf } from "@/lib/constants.js";
 import CopyLink from "@/components/admin/CopyLink.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
 import Badge from "@/components/admin/ui/Badge.js";
 import Button from "@/components/admin/ui/Button.js";
 import { DataTable, Tr, Td } from "@/components/admin/ui/DataTable.js";
+import Select from "@/components/admin/ui/Select.js";
 
 export const metadata = { title: "Team" };
 
@@ -174,12 +176,12 @@ export default async function TeamPage() {
           </div>
           <div className="min-w-0">
             <label className="label" htmlFor="role">Role</label>
-            <select id="role" name="role" defaultValue="admin" className="field">
+            <Select id="role" name="role" defaultValue="admin">
               <option value="user">User — view &amp; edit content, can’t approve or charge bookings</option>
               <option value="admin">Admin — manage bookings &amp; content, can’t manage team</option>
               <option value="owner">Owner — everything, including the team</option>
               <option value="staff">Staff — the register rules page only (no admin)</option>
-            </select>
+            </Select>
           </div>
           <div className="sm:col-span-2">
             <Button type="submit" variant="accent">Send invite</Button>
@@ -207,25 +209,26 @@ export default async function TeamPage() {
                   )}
                 </Td>
                 <Td className="whitespace-nowrap text-xs text-ink-muted">
-                  {u.last_login_at ? u.last_login_at.slice(0, 10) : "never"}
+                  {u.last_login_at ? formatDateShort(venueDayOf(u.last_login_at)) : "Never"}
                 </Td>
                 <Td>
                   <div className="flex flex-wrap items-center justify-end gap-1.5">
                     {/* Change role */}
                     <form action={changeRole} className="flex items-center gap-1">
                       <input type="hidden" name="id" value={u.id} />
-                      <select
+                      <Select
                         name="role"
                         defaultValue={u.role}
                         disabled={lastOwner}
-                        className="rounded-lg border border-line bg-paper px-2 py-1 text-xs text-ink disabled:opacity-50"
+                        size="sm"
+                        className="w-24"
                         title={lastOwner ? "The last active owner can't be demoted" : "Change role"}
                       >
                         <option value="user">User</option>
                         <option value="admin">Admin</option>
                         <option value="owner">Owner</option>
                         <option value="staff">Staff</option>
-                      </select>
+                      </Select>
                       <Button type="submit" variant="ghost" size="sm" disabled={lastOwner}>
                         Set
                       </Button>

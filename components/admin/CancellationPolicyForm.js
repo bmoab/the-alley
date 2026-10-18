@@ -3,6 +3,7 @@ import { useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import Card from "@/components/admin/ui/Card.js";
 import Button from "@/components/admin/ui/Button.js";
+import Select from "@/components/admin/ui/Select.js";
 
 const REFUND_OPTIONS = [
   { value: "full", label: "Full refund (rental + deposit)" },
@@ -44,31 +45,29 @@ export default function CancellationPolicyForm({ action, values }) {
           <label className="label" htmlFor="refund_before_cutoff">
             More than cutoff before
           </label>
-          <select
+          <Select
             id="refund_before_cutoff"
             name="refund_before_cutoff"
             defaultValue={values.refund_before_cutoff ?? "full"}
-            className="field"
           >
             {REFUND_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
-          </select>
+          </Select>
         </div>
         <div>
           <label className="label" htmlFor="refund_within_cutoff">
             Within cutoff
           </label>
-          <select
+          <Select
             id="refund_within_cutoff"
             name="refund_within_cutoff"
             defaultValue={values.refund_within_cutoff ?? "deposit_only"}
-            className="field"
           >
             {REFUND_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
-          </select>
+          </Select>
         </div>
       </div>
 
