@@ -97,6 +97,8 @@ function NavLink({ item, active, count }) {
       ) : null}
       {item.label}
       <NavCount n={count} />
+      {/* Room for a group's chevron, so every bubble lines up in one column. */}
+      {count ? <span className="w-4 shrink-0" aria-hidden="true" /> : null}
     </Link>
   );
 }

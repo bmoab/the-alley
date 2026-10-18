@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { runPendingRequestReminder } from "@/lib/bookings.js";
+import { runAgreementAlerts } from "@/lib/agreement-reminders.js";
+import { emailTeamAgreementReminders } from "@/lib/email.js";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/cron/pending-reminders
  * On business days (Mon–Fri), emails the owner a nudge if any booking requests
- * are still unapproved. Idempotent — sends at most once per calendar day, so
+ * are still unapproved, and the team a nudge when a consignment agreement's
+ * reminder is waiting to be sent (lib/agreement-reminders.js). Idempotent — sends at most once per calendar day, so
  * it's safe to call repeatedly. Point a daily cron at this (e.g. cron-job.org),
  * same as the other jobs — e.g. 15:00 UTC (~9am Denver).
  *
@@ -27,5 +30,12 @@ export async function GET(request) {
   }
   const force = searchParams.get("force") === "1";
   const result = await runPendingRequestReminder({ force });
-  return NextResponse.json({ ok: true, ...result });
+  let agreements;
+  try {
+    agreements = await runAgreementAlerts({ force, send: emailTeamAgreementReminders });
+  } catch (err) {
+    console.error("[agreements] team reminder failed:", err.message);
+    agreements = { error: err.message };
+  }
+  return NextResponse.json({ ok: true, ...result, agreements });
 }

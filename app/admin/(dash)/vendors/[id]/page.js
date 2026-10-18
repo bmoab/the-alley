@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { REMINDERS, reminderKindFor, reminderHistory, setAgreementEnds, getParty } from "@/lib/agreement-reminders.js";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin, requireStaffManager, getActor, getCurrentUser, canManageStaff } from "@/lib/auth.js";
@@ -59,9 +60,13 @@ async function saveVendor(formData) {
       payout_method: manager ? formData.get("payout_method") : undefined,
       notes: formData.get("notes"),
     });
+    // Also moves the date on their gallery listing, if they have one.
+    setAgreementEnds("maker", id, (formData.get("agreement_ends") || "").toString());
   } catch (err) {
     back(id, err.message, "error");
   }
+  revalidatePath("/admin");
+  revalidatePath("/admin/exhibitors");
   logActivity({ eventType: "vendor_updated", description: `Updated ${v.name}`, ...(await getActor()) });
   back(id, "Saved.");
 }
@@ -155,6 +160,10 @@ export default async function VendorPage({ params }) {
   const unpaid = sales.filter((s) => !s.payout_id);
   const soldUnits = sales.reduce((t, s) => t + Number(s.qty), 0);
   const soldNet = round2(sales.reduce((t, s) => t + Number(s.net), 0));
+  const agreementEnds = getParty("maker", vendor.id)?.endsOn || null;
+  const dueKind = vendor.is_active && vendor.email ? reminderKindFor(agreementEnds) : null;
+  const reminders = reminderHistory("maker", vendor.id).filter((h) => h.ends_on === agreementEnds);
+  const reminderDue = dueKind && !reminders.some((h) => h.kind === dueKind) ? dueKind : null;
 
   return (
     <div>
@@ -164,6 +173,22 @@ export default async function VendorPage({ params }) {
           `Consignment · ${splitFor(null, vendor)}% of each sale goes to them${vendor.payout_method ? ` · paid by ${vendor.payout_method}` : ""}`
         }
       />
+
+      {agreementEnds ? (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-paper-warm px-4 py-3 text-sm">
+          <span className="font-semibold text-ink">Agreement ends {formatDateShort(agreementEnds)}</span>
+          {reminders.map((h) => (
+            <span key={h.id} className="text-ink-soft">
+              {REMINDERS[h.kind]?.label || h.kind}: {h.skipped ? "Handled without email" : "Sent"} {formatDateShort(venueDayOf(h.sent_at))}
+            </span>
+          ))}
+          {reminderDue ? (
+            <Button href={`/admin/agreements/maker/${vendor.id}?kind=${reminderDue}`} size="sm" variant="accent">
+              Send the {REMINDERS[reminderDue].label}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mb-6 flex flex-wrap gap-2">
         <Button href={`/admin/inventory/receive?vendor=${vendor.id}`} variant="accent">+ Receive stock from them</Button>
@@ -391,6 +416,14 @@ export default async function VendorPage({ params }) {
           <div>
             <label className="label">Notes</label>
             <input name="notes" defaultValue={vendor.notes || ""} className="field" />
+          </div>
+          <div>
+            <label className="label">Consignment agreement ends</label>
+            <input name="agreement_ends" type="date" defaultValue={agreementEnds || ""} className="field" />
+            <p className="mt-1 text-xs text-ink-muted">
+              A month and a week before, the Dashboard asks someone to send them a reminder. Their gallery listing (if they have
+              one) uses the same date.
+            </p>
           </div>
           <div className="flex flex-wrap gap-2 sm:col-span-2">
             <Button type="submit">Save</Button>

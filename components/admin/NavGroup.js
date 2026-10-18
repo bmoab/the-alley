@@ -66,6 +66,7 @@ export default function NavGroup({ label, icon: Icon, items, counts = {} }) {
                 ) : null}
                 {sub.label}
                 <NavCount n={counts[sub.href]} />
+                {counts[sub.href] ? <span className="w-4 shrink-0" aria-hidden="true" /> : null}
               </Link>
             );
           })}

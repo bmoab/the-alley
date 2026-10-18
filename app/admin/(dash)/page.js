@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   Inbox,
   Clock,
+  Palette,
   Tags,
   CalendarDays,
   Megaphone,
@@ -21,6 +22,7 @@ import { attentionCounts } from "@/lib/attention.js";
 import { adminCalendarItems } from "@/lib/calendar-items.js";
 import { listDropoffs, salesSummary, consignorBalances, payoutCutoff } from "@/lib/inventory.js";
 import { refreshTagWatch, tagsNeeded } from "@/lib/tag-watch.js";
+import { remindersDue, possessive } from "@/lib/agreement-reminders.js";
 import { isSquareConfigured } from "@/lib/square.js";
 import { getSetting } from "@/lib/db.js";
 import {
@@ -150,6 +152,12 @@ export default async function AdminDashboard() {
         : `${plural(untaggedCount, "tag")} in all`,
       href: "/admin/inventory/tags?needed=1",
     },
+    ...remindersDue(today).map((r) => ({
+      icon: Palette,
+      label: `${possessive(r.name)} consignment agreement ends ${formatDateShort(r.endsOn).split(",").slice(0, 2).join("")} — send the ${r.label}`,
+      hint: r.daysLeft === 0 ? "Ends today" : `Ends in ${plural(r.daysLeft, "day")} · Already written, just read it and send`,
+      href: `/admin/agreements/${r.party}/${r.id}?kind=${r.kind}`,
+    })),
     n("/admin/events") && {
       icon: Megaphone,
       label: `${plural(n("/admin/events"), "event listing")} to review`,

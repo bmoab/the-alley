@@ -13,6 +13,18 @@ import { emailExhibitorInvite } from "@/lib/email.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Button from "@/components/admin/ui/Button.js";
 import { requireAdmin } from "@/lib/auth.js";
+import {
+  REMINDERS,
+  reminderKindFor,
+  reminderHistory,
+  getParty,
+  makerForExhibitor,
+  setAgreementEnds,
+  linkExhibitorToMaker,
+} from "@/lib/agreement-reminders.js";
+import { listVendors } from "@/lib/inventory.js";
+import Select from "@/components/admin/ui/Select.js";
+import { formatDateShort, venueDayOf } from "@/lib/constants.js";
 
 export const metadata = { title: "Exhibitors" };
 
@@ -29,7 +41,7 @@ async function addExhibitorAction(formData) {
   await requireAdmin();
   const name = (formData.get("name") || "").toString().trim();
   if (!name) redirect("/admin/exhibitors");
-  createExhibitor({
+  const id = createExhibitor({
     name,
     contact_email: (formData.get("contact_email") || "").toString().trim(),
     active: formData.get("active") != null,
@@ -37,6 +49,8 @@ async function addExhibitorAction(formData) {
     active_until: (formData.get("active_until") || "").toString().trim(),
     sort_order: formData.get("sort_order"),
   });
+  linkExhibitorToMaker(id, Number(formData.get("vendor_id")) || null);
+  setAgreementEnds("artist", id, (formData.get("active_until") || "").toString().trim());
   refresh();
   redirect("/admin/exhibitors");
 }
@@ -53,7 +67,11 @@ async function saveExhibitorAction(formData) {
     active_until: (formData.get("active_until") || "").toString().trim(),
     sort_order: formData.get("sort_order"),
   });
+  // Same person, same date: the maker record and this listing share it.
+  linkExhibitorToMaker(id, Number(formData.get("vendor_id")) || null);
+  setAgreementEnds("artist", id, (formData.get("active_until") || "").toString().trim());
   refresh();
+  revalidatePath("/admin");
   redirect("/admin/exhibitors#ex-" + id);
 }
 
@@ -103,8 +121,9 @@ async function emailLink(formData) {
   );
 }
 
-function ExhibitorFields({ ex = {} }) {
+function ExhibitorFields({ ex = {}, makers = [] }) {
   const isNew = !ex.id;
+  const matched = ex.id && !ex.vendor_id ? makerForExhibitor(ex) : null;
   return (
     <>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -127,7 +146,7 @@ function ExhibitorFields({ ex = {} }) {
           <input name="active_from" type="date" defaultValue={ex.active_from || ""} className="field" />
         </div>
         <div>
-          <label className="label">On view until</label>
+          <label className="label">Agreement ends</label>
           <input name="active_until" type="date" defaultValue={ex.active_until || ""} className="field" />
         </div>
         <div>
@@ -135,8 +154,24 @@ function ExhibitorFields({ ex = {} }) {
           <input name="sort_order" type="number" defaultValue={ex.sort_order ?? 0} className="field" />
         </div>
       </div>
+      <div className="mt-3 max-w-md">
+        <label className="label">Also sells in the shop as</label>
+        <Select name="vendor_id" defaultValue={String(ex.vendor_id || matched?.id || "")}>
+          <option value="">Not a maker in the shop</option>
+          {makers.map((m) => (
+            <option key={m.id} value={String(m.id)}>
+              {m.name}
+            </option>
+          ))}
+        </Select>
+        <p className="mt-1 text-xs text-ink-muted">
+          Their artwork on consignment and this listing are one agreement with one end date. Linked here, changing the date in
+          either place changes both, and they get one reminder.
+        </p>
+      </div>
       <p className="mt-3 text-xs text-ink-muted">
-        After the &ldquo;on view until&rdquo; date passes, they automatically move to the Past archive. Their bio,
+        A month and a week before the agreement ends, the Dashboard asks someone to send them a reminder (pre-written, one
+        click). After that date they move to the Past archive. Their bio,
         discipline, photos, and work images are all added by the artist from their private link below.
       </p>
     </>
@@ -177,6 +212,7 @@ const PHASE_LABEL = { current: "On view", past: "Past", hidden: "Hidden" };
 export default async function ExhibitorsAdminPage() {
   await requireAdmin();
   const exhibitors = listExhibitors();
+  const makers = listVendors();
 
   return (
     <div>
@@ -188,7 +224,7 @@ export default async function ExhibitorsAdminPage() {
       <details className="card p-5" open={exhibitors.length === 0}>
         <summary className="cursor-pointer font-semibold text-ink">+ Add an exhibitor</summary>
         <form action={addExhibitorAction} className="mt-4">
-          <ExhibitorFields />
+          <ExhibitorFields makers={makers} />
           <Button type="submit" className="mt-4">Add exhibitor</Button>
         </form>
       </details>
@@ -196,15 +232,39 @@ export default async function ExhibitorsAdminPage() {
       <div className="mt-6 space-y-4">
         {exhibitors.map((ex) => {
           const phase = exhibitorPhase(ex);
+          // One person, one agreement: a linked maker's reminders are theirs.
+          const who = ex.active ? getParty("artist", ex.id) : null;
+          const dueKind = who?.email && who.endsOn ? reminderKindFor(who.endsOn) : null;
+          const history = who ? reminderHistory(who.party, who.id).filter((h) => h.ends_on === who.endsOn) : [];
+          const due = dueKind && !history.some((h) => h.kind === dueKind) ? dueKind : null;
           return (
             <details key={ex.id} id={`ex-${ex.id}`} className="card p-5">
-              <summary className="flex cursor-pointer items-center justify-between">
+              <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2">
                 <span className="font-semibold text-ink">{ex.name}</span>
-                <span className="text-xs uppercase tracking-wider text-ink-muted">{PHASE_LABEL[phase]}</span>
+                <span className="flex items-center gap-3">
+                  {ex.active_until ? (
+                    <span className="text-xs text-ink-muted">Agreement ends {formatDateShort(ex.active_until)}</span>
+                  ) : null}
+                  <span className="text-xs uppercase tracking-wider text-ink-muted">{PHASE_LABEL[phase]}</span>
+                </span>
               </summary>
+              {due || history.length ? (
+                <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-paper-warm px-4 py-3 text-sm">
+                  {history.map((h) => (
+                    <span key={h.id} className="text-ink-soft">
+                      {REMINDERS[h.kind]?.label || h.kind}: {h.skipped ? "Handled without email" : "Sent"} {formatDateShort(venueDayOf(h.sent_at))}
+                    </span>
+                  ))}
+                  {due ? (
+                    <Button href={`/admin/agreements/${who.party}/${who.id}?kind=${due}`} size="sm" variant="accent">
+                      Send the {REMINDERS[due].label}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
               <form action={saveExhibitorAction} className="mt-4">
                 <input type="hidden" name="id" value={ex.id} />
-                <ExhibitorFields ex={ex} />
+                <ExhibitorFields ex={ex} makers={makers} />
                 <Button type="submit" className="mt-4">Save</Button>
               </form>
               <SelfEditLink ex={ex} />
