@@ -9,6 +9,11 @@ import { venueToday, shiftDate } from "@/lib/constants.js";
  */
 export default async function StaffSchedule({ wide = true }) {
   const { ok, weeks } = await upcomingStaffSchedule();
+  return <StaffScheduleCard ok={ok} weeks={weeks} wide={wide} />;
+}
+
+/** The card itself, from upcomingStaffSchedule()'s shape — the account tour passes sample shifts. */
+export function StaffScheduleCard({ ok, weeks, wide = true }) {
   const today = venueToday();
   const tomorrow = shiftDate(today, { days: 1 });
   const any = weeks.flat().some((d) => d.shifts.length);

@@ -9,7 +9,11 @@ import { venueDayOf, formatDateShort, formatMoney } from "@/lib/constants.js";
  * there's nothing to show.
  */
 export default function TenantBills({ directoryId, name, wide = true }) {
-  const b = tenantBills(directoryId);
+  return <TenantBillsCard bills={tenantBills(directoryId)} name={name} wide={wide} />;
+}
+
+/** The card itself, from tenantBills()'s shape — the account tour passes sample bills. */
+export function TenantBillsCard({ bills: b, name, wide = true }) {
   if (!b || (!b.rent && !b.unpaid.length && !b.paid.length)) return null;
   const due = b.unpaid.reduce((t, r) => t + Number(r.amount || 0), 0);
   return (

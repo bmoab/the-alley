@@ -22,6 +22,7 @@ import {
   Receipt,
   Coins,
   ChartNoAxesCombined,
+  UserRound,
 } from "lucide-react";
 
 // Full navigation, in sidebar order. Items are either a link
@@ -66,6 +67,8 @@ export const NAV = [
       { href: "/admin/gallery", label: "Gallery", icon: LayoutGrid },
     ],
   },
+  // What customers see in their account, with sample people — for explaining it.
+  { href: "/admin/account-tour", label: "Account tour", icon: UserRound },
   { href: "/admin/settings", label: "Settings", icon: Settings },
   // Owner-only: managing admin accounts. Hidden for regular users (and the
   // route itself is guarded server-side).
