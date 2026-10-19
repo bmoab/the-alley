@@ -58,38 +58,44 @@ export default function EventMediaField({ photo = "", pdfs = [] }) {
     }
   }
 
+  const pick =
+    "inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-line-strong bg-paper px-3 py-1.5 text-sm font-semibold text-ink-soft transition hover:text-ink";
   return (
-    <div className="rounded-lg border border-line bg-paper-warm p-4">
+    <div className="space-y-4">
       {/* Empty string is meaningful: it tells the server to clear the photo. */}
       <input type="hidden" name="photo_path" value={path} />
       <input type="hidden" name="pdf_paths" value={JSON.stringify(files)} />
 
-      <label className="label">Flyer / photo</label>
-      {path ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={path} alt="Flyer preview" className="mb-2 h-40 w-full rounded-lg object-cover" />
-      ) : (
-        <div className="mb-2 flex h-24 w-full items-center justify-center rounded-lg bg-paper text-sm text-ink-muted">
-          No photo yet
-        </div>
-      )}
-      <div className="flex items-center gap-3">
-        <input type="file" accept="image/*" onChange={onPhoto} className="block max-w-full text-sm" />
+      <div>
+        <p className="label">Flyer / photo</p>
         {path ? (
-          <button type="button" onClick={() => setPath("")} className="text-xs font-semibold text-rust hover:underline">
-            Remove
-          </button>
-        ) : null}
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={path} alt="Flyer preview" className="mb-2 h-40 w-full rounded-xl object-cover" />
+        ) : (
+          <div className="mb-2 flex h-24 w-full items-center justify-center rounded-xl bg-paper-warm text-sm text-ink-muted">
+            No photo yet
+          </div>
+        )}
+        <div className="flex items-center gap-3">
+          <label className={pick}>
+            {uploading === "photo" ? "Uploading…" : path ? "Change photo" : "Add a photo"}
+            <input type="file" accept="image/*" onChange={onPhoto} className="hidden" />
+          </label>
+          {path ? (
+            <button type="button" onClick={() => setPath("")} className="text-xs font-semibold text-rust hover:underline">
+              Remove
+            </button>
+          ) : null}
+        </div>
       </div>
-      {uploading === "photo" ? <p className="mt-1 text-xs text-ink-muted">Uploading…</p> : null}
 
-      <div className="mt-4">
-        <label className="label">PDFs (programs, menus, supply lists…)</label>
+      <div>
+        <p className="label">PDFs (programs, menus, supply lists…)</p>
         {files.length ? (
-          <ul className="mb-2 space-y-1 text-sm">
+          <ul className="mb-2 space-y-1.5 text-sm">
             {files.map((p, i) => (
-              <li key={p + i} className="flex items-center justify-between gap-3 rounded bg-paper px-3 py-1.5">
-                <a href={p} target="_blank" rel="noreferrer" className="truncate text-ink-soft hover:underline">
+              <li key={p + i} className="flex items-center justify-between gap-3 rounded-lg bg-paper-warm px-3 py-2">
+                <a href={p} target="_blank" rel="noreferrer" className="truncate font-semibold text-ink-soft hover:underline">
                   {`PDF ${i + 1}`}
                 </a>
                 <button
@@ -97,20 +103,20 @@ export default function EventMediaField({ photo = "", pdfs = [] }) {
                   onClick={() => setFiles((arr) => arr.filter((_, j) => j !== i))}
                   className="shrink-0 text-xs font-semibold text-rust hover:underline"
                 >
-                  remove
+                  Remove
                 </button>
               </li>
             ))}
           </ul>
         ) : null}
-        <input type="file" accept="application/pdf" onChange={onPdf} className="block max-w-full text-sm" />
-        {uploading === "pdf" ? <p className="mt-1 text-xs text-ink-muted">Uploading…</p> : null}
+        <label className={pick}>
+          {uploading === "pdf" ? "Uploading…" : "Add a PDF"}
+          <input type="file" accept="application/pdf" onChange={onPdf} className="hidden" />
+        </label>
       </div>
 
-      <p className="mt-2 text-xs text-ink-muted">
-        Uploads save as soon as you pick them — then hit Save below to attach them to this event.
-      </p>
-      {error ? <p className="mt-1 text-xs text-rust">{error}</p> : null}
+      <p className="text-xs text-ink-muted">Uploads go up right away; they&apos;re attached to the event when you save.</p>
+      {error ? <p className="text-xs text-rust">{error}</p> : null}
     </div>
   );
 }

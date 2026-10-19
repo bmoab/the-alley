@@ -19,7 +19,7 @@ import { spaceName, formatDate, formatTime, formatMoney, upperFirst } from "@/li
  * the listing guests see. The bar under the header carries the listing here, so
  * the room, the money, the history and "is this on the public calendar" are all
  * one tap from the calendar instead of two chips going two different places.
- * Styled to match the current admin (Inter + sage-verde + ink), following the
+ * Styled to match the current admin (Plus Jakarta Sans + sage-verde + ink), following the
  * prototype's structure and dot color-coding.
  */
 export default function BookingDrawer() {
@@ -224,20 +224,20 @@ export default function BookingDrawer() {
         ) : null}
 
         {/* Tabs */}
-        <div className="flex border-b border-line bg-paper-warm">
-          {["activity", "details"].map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`flex-1 py-3 text-xs font-semibold uppercase tracking-wider transition ${
-                tab === t
-                  ? "border-b-2 border-verde-deep bg-paper text-ink"
-                  : "text-ink-muted hover:text-ink"
-              }`}
-            >
-              {t}
-            </button>
-          ))}
+        <div className="border-b border-line bg-paper-warm px-5 py-2.5">
+          <div className="flex rounded-xl bg-ink/[0.06] p-1">
+            {["activity", "details"].map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition ${
+                  tab === t ? "bg-paper text-ink shadow-sm" : "text-ink-muted hover:text-ink"
+                }`}
+              >
+                {upperFirst(t)}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Body */}
@@ -315,36 +315,60 @@ function TimelineItem({ item, last }) {
 }
 
 function Details({ booking }) {
-  const rows = [
-    ["Client", booking.client_name],
-    ["Email", booking.client_email],
-    ["Phone", booking.client_phone],
-    ["Space", spaceName(booking.space)],
-    ["Date", formatDate(booking.date)],
-    ["Time", `${formatTime(booking.start_time)} · ${booking.hours} hrs`],
-    booking.event_type ? ["Event type", upperFirst(booking.event_type)] : null,
-    booking.guests ? ["Guests", booking.guests] : null,
-    ["Alcohol", booking.alcohol ? "Yes" : "No"],
-    booking.is_recurring ? ["Recurring", upperFirst(booking.recurring_schedule || "Yes")] : null,
-    booking.series_id ? ["Series session", `${booking.series_index} of ${booking.series_total}`] : null,
-    booking.series_id && booking.is_deposit_holder
-      ? ["Series deposit", `${formatMoney(booking.deposit)} · ${upperFirst(booking.deposit_payment_status || "unpaid")}`]
-      : null,
-    ["Status", upperFirst(booking.status)],
-    ["Payment", upperFirst(booking.payment_status || "unpaid")],
-    ["Deposit", formatMoney(booking.deposit)],
-    ["Total", formatMoney(booking.total)],
-  ].filter(Boolean);
+  const sections = [
+    {
+      title: "Who",
+      rows: [
+        ["Client", booking.client_name],
+        ["Email", booking.client_email ? <a href={`mailto:${booking.client_email}`} className="text-verde-deep hover:underline">{booking.client_email}</a> : null],
+        ["Phone", booking.client_phone ? <a href={`tel:${booking.client_phone}`} className="text-verde-deep hover:underline">{booking.client_phone}</a> : null],
+      ],
+    },
+    {
+      title: "The event",
+      rows: [
+        ["Space", spaceName(booking.space)],
+        ["Date", formatDate(booking.date)],
+        ["Time", `${formatTime(booking.start_time)} · ${booking.hours} hrs`],
+        booking.event_type ? ["Event type", upperFirst(booking.event_type)] : null,
+        booking.guests ? ["Guests", booking.guests] : null,
+        ["Alcohol", booking.alcohol ? "Yes" : "No"],
+        booking.is_recurring ? ["Recurring", upperFirst(booking.recurring_schedule || "Yes")] : null,
+        booking.series_id ? ["Series session", `${booking.series_index} of ${booking.series_total}`] : null,
+      ],
+    },
+    {
+      title: "Money",
+      rows: [
+        ["Status", upperFirst(booking.status)],
+        ["Payment", upperFirst(booking.payment_status || "unpaid")],
+        booking.series_id && booking.is_deposit_holder
+          ? ["Series deposit", `${formatMoney(booking.deposit)} · ${upperFirst(booking.deposit_payment_status || "unpaid")}`]
+          : null,
+        ["Deposit", formatMoney(booking.deposit)],
+        ["Total", formatMoney(booking.total)],
+      ],
+    },
+  ];
 
   return (
-    <dl className="animate-fade-in">
-      {rows.map(([k, v]) => (
-        <div key={k} className="flex justify-between gap-4 border-b border-line py-2.5 text-sm last:border-0">
-          <dt className="text-ink-muted">{k}</dt>
-          <dd className="text-right font-medium text-ink">{v}</dd>
-        </div>
+    <div className="animate-fade-in space-y-4">
+      {sections.map((sec) => (
+        <section key={sec.title} className="rounded-2xl border border-line bg-paper p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-muted">{sec.title}</h3>
+          <dl className="mt-2">
+            {sec.rows
+              .filter((r) => r && r[1] != null && r[1] !== "")
+              .map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-4 border-b border-line py-2 text-sm last:border-0">
+                  <dt className="text-ink-muted">{k}</dt>
+                  <dd className="min-w-0 truncate text-right font-medium text-ink">{v}</dd>
+                </div>
+              ))}
+          </dl>
+        </section>
       ))}
-    </dl>
+    </div>
   );
 }
 

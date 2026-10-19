@@ -259,3 +259,49 @@ export async function toggleTickets(formData) {
   revalidatePath(`/events/${id}`);
   backToListing(id, open ? "Online sales reopened." : "Online sales stopped — door sales still work at the register.", "neutral");
 }
+
+/**
+ * One section of a listing from the side panel (Details, When, Tickets &
+ * payment, Links, Photo & PDFs). Saves only that section's fields and returns
+ * { error } (the section stays open) or { ok } — the panel stays put.
+ */
+export async function saveListingSection(formData) {
+  await requireAdmin();
+  const id = Number(formData.get("id"));
+  if (!getEvent(id)) return { error: "That listing is gone — reload the page." };
+  const str = (k) => (formData.get(k) ?? "").toString().trim();
+  let data;
+  switch (formData.get("section")) {
+    case "details":
+      if (!str("title")) return { error: "Give it a title." };
+      data = { title: str("title"), host_name: str("host_name"), description: (formData.get("description") || "").toString() };
+      break;
+    case "when":
+      if (!str("date")) return { error: "It needs a date." };
+      // Guest-facing times; blank clears back to the reservation time.
+      data = { date: str("date"), time: str("time"), public_time: str("public_time"), public_end_time: str("public_end_time") };
+      break;
+    case "pay":
+      if (str("tickets") && !/^\d+$/.test(str("tickets"))) return { error: "Spots should be a whole number." };
+      data = {
+        tickets: str("tickets") || null,
+        price: str("price"),
+        payment_instructions: str("payment_instructions"),
+        payment_link: str("payment_link"),
+      };
+      break;
+    case "links":
+      data = { links: parseLinksField(formData) };
+      break;
+    case "media":
+      // "" is an explicit "remove the photo", not "leave it alone".
+      data = { photo_path: str("photo_path"), pdf_paths: parsePdfsField(formData) };
+      break;
+    default:
+      return { error: "Nothing to save." };
+  }
+  updateEvent(id, data);
+  refresh();
+  revalidatePath(`/events/${id}`);
+  return { ok: true };
+}

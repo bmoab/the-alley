@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Plus, UserPlus } from "lucide-react";
+import Dialog from "@/components/admin/ui/Dialog.js";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { listBookings } from "@/lib/bookings.js";
@@ -254,17 +256,21 @@ export default async function EventsPage({ searchParams }) {
       <PageHeader
         title="Events"
         subtitle="Everything on the calendar in one place — bookings, The Alley's own events and hosts' listings. Tap anything for all of its details."
-      />
-
-      {/* Make something new */}
-      <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <details className="card p-4" key={`new-${openListing || "x"}`}>
-          <summary className="cursor-pointer font-semibold text-ink">+ New Alley event</summary>
-          <NewEventForm createEvent={createEvent} />
-        </details>
-        <details className="card p-4">
-          <summary className="cursor-pointer font-semibold text-ink">+ Add a special event</summary>
-          <div className="mt-3 rounded-lg bg-paper-dim p-3 text-sm text-ink-soft">
+        actions={
+          // Keyed on the open listing: creating one lands on its panel, and
+          // the dialog behind it starts closed and empty again.
+          <div className="flex flex-wrap gap-2" key={`new-${openListing || "x"}`}>
+            <Dialog
+              title="Add a special event"
+              width={600}
+              trigger={
+                <>
+                  <UserPlus className="h-4 w-4" aria-hidden="true" /> Special event
+                </>
+              }
+              triggerClassName="inline-flex h-10 items-center gap-2 rounded-xl border border-line-strong bg-paper px-4 text-sm font-semibold text-ink transition hover:bg-paper-dim"
+            >
+          <div className="rounded-xl bg-paper-warm p-3 text-sm text-ink-soft">
             <p>
               <strong className="text-ink">For someone else&apos;s event that isn&apos;t a room rental</strong> — a partner,
               a local group, a performer. You add their name and email; we email them a private link where they fill in
@@ -287,10 +293,24 @@ export default async function EventsPage({ searchParams }) {
               <div><label className="label">Event date (optional)</label><input name="date" type="date" className="field" /></div>
               <div><label className="label">Through (optional, multi-day)</label><input name="active_until" type="date" className="field" /></div>
             </div>
-            <Button type="submit" className="w-fit">Add special event &amp; email them</Button>
+            <Button type="submit" className="w-fit">Add it &amp; email them</Button>
           </form>
-        </details>
-      </div>
+            </Dialog>
+            <Dialog
+              title="New Alley event"
+              width={680}
+              trigger={
+                <>
+                  <Plus className="h-4 w-4" aria-hidden="true" /> New Alley event
+                </>
+              }
+              triggerClassName="inline-flex h-10 items-center gap-2 rounded-xl bg-ink px-4 text-sm font-semibold text-paper transition hover:bg-ink-soft"
+            >
+              <NewEventForm createEvent={createEvent} />
+            </Dialog>
+          </div>
+        }
+      />
 
       {/* Needs you */}
       {toReview.length || pendingRequests || waitingOnHosts.length ? (

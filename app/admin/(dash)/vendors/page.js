@@ -1,181 +1,179 @@
 import Link from "next/link";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { requireAdmin, requireStaffManager, getActor, getCurrentUser, canManageStaff } from "@/lib/auth.js";
+import { Handshake, PackagePlus, Plus } from "lucide-react";
+import { requireAdmin, getCurrentUser, canManageStaff } from "@/lib/auth.js";
 import {
   listVendors,
-  createVendor,
   consignorBalances,
   payoutCutoff,
   defaultSplit,
   needsTerms,
   pickupDays,
-  saveTerms,
   termsAreDraft,
 } from "@/lib/inventory.js";
 import { getSetting } from "@/lib/db.js";
-import { logActivity } from "@/lib/activity.js";
 import { formatDateShort, formatMoney } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Badge from "@/components/admin/ui/Badge.js";
 import Button from "@/components/admin/ui/Button.js";
+import Dialog from "@/components/admin/ui/Dialog.js";
+import AddMakerForm from "@/components/admin/makers/AddMakerForm.js";
+import { addVendor, updateTerms } from "./actions.js";
+import { initials } from "../directory/shared.js";
 
 export const metadata = { title: "Makers" };
 export const dynamic = "force-dynamic";
 
-async function addVendor(formData) {
-  "use server";
-  await requireAdmin();
-  const manager = canManageStaff(await getCurrentUser());
-  let v;
-  try {
-    v = createVendor({
-      name: formData.get("name"),
-      contact_name: formData.get("contact_name"),
-      email: formData.get("email"),
-      phone: formData.get("phone"),
-      // A share other than the usual is an owner/admin call.
-      default_split: manager ? formData.get("default_split") : undefined,
-      payout_method: formData.get("payout_method"),
-      notes: formData.get("notes"),
-    });
-  } catch (err) {
-    redirect(`/admin/vendors?toast=${encodeURIComponent(err.message)}&toastType=error`);
-  }
-  logActivity({ eventType: "vendor_added", description: `Added maker ${v.name}`, ...(await getActor()) });
-  revalidatePath("/admin/vendors");
-  redirect(`/admin/vendors/${v.id}?toast=${encodeURIComponent(`${v.name} added.`)}&toastType=success`);
+function Stat({ value, label, tone }) {
+  return (
+    <div className={tone === "due" ? "card border-verde-deep/40 bg-verde/30 p-4" : "card p-4"}>
+      <p className="text-2xl font-semibold tabular-nums text-ink">{value}</p>
+      <p className="mt-0.5 text-xs text-ink-muted">{label}</p>
+    </div>
+  );
 }
 
-async function updateTerms(formData) {
-  "use server";
-  await requireStaffManager();
-  try {
-    saveTerms({ text: formData.get("terms"), days: formData.get("days") });
-  } catch (err) {
-    redirect(`/admin/vendors?toast=${encodeURIComponent(err.message)}&toastType=error#terms`);
-  }
-  logActivity({ eventType: "consignment_terms_updated", description: "Updated the consignment terms", ...(await getActor()) });
-  revalidatePath("/admin/vendors");
-  redirect(`/admin/vendors?toast=${encodeURIComponent("Terms saved. Makers will be asked to agree to the new version.")}&toastType=success`);
+function MakerCard({ v, owedNow, soFar }) {
+  return (
+    <Link
+      href={`/admin/vendors/${v.id}`}
+      className={
+        v.is_active
+          ? "group card flex items-start gap-4 p-4 transition duration-200 hover:-translate-y-0.5 hover:border-verde-deep/40 hover:shadow-card-hover"
+          : "group card flex items-start gap-4 p-4 opacity-60 transition hover:opacity-100"
+      }
+    >
+      <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-verde/60 text-lg font-semibold text-verde-deep">
+        {initials(v.name)}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-base font-semibold text-ink">{v.name}</span>
+        <span className="mt-0.5 block truncate text-xs text-ink-muted">{v.contact_name || v.email || "No contact yet"}</span>
+        <span className="mt-3 flex flex-wrap gap-1.5">
+          <span className="rounded-full bg-paper-warm px-2.5 py-0.5 text-xs font-semibold text-ink-soft">
+            {v.on_hand} on hand
+          </span>
+          {owedNow ? (
+            <span className="rounded-full bg-verde/60 px-2.5 py-0.5 text-xs font-semibold text-ink">{formatMoney(owedNow)} due</span>
+          ) : soFar ? (
+            <span className="rounded-full bg-paper-warm px-2.5 py-0.5 text-xs text-ink-muted">{formatMoney(soFar)} so far</span>
+          ) : null}
+          {v.is_active && needsTerms(v) ? <Badge tone="warning">Terms not agreed</Badge> : null}
+          {!v.is_active ? <Badge tone="neutral">Inactive</Badge> : null}
+        </span>
+      </span>
+    </Link>
+  );
 }
 
+/**
+ * Everyone selling on consignment, as cards (tap one for their page), what's
+ * due this month, and the terms they all agree to.
+ */
 export default async function VendorsPage() {
   await requireAdmin();
   const me = await getCurrentUser();
+  const manager = canManageStaff(me);
   const vendors = listVendors({ includeInactive: true });
+  const active = vendors.filter((v) => v.is_active);
+  const inactive = vendors.filter((v) => !v.is_active);
   const balances = consignorBalances();
   const cutoff = payoutCutoff();
   const due = consignorBalances({ through: cutoff });
   const dueTotal = Object.values(due).reduce((t, b) => t + b.owed, 0);
   const dueCount = Object.values(due).filter((b) => b.owed > 0).length;
+  const onShelf = active.reduce((t, v) => t + Number(v.on_hand || 0), 0);
+  const noTerms = active.filter((v) => needsTerms(v)).length;
   const monthName = new Date(cutoff + "T12:00:00").toLocaleDateString("en-US", { month: "long" });
+  const draft = termsAreDraft();
 
   return (
     <div>
       <PageHeader
         title="Makers"
         subtitle="Everyone selling on consignment. They get their share of what sold, paid monthly for the month before — amounts come straight from Square sales."
+        actions={
+          <>
+            <Button href="/admin/inventory/receive" variant="accent" icon={PackagePlus}>
+              Receive stock
+            </Button>
+            <Dialog
+              title="Add a maker"
+              width={560}
+              trigger={
+                <>
+                  <Plus className="h-4 w-4" aria-hidden="true" /> Add maker
+                </>
+              }
+              triggerClassName="inline-flex h-10 items-center gap-2 rounded-xl bg-ink px-4 text-sm font-semibold text-paper transition hover:bg-ink-soft"
+            >
+              <AddMakerForm action={addVendor} manager={manager} defaultSplit={defaultSplit()} />
+            </Dialog>
+          </>
+        }
       />
-      <div className="mb-5 flex flex-wrap items-center gap-3">
-        <Button href="/admin/inventory/receive" variant="accent">+ Receive stock</Button>
-        {dueTotal ? (
-          <p className="text-sm text-ink-soft">
-            <strong className="text-ink">{monthName} payouts: {formatMoney(dueTotal)}</strong> to {dueCount} maker
-            {dueCount === 1 ? "" : "s"} (sales through {formatDateShort(cutoff)}).
-          </p>
-        ) : (
-          <p className="text-sm text-ink-muted">No payouts due for {monthName}.</p>
-        )}
+
+      <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat
+          value={dueTotal ? formatMoney(dueTotal) : "$0"}
+          label={
+            dueTotal
+              ? `${monthName} payouts to ${dueCount} maker${dueCount === 1 ? "" : "s"} · sales through ${formatDateShort(cutoff)}`
+              : `No payouts due for ${monthName}`
+          }
+          tone={dueTotal ? "due" : null}
+        />
+        <Stat value={active.length} label={active.length === 1 ? "Maker selling now" : "Makers selling now"} />
+        <Stat value={onShelf} label="Items on the shelf" />
+        <Stat value={noTerms} label={noTerms === 1 ? "Hasn't agreed to the terms" : "Haven't agreed to the terms"} />
       </div>
 
-      <details className="card mb-6 p-5">
-        <summary className="cursor-pointer font-semibold text-ink">+ Add a maker</summary>
-        <form action={addVendor} className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <label className="label">Name / shop name</label>
-            <input name="name" required className="field" />
-          </div>
-          <div>
-            <label className="label">Contact person</label>
-            <input name="contact_name" className="field" />
-          </div>
-          <div>
-            <label className="label">Their share of each sale (%)</label>
-            <input name="default_split" inputMode="decimal" placeholder={`${defaultSplit()} (shop default)`} className="field" />
-          </div>
-          <div>
-            <label className="label">Email (their account sign-in)</label>
-            <input name="email" type="email" className="field" />
-          </div>
-          <div>
-            <label className="label">Phone</label>
-            <input name="phone" type="tel" className="field" />
-          </div>
-          <div>
-            <label className="label">How they like to be paid</label>
-            <input name="payout_method" className="field" placeholder="Venmo @…, check, Zelle…" />
-          </div>
-          <div>
-            <label className="label">Notes</label>
-            <input name="notes" className="field" />
-          </div>
-          <div className="sm:col-span-2">
-            <Button type="submit">Add</Button>
-          </div>
-        </form>
-      </details>
-
-      {vendors.length === 0 ? (
-        <p className="text-sm text-ink-muted">Nobody yet — they&apos;re added the first time you receive stock from them, or here.</p>
+      {active.length ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {active.map((v) => (
+            <MakerCard key={v.id} v={v} owedNow={due[v.id]?.owed || 0} soFar={balances[v.id]?.owed || 0} />
+          ))}
+        </div>
       ) : (
-        <ul className="divide-y divide-line rounded-xl border border-line bg-paper">
-          {vendors.map((v) => {
-            const b = balances[v.id];
-            return (
-              <li key={v.id} className={v.is_active ? "" : "opacity-60"}>
-                <Link href={`/admin/vendors/${v.id}`} className="flex flex-wrap items-center gap-3 px-4 py-3 hover:bg-paper-dim">
-                  <span className="font-semibold text-ink">{v.name}</span>
-                  {v.is_active && needsTerms(v) ? <Badge tone="warning">terms not agreed</Badge> : null}
-                  {!v.is_active ? <Badge tone="neutral">inactive</Badge> : null}
-                  <span className="text-xs text-ink-muted">
-                    {v.item_count} product{v.item_count === 1 ? "" : "s"} · {v.on_hand} on hand
-                  </span>
-                  {due[v.id]?.owed ? (
-                    <span className="ml-auto text-sm font-semibold text-ink">{formatMoney(due[v.id].owed)} due</span>
-                  ) : b?.owed ? (
-                    <span className="ml-auto text-xs text-ink-muted">{formatMoney(b.owed)} so far this month</span>
-                  ) : (
-                    <span className="ml-auto text-xs text-ink-muted">→</span>
-                  )}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="card flex flex-col items-center gap-2 p-10 text-center">
+          <Handshake className="h-8 w-8 text-verde-deep" aria-hidden="true" />
+          <p className="font-semibold text-ink">No makers yet</p>
+          <p className="text-sm text-ink-muted">They&apos;re added the first time you receive stock from them, or with “Add maker” above.</p>
+        </div>
       )}
 
-      <details id="terms" className="card mt-8 p-5" open={termsAreDraft()}>
-        <summary className="cursor-pointer font-semibold text-ink">
-          Consignment terms {termsAreDraft() ? <Badge tone="warning">draft — please review</Badge> : null}
+      {inactive.length ? (
+        <>
+          <h2 className="mt-12 text-xl font-semibold text-ink">Inactive</h2>
+          <p className="mt-1 text-sm text-ink-muted">Hidden from Receive stock. Open one to reactivate them.</p>
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {inactive.map((v) => (
+              <MakerCard key={v.id} v={v} owedNow={due[v.id]?.owed || 0} soFar={balances[v.id]?.owed || 0} />
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      <details id="terms" className="card mt-12 p-5" open={draft}>
+        <summary className="flex cursor-pointer items-center gap-2 font-semibold text-ink">
+          Consignment terms {draft ? <Badge tone="warning">Draft — please review</Badge> : null}
         </summary>
-        <p className="mt-2 text-sm text-ink-soft">
+        <p className="mt-2 max-w-prose text-sm text-ink-soft">
           Every maker agrees to these (typing their name) before they can list a drop-off. {"{split}"} becomes their % and{" "}
           {"{days}"} the days below. Saving a change asks every maker to agree again.
         </p>
-        {canManageStaff(me) ? (
-          <form action={updateTerms} className="mt-3 space-y-3">
+        {manager ? (
+          <form action={updateTerms} className="mt-4 space-y-3">
             <textarea name="terms" rows={18} defaultValue={getSetting("consignment_terms", "")} className="field !h-auto font-mono text-xs" />
             <div className="flex flex-wrap items-end gap-3">
               <div className="w-40">
-                <label className="label">Days on the shelf</label>
-                <input name="days" inputMode="numeric" defaultValue={pickupDays()} className="field" />
+                <label className="label" htmlFor="terms-days">Days on the shelf</label>
+                <input id="terms-days" name="days" inputMode="numeric" defaultValue={pickupDays()} className="field" />
               </div>
               <Button type="submit">Save terms</Button>
             </div>
           </form>
         ) : (
-          <p className="mt-3 whitespace-pre-line text-sm text-ink-soft">{getSetting("consignment_terms", "")}</p>
+          <p className="mt-3 whitespace-pre-line rounded-xl bg-paper-warm p-4 text-sm text-ink-soft">{getSetting("consignment_terms", "")}</p>
         )}
       </details>
     </div>

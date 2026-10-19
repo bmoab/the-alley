@@ -1,281 +1,145 @@
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import {
-  listExhibitors,
-  getExhibitor,
-  createExhibitor,
-  updateExhibitor,
-  deleteExhibitor,
-  ensureExhibitorToken,
-  exhibitorPhase,
-} from "@/lib/catalog.js";
-import { emailExhibitorInvite } from "@/lib/email.js";
+import Link from "next/link";
+import { Palette, Plus } from "lucide-react";
+import { listExhibitors } from "@/lib/catalog.js";
+import { makerForExhibitor } from "@/lib/agreement-reminders.js";
+import { formatDateShort } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
-import Button from "@/components/admin/ui/Button.js";
+import Badge from "@/components/admin/ui/Badge.js";
+import Dialog from "@/components/admin/ui/Dialog.js";
+import AddExhibitorForm from "@/components/admin/exhibitors/AddExhibitorForm.js";
 import { requireAdmin } from "@/lib/auth.js";
-import {
-  REMINDERS,
-  reminderKindFor,
-  reminderHistory,
-  getParty,
-  makerForExhibitor,
-  setAgreementEnds,
-  linkExhibitorToMaker,
-} from "@/lib/agreement-reminders.js";
-import { listVendors } from "@/lib/inventory.js";
-import Select from "@/components/admin/ui/Select.js";
-import { formatDateShort, venueDayOf } from "@/lib/constants.js";
+import { addExhibitor } from "./actions.js";
+import { exhibitorStatus, exhibitorPhoto, agreementState, initials } from "./shared.js";
 
 export const metadata = { title: "Exhibitors" };
 
-const APP_URL = process.env.APP_URL || "";
+const SECTIONS = [
+  { key: "current", title: "On view" },
+  { key: "hidden", title: "Hidden" },
+  { key: "past", title: "Past" },
+];
 
-function refresh() {
-  revalidatePath("/exhibitors");
-  revalidatePath("/");
-  revalidatePath("/admin/exhibitors");
-}
-
-async function addExhibitorAction(formData) {
-  "use server";
-  await requireAdmin();
-  const name = (formData.get("name") || "").toString().trim();
-  if (!name) redirect("/admin/exhibitors");
-  const id = createExhibitor({
-    name,
-    contact_email: (formData.get("contact_email") || "").toString().trim(),
-    active: formData.get("active") != null,
-    active_from: (formData.get("active_from") || "").toString().trim(),
-    active_until: (formData.get("active_until") || "").toString().trim(),
-    sort_order: formData.get("sort_order"),
-  });
-  linkExhibitorToMaker(id, Number(formData.get("vendor_id")) || null);
-  setAgreementEnds("artist", id, (formData.get("active_until") || "").toString().trim());
-  refresh();
-  redirect("/admin/exhibitors");
-}
-
-async function saveExhibitorAction(formData) {
-  "use server";
-  await requireAdmin();
-  const id = Number(formData.get("id"));
-  updateExhibitor(id, {
-    name: (formData.get("name") || "").toString().trim(),
-    contact_email: (formData.get("contact_email") || "").toString().trim(),
-    active: formData.get("active") != null,
-    active_from: (formData.get("active_from") || "").toString().trim(),
-    active_until: (formData.get("active_until") || "").toString().trim(),
-    sort_order: formData.get("sort_order"),
-  });
-  // Same person, same date: the maker record and this listing share it.
-  linkExhibitorToMaker(id, Number(formData.get("vendor_id")) || null);
-  setAgreementEnds("artist", id, (formData.get("active_until") || "").toString().trim());
-  refresh();
-  revalidatePath("/admin");
-  redirect("/admin/exhibitors#ex-" + id);
-}
-
-async function removeExhibitorAction(formData) {
-  "use server";
-  await requireAdmin();
-  deleteExhibitor(Number(formData.get("id")));
-  refresh();
-  redirect("/admin/exhibitors");
-}
-
-async function generateLink(formData) {
-  "use server";
-  await requireAdmin();
-  ensureExhibitorToken(Number(formData.get("id")));
-  refresh();
-  redirect("/admin/exhibitors#ex-" + formData.get("id"));
-}
-
-async function emailLink(formData) {
-  "use server";
-  await requireAdmin();
-  const id = Number(formData.get("id"));
-  const token = ensureExhibitorToken(id);
-  const ex = getExhibitor(id);
-  if (ex?.contact_email && token) {
-    try {
-      await emailExhibitorInvite(ex, token);
-    } catch (err) {
-      console.error("[exhibitors] invite email error:", err.message);
-    }
-  }
-  refresh();
-  if (ex?.contact_email) {
-    redirect(
-      "/admin/exhibitors?toast=" +
-        encodeURIComponent(`Self-edit link emailed to ${ex.contact_email}.`) +
-        "&toastType=success#ex-" + id
-    );
-  }
-  redirect(
-    "/admin/exhibitors?toast=" +
-      encodeURIComponent(
-        "No email on file — add one and save, then try again. The link is ready to copy below."
-      ) +
-      "&toastType=error#ex-" + id
-  );
-}
-
-function ExhibitorFields({ ex = {}, makers = [] }) {
-  const isNew = !ex.id;
-  const matched = ex.id && !ex.vendor_id ? makerForExhibitor(ex) : null;
-  return (
-    <>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div>
-          <label className="label">Name</label>
-          <input name="name" required defaultValue={ex.name || ""} placeholder="Artist or studio name" className="field" />
-        </div>
-        <div>
-          <label className="label">Email (for their self-edit invite)</label>
-          <input name="contact_email" type="email" defaultValue={ex.contact_email || ""} placeholder="artist@email.com" className="field" />
-        </div>
-      </div>
-      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-4">
-        <label className="flex items-center gap-2 self-end pb-2">
-          <input type="checkbox" name="active" defaultChecked={isNew ? true : Number(ex.active) === 1} />
-          <span className="text-sm font-semibold text-ink-soft">Active</span>
-        </label>
-        <div>
-          <label className="label">On view from</label>
-          <input name="active_from" type="date" defaultValue={ex.active_from || ""} className="field" />
-        </div>
-        <div>
-          <label className="label">Agreement ends</label>
-          <input name="active_until" type="date" defaultValue={ex.active_until || ""} className="field" />
-        </div>
-        <div>
-          <label className="label">Sort order</label>
-          <input name="sort_order" type="number" defaultValue={ex.sort_order ?? 0} className="field" />
-        </div>
-      </div>
-      <div className="mt-3 max-w-md">
-        <label className="label">Also sells in the shop as</label>
-        <Select name="vendor_id" defaultValue={String(ex.vendor_id || matched?.id || "")}>
-          <option value="">Not a maker in the shop</option>
-          {makers.map((m) => (
-            <option key={m.id} value={String(m.id)}>
-              {m.name}
-            </option>
-          ))}
-        </Select>
-        <p className="mt-1 text-xs text-ink-muted">
-          Their artwork on consignment and this listing are one agreement with one end date. Linked here, changing the date in
-          either place changes both, and they get one reminder.
-        </p>
-      </div>
-      <p className="mt-3 text-xs text-ink-muted">
-        A month and a week before the agreement ends, the Dashboard asks someone to send them a reminder (pre-written, one
-        click). After that date they move to the Past archive. Their bio,
-        discipline, photos, and work images are all added by the artist from their private link below.
-      </p>
-    </>
-  );
-}
-
-function SelfEditLink({ ex }) {
-  const link = ex.edit_token ? `${APP_URL}/exhibitor/${ex.edit_token}` : null;
-  return (
-    <div className="mt-4 rounded-xl border border-line bg-paper-warm p-4">
-      <p className="text-sm font-semibold text-ink">Exhibitor self-edit link</p>
-      {link ? (
-        <>
-          <p className="mt-1 text-xs text-ink-muted">
-            Share this private link so {ex.name} can manage their own page (bio, profile photo, work photos).
-            Their edits go live instantly, and the link stays active for repeat edits.
-          </p>
-          <input readOnly value={link} className="field mt-2 text-xs" />
-          <form action={emailLink} className="mt-2">
-            <input type="hidden" name="id" value={ex.id} />
-            <Button type="submit" variant="ghost" size="sm">
-              {ex.contact_email ? `Email link to ${ex.contact_email}` : "Add an email above to email this link"}
-            </Button>
-          </form>
-        </>
-      ) : (
-        <form action={generateLink} className="mt-2">
-          <input type="hidden" name="id" value={ex.id} />
-          <Button type="submit" variant="ghost" size="sm">Generate self-edit link</Button>
-        </form>
-      )}
-    </div>
-  );
-}
-
-const PHASE_LABEL = { current: "On view", past: "Past", hidden: "Hidden" };
-
+/**
+ * The gallery's artists as cards (tap one for their page): who's on view
+ * first, then anyone switched off, then the Past archive.
+ */
 export default async function ExhibitorsAdminPage() {
   await requireAdmin();
-  const exhibitors = listExhibitors();
-  const makers = listVendors();
+  const exhibitors = listExhibitors().map((ex) => ({
+    ...ex,
+    status: exhibitorStatus(ex),
+    agreement: agreementState(ex),
+    maker: makerForExhibitor(ex),
+  }));
+  const onView = exhibitors.filter((ex) => ex.status.key === "current").length;
+  const due = exhibitors.filter((ex) => ex.agreement.due).length;
 
   return (
     <div>
       <PageHeader
         title="Exhibitors"
-        subtitle="Set up an artist with just their name, email, and dates — then send their private link so they fill in everything else. They show as “on view” during their dates and move to the Past archive after."
+        subtitle="The artists in the gallery. Add their name and email, send their private link, and they fill in the rest. They move to Past once their agreement ends."
+        actions={
+          <Dialog
+            title="Add an exhibitor"
+            trigger={
+              <>
+                <Plus className="h-4 w-4" aria-hidden="true" /> Add exhibitor
+              </>
+            }
+            triggerClassName="inline-flex h-10 items-center gap-2 rounded-xl bg-ink px-4 text-sm font-semibold text-paper transition hover:bg-ink-soft"
+          >
+            <AddExhibitorForm action={addExhibitor} />
+          </Dialog>
+        }
       />
 
-      <details className="card p-5" open={exhibitors.length === 0}>
-        <summary className="cursor-pointer font-semibold text-ink">+ Add an exhibitor</summary>
-        <form action={addExhibitorAction} className="mt-4">
-          <ExhibitorFields makers={makers} />
-          <Button type="submit" className="mt-4">Add exhibitor</Button>
-        </form>
-      </details>
+      {exhibitors.length ? (
+        <div className="mb-6 flex flex-wrap gap-2 text-sm">
+          <span className="rounded-full border border-line bg-paper px-3 py-1 text-ink-soft">
+            <b className="text-ink">{onView}</b> on view
+          </span>
+          <span className="rounded-full border border-line bg-paper px-3 py-1 text-ink-soft">
+            <b className="text-ink">{exhibitors.length}</b> in all
+          </span>
+          {due ? (
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-800">
+              <b>{due}</b> {due === 1 ? "reminder" : "reminders"} to send
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
-      <div className="mt-6 space-y-4">
-        {exhibitors.map((ex) => {
-          const phase = exhibitorPhase(ex);
-          // One person, one agreement: a linked maker's reminders are theirs.
-          const who = ex.active ? getParty("artist", ex.id) : null;
-          const dueKind = who?.email && who.endsOn ? reminderKindFor(who.endsOn) : null;
-          const history = who ? reminderHistory(who.party, who.id).filter((h) => h.ends_on === who.endsOn) : [];
-          const due = dueKind && !history.some((h) => h.kind === dueKind) ? dueKind : null;
+      {exhibitors.length ? (
+        SECTIONS.map((s) => {
+          const list = exhibitors.filter((ex) => ex.status.key === s.key);
+          if (!list.length) return null;
           return (
-            <details key={ex.id} id={`ex-${ex.id}`} className="card p-5">
-              <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2">
-                <span className="font-semibold text-ink">{ex.name}</span>
-                <span className="flex items-center gap-3">
-                  {ex.active_until ? (
-                    <span className="text-xs text-ink-muted">Agreement ends {formatDateShort(ex.active_until)}</span>
-                  ) : null}
-                  <span className="text-xs uppercase tracking-wider text-ink-muted">{PHASE_LABEL[phase]}</span>
-                </span>
-              </summary>
-              {due || history.length ? (
-                <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-paper-warm px-4 py-3 text-sm">
-                  {history.map((h) => (
-                    <span key={h.id} className="text-ink-soft">
-                      {REMINDERS[h.kind]?.label || h.kind}: {h.skipped ? "Handled without email" : "Sent"} {formatDateShort(venueDayOf(h.sent_at))}
-                    </span>
-                  ))}
-                  {due ? (
-                    <Button href={`/admin/agreements/${who.party}/${who.id}?kind=${due}`} size="sm" variant="accent">
-                      Send the {REMINDERS[due].label}
-                    </Button>
-                  ) : null}
-                </div>
-              ) : null}
-              <form action={saveExhibitorAction} className="mt-4">
-                <input type="hidden" name="id" value={ex.id} />
-                <ExhibitorFields ex={ex} makers={makers} />
-                <Button type="submit" className="mt-4">Save</Button>
-              </form>
-              <SelfEditLink ex={ex} />
-              <form action={removeExhibitorAction} className="mt-3">
-                <input type="hidden" name="id" value={ex.id} />
-                <button className="text-sm font-semibold text-rust hover:underline">Remove this exhibitor</button>
-              </form>
-            </details>
+            <section key={s.key} className="mb-10">
+              <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-muted">{s.title}</h2>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                {list.map((ex) => (
+                  <ExhibitorCard key={ex.id} ex={ex} />
+                ))}
+              </div>
+            </section>
           );
-        })}
-      </div>
+        })
+      ) : (
+        <div className="card flex flex-col items-center gap-2 p-10 text-center">
+          <Palette className="h-8 w-8 text-verde-deep" aria-hidden="true" />
+          <p className="font-semibold text-ink">No exhibitors yet</p>
+          <p className="text-sm text-ink-muted">Add the first one with “Add exhibitor” above.</p>
+        </div>
+      )}
     </div>
+  );
+}
+
+function ExhibitorCard({ ex }) {
+  const photo = exhibitorPhoto(ex);
+  const { endsOn, due } = ex.agreement;
+  return (
+    <Link
+      href={`/admin/exhibitors/${ex.id}`}
+      className={`group card overflow-hidden p-0 transition duration-200 hover:-translate-y-0.5 hover:border-verde-deep/40 hover:shadow-card-hover ${
+        ex.status.key === "past" ? "opacity-75 hover:opacity-100" : ""
+      }`}
+    >
+      <div className="relative aspect-[3/2] overflow-hidden bg-verde/50">
+        {photo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photo} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
+        ) : (
+          <span className="flex h-full w-full items-center justify-center text-3xl font-semibold tracking-wide text-verde-deep">
+            {initials(ex.name)}
+          </span>
+        )}
+        {ex.status.key !== "current" ? (
+          <span className="absolute left-3 top-3">
+            <Badge tone={ex.status.tone}>{ex.status.label}</Badge>
+          </span>
+        ) : null}
+      </div>
+      <div className="p-4">
+        <p className="truncate text-base font-semibold text-ink">{ex.name}</p>
+        <p className="mt-0.5 truncate text-xs text-ink-muted">{ex.discipline || "No discipline yet"}</p>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {endsOn ? (
+            <span className="rounded-full bg-paper-warm px-2.5 py-0.5 text-xs font-semibold text-ink-soft">
+              {ex.status.key === "past" ? "Ended" : "Ends"} {formatDateShort(endsOn)}
+            </span>
+          ) : (
+            <span className="rounded-full bg-paper-warm px-2.5 py-0.5 text-xs text-ink-muted">No end date</span>
+          )}
+          {due ? (
+            <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800">Reminder due</span>
+          ) : null}
+          {ex.maker ? (
+            <span className="rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-800">Also a maker</span>
+          ) : null}
+        </div>
+      </div>
+    </Link>
   );
 }

@@ -1,12 +1,23 @@
 import Link from "next/link";
-import { REMINDERS, reminderKindFor, reminderHistory, setAgreementEnds, getParty } from "@/lib/agreement-reminders.js";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import {
+  CalendarClock,
+  ClipboardList,
+  KeyRound,
+  Mail,
+  MessageSquareText,
+  PackageOpen,
+  PackagePlus,
+  Phone,
+  Tags,
+  UserRound,
+  Wallet,
+} from "lucide-react";
+import { REMINDERS, reminderKindFor, reminderHistory, getParty } from "@/lib/agreement-reminders.js";
 import { requireAdmin, requireStaffManager, getActor, getCurrentUser, canManageStaff } from "@/lib/auth.js";
 import {
   getVendor,
-  updateVendor,
-  setVendorActive,
   listItems,
   listIntakes,
   listSales,
@@ -17,8 +28,6 @@ import {
   recordPayout,
   splitFor,
   round2,
-  ensureVendorToken,
-  rotateVendorToken,
   needsTerms,
   payoutLines,
   listDropoffs,
@@ -28,56 +37,26 @@ import { makerPayoutStatement } from "@/lib/email.js";
 import { logActivity } from "@/lib/activity.js";
 import { formatDateShort, formatMoney, venueToday, venueDayOf } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
-import Card from "@/components/admin/ui/Card.js";
 import Badge from "@/components/admin/ui/Badge.js";
 import Button from "@/components/admin/ui/Button.js";
+import CopyField from "@/components/admin/ui/CopyField.js";
+import EditCard from "@/components/admin/ui/EditCard.js";
+import Toggle from "@/components/admin/ui/Toggle.js";
+import ConfirmButton from "@/components/admin/ui/ConfirmButton.js";
 import { fmtDay } from "@/lib/shift-format.js";
+import { saveMaker, saveMoney, saveAgreement, toggleVendor, makeLink, newLink } from "../actions.js";
+import { initials } from "../../directory/shared.js";
 
-export const metadata = { title: "Maker" };
+export function generateMetadata({ params }) {
+  const v = getVendor(Number(params.id));
+  return { title: v ? v.name : "Maker" };
+}
 export const dynamic = "force-dynamic";
 
 function back(id, message, type = "success", hash = "") {
   revalidatePath(`/admin/vendors/${id}`);
   revalidatePath("/admin/vendors");
   redirect(`/admin/vendors/${id}?toast=${encodeURIComponent(message)}&toastType=${type}${hash}`);
-}
-
-async function saveVendor(formData) {
-  "use server";
-  await requireAdmin();
-  // Their share, the email their account matches on and where their money
-  // goes are owner/admin only — like paying them.
-  const manager = canManageStaff(await getCurrentUser());
-  const id = Number(formData.get("id"));
-  let v;
-  try {
-    v = updateVendor(id, {
-      name: formData.get("name"),
-      contact_name: formData.get("contact_name"),
-      email: manager ? formData.get("email") : undefined,
-      phone: formData.get("phone"),
-      default_split: manager ? formData.get("default_split") : undefined,
-      payout_method: manager ? formData.get("payout_method") : undefined,
-      notes: formData.get("notes"),
-    });
-    // Also moves the date on their gallery listing, if they have one.
-    setAgreementEnds("maker", id, (formData.get("agreement_ends") || "").toString());
-  } catch (err) {
-    back(id, err.message, "error");
-  }
-  revalidatePath("/admin");
-  revalidatePath("/admin/exhibitors");
-  logActivity({ eventType: "vendor_updated", description: `Updated ${v.name}`, ...(await getActor()) });
-  back(id, "Saved.");
-}
-
-async function toggleVendor(formData) {
-  "use server";
-  await requireAdmin();
-  const id = Number(formData.get("id"));
-  const active = formData.get("active") === "1";
-  setVendorActive(id, active);
-  back(id, active ? "Reactivated." : "Marked inactive — they're hidden from Receive stock.", "neutral");
 }
 
 /** Paying a consignor moves money, so it's owner/admin only — like the booking money actions. */
@@ -119,31 +98,46 @@ async function pay(formData) {
   );
 }
 
-async function makeLink(formData) {
-  "use server";
-  await requireAdmin();
-  const id = Number(formData.get("id"));
-  ensureVendorToken(id);
-  back(id, "Private link made — copy it below.", "success", "#access");
+function Row({ label, children }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 py-1.5 text-sm">
+      <span className="shrink-0 text-ink-muted">{label}</span>
+      <span className="min-w-0 truncate text-right font-medium text-ink">{children}</span>
+    </div>
+  );
 }
 
-/** A forwarded or leaked private link: replace it, and the old one stops working. */
-async function newLink(formData) {
-  "use server";
-  await requireStaffManager();
-  const id = Number(formData.get("id"));
-  rotateVendorToken(id);
-  logActivity({ eventType: "vendor_updated", description: `Replaced the private link for maker #${id}`, ...(await getActor()) });
-  back(id, "New private link made — the old one no longer works.", "success", "#access");
+const Empty = ({ children }) => <span className="font-normal text-ink-muted">{children}</span>;
+
+function Heading({ icon: Icon, children }) {
+  return (
+    <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-ink-muted">
+      <Icon className="h-4 w-4" aria-hidden="true" /> {children}
+    </h2>
+  );
 }
 
+function Stat({ value, label, tone }) {
+  return (
+    <div className={tone === "due" ? "card border-verde-deep/40 bg-verde/30 p-4" : "card p-4"}>
+      <p className="text-2xl font-semibold tabular-nums text-ink">{value}</p>
+      <p className="mt-0.5 text-xs text-ink-muted">{label}</p>
+    </div>
+  );
+}
+
+/**
+ * One maker: who they are, their private link, what they've sold and what
+ * they're owed, and their details — each a summary until you press Edit.
+ */
 export default async function VendorPage({ params }) {
   await requireAdmin();
   const me = await getCurrentUser();
+  const manager = canManageStaff(me);
   const vendor = getVendor(Number(params.id));
   if (!vendor) notFound();
-  const consigned = true;
   const account = vendor.email ? getAccountByEmail(vendor.email) : null;
+  const hasAccount = !!account?.email_verified_at;
   const appUrl = process.env.APP_URL || "";
   const link = vendor.portal_token ? `${appUrl}/maker/${vendor.portal_token}` : null;
   const waitingDropoffs = listDropoffs({ vendorId: vendor.id, status: "submitted" });
@@ -164,18 +158,69 @@ export default async function VendorPage({ params }) {
   const dueKind = vendor.is_active && vendor.email ? reminderKindFor(agreementEnds) : null;
   const reminders = reminderHistory("maker", vendor.id).filter((h) => h.ends_on === agreementEnds);
   const reminderDue = dueKind && !reminders.some((h) => h.kind === dueKind) ? dueKind : null;
+  const share = splitFor(null, vendor);
+  const termsOk = !needsTerms(vendor);
+  const hidden = { id: vendor.id };
+
+  const moneyView = (
+    <>
+      <Row label="Their share">{share}% of each sale</Row>
+      <Row label="Paid by">{vendor.payout_method || <Empty>Not set</Empty>}</Row>
+      <Row label="Email">{vendor.email || <Empty>None yet</Empty>}</Row>
+    </>
+  );
 
   return (
     <div>
-      <PageHeader
-        title={vendor.name}
-        subtitle={
-          `Consignment · ${splitFor(null, vendor)}% of each sale goes to them${vendor.payout_method ? ` · paid by ${vendor.payout_method}` : ""}`
-        }
-      />
+      <PageHeader eyebrow="Makers" title={vendor.name} />
+
+      {/* Who they are */}
+      <section className="card mb-6 flex flex-col gap-5 p-5 sm:flex-row sm:items-center">
+        <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl bg-verde/60 text-2xl font-semibold text-verde-deep">
+          {initials(vendor.name)}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            {vendor.is_active ? <Badge tone="sage">Active</Badge> : <Badge tone="neutral">Inactive</Badge>}
+            <span className="rounded-full bg-paper-warm px-2.5 py-0.5 text-xs font-semibold text-ink-soft">{share}% to them</span>
+            {hasAccount ? <Badge tone="success">Has an account</Badge> : <Badge tone="neutral">No account yet</Badge>}
+            {termsOk ? <Badge tone="success">Terms agreed</Badge> : <Badge tone="warning">Terms not agreed</Badge>}
+          </div>
+          {vendor.contact_name ? <p className="mt-2 text-sm text-ink-soft">{vendor.contact_name}</p> : null}
+          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+            {vendor.email ? (
+              <a href={`mailto:${vendor.email}`} className="inline-flex items-center gap-1.5 text-verde-deep hover:underline">
+                <Mail className="h-3.5 w-3.5" aria-hidden="true" />
+                {vendor.email}
+              </a>
+            ) : null}
+            {vendor.phone ? (
+              <a href={`tel:${vendor.phone}`} className="inline-flex items-center gap-1.5 text-verde-deep hover:underline">
+                <Phone className="h-3.5 w-3.5" aria-hidden="true" />
+                {vendor.phone}
+              </a>
+            ) : null}
+          </div>
+          <p className="mt-2 text-xs text-ink-muted">
+            {!vendor.email
+              ? "No email yet — add one under Money so they can make an account."
+              : hasAccount
+                ? account.last_login_at
+                  ? `Last signed in ${formatDateShort(venueDayOf(account.last_login_at))}.`
+                  : "Signed up, hasn't been back yet."
+                : `They can make an account with ${vendor.email}.`}{" "}
+            {termsOk
+              ? `Agreed to the terms ${formatDateShort(venueDayOf(vendor.terms_accepted_at))} as “${vendor.terms_accepted_name}”.`
+              : vendor.terms_accepted_at
+                ? "The terms changed since they agreed — they'll be asked again."
+                : "They're asked to agree to the terms first thing."}
+          </p>
+        </div>
+      </section>
 
       {agreementEnds ? (
-        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-paper-warm px-4 py-3 text-sm">
+        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-paper-warm px-4 py-3 text-sm">
+          <CalendarClock className="h-4 w-4 text-ink-muted" aria-hidden="true" />
           <span className="font-semibold text-ink">Agreement ends {formatDateShort(agreementEnds)}</span>
           {reminders.map((h) => (
             <span key={h.id} className="text-ink-soft">
@@ -183,7 +228,7 @@ export default async function VendorPage({ params }) {
             </span>
           ))}
           {reminderDue ? (
-            <Button href={`/admin/agreements/maker/${vendor.id}?kind=${reminderDue}`} size="sm" variant="accent">
+            <Button href={`/admin/agreements/maker/${vendor.id}?kind=${reminderDue}`} size="sm" variant="accent" className="ml-auto">
               Send the {REMINDERS[reminderDue].label}
             </Button>
           ) : null}
@@ -191,255 +236,308 @@ export default async function VendorPage({ params }) {
       ) : null}
 
       <div className="mb-6 flex flex-wrap gap-2">
-        <Button href={`/admin/inventory/receive?vendor=${vendor.id}`} variant="accent">+ Receive stock from them</Button>
-        <Button href={`/admin/inventory?vendor=${vendor.id}&status=all`} variant="ghost">Their items</Button>
+        <Button href={`/admin/inventory/receive?vendor=${vendor.id}`} variant="accent" icon={PackagePlus}>
+          Receive stock from them
+        </Button>
+        <Button href={`/admin/inventory?vendor=${vendor.id}&status=all`} variant="ghost" icon={Tags}>
+          Their items
+        </Button>
         {waitingDropoffs.length ? (
-          <Button href={`/admin/inventory/receive?dropoff=${waitingDropoffs[0].id}`} variant="ghost">
+          <Button href={`/admin/inventory/receive?dropoff=${waitingDropoffs[0].id}`} variant="ghost" icon={PackageOpen}>
             Count in their drop-off ({waitingDropoffs[0].units} items)
           </Button>
         ) : null}
       </div>
 
-      <Card id="access" pad="md" className="mb-6">
-        <h2 className="text-base font-semibold text-ink">Their account</h2>
-        <ul className="mt-2 space-y-1 text-sm text-ink-soft">
-          <li>
-            {!vendor.email
-              ? "No email on file — add one below so they can make an account."
-              : account?.email_verified_at
-                ? `Has an account (${vendor.email})${account.last_login_at ? `, last signed in ${formatDateShort(venueDayOf(account.last_login_at))}` : ""}.`
-                : `No account yet. They can make one with ${vendor.email} at ${appUrl}/account/sign-up.`}
-          </li>
-          <li>
-            {needsTerms(vendor)
-              ? vendor.terms_accepted_at
-                ? "The terms changed since they agreed — they'll be asked again."
-                : "Hasn't agreed to the consignment terms yet (they're asked first thing)."
-              : `Agreed to the terms ${formatDateShort(venueDayOf(vendor.terms_accepted_at))} as “${vendor.terms_accepted_name}”.`}
-          </li>
-        </ul>
-        <div className="mt-3 rounded-lg bg-paper-dim p-3">
-          <p className="text-sm font-semibold text-ink">Private link (no password needed)</p>
-          {link ? (
-            <>
-              <code className="mt-1 block break-all text-xs text-ink-soft">{link}</code>
-              <p className="mt-2 flex flex-wrap gap-3 text-xs">
-                {vendor.phone ? (
-                  <a href={`sms:${vendor.phone}?&body=${encodeURIComponent(textBody)}`} className="font-semibold text-ink underline">
-                    Text it to them
-                  </a>
-                ) : null}
-                <span className="text-ink-muted">Anyone with this link sees their sales — send it only to them.</span>
-              </p>
-              {canManageStaff(me) ? (
-                <form action={newLink} className="mt-2">
-                  <input type="hidden" name="id" value={vendor.id} />
-                  <button className="text-xs font-semibold text-rust hover:underline">Replace this link (the old one stops working)</button>
-                </form>
-              ) : null}
-            </>
-          ) : (
-            <form action={makeLink} className="mt-2">
-              <input type="hidden" name="id" value={vendor.id} />
-              <Button type="submit" size="sm" variant="ghost">Make a private link</Button>
-            </form>
-          )}
-        </div>
-      </Card>
-
       <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Card pad="md">
-          <p className="text-2xl font-semibold tabular-nums text-ink">{items.reduce((t, i) => t + i.qty_on_hand, 0)}</p>
-          <p className="text-xs text-ink-muted">On the shelf now</p>
-        </Card>
-        <Card pad="md">
-          <p className="text-2xl font-semibold tabular-nums text-ink">{soldUnits}</p>
-          <p className="text-xs text-ink-muted">Sold · {formatMoney(soldNet)} after discounts</p>
-        </Card>
-        {consigned ? (
-          <Card pad="md" className={balance.owed ? "border-verde-deep/40" : ""}>
-            <p className="text-2xl font-semibold tabular-nums text-ink">{formatMoney(dueNow)}</p>
-            <p className="text-xs text-ink-muted">
-              due now, for sales through {formatDateShort(cutoff)}
-              {balance.owed > dueNow ? ` · ${formatMoney(balance.owed - dueNow)} more this month, paid next month` : ""}
-            </p>
-          </Card>
-        ) : null}
+        <Stat value={items.reduce((t, i) => t + i.qty_on_hand, 0)} label="On the shelf now" />
+        <Stat value={soldUnits} label={`Sold · ${formatMoney(soldNet)} after discounts`} />
+        <Stat
+          value={formatMoney(dueNow)}
+          tone={dueNow ? "due" : null}
+          label={`Due now, for sales through ${formatDateShort(cutoff)}${
+            balance.owed > dueNow ? ` · ${formatMoney(balance.owed - dueNow)} more this month, paid next month` : ""
+          }`}
+        />
       </div>
 
-      {consigned ? (
-        <Card id="payouts" pad="md" className="mb-6">
-          <h2 className="text-base font-semibold text-ink">Pay them</h2>
-          <p className="mt-1 text-xs text-ink-muted">
-            Monthly: early each month, pay them for everything sold the month before. Unpaid sales so far:
-          </p>
-          {unpaid.length ? (
-            <>
-              <table className="mt-3 w-full text-sm">
-                <thead>
-                  <tr className="border-b border-line text-left text-xs uppercase tracking-wider text-ink-muted">
-                    <th className="py-1.5 pr-2">Sold</th>
-                    <th className="py-1.5 pr-2">Item</th>
-                    <th className="py-1.5 pr-2 text-right">Qty</th>
-                    <th className="py-1.5 pr-2 text-right">Sale</th>
-                    <th className="py-1.5 text-right">Their share</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {unpaid.map((s) => (
-                    <tr key={s.id} className="border-b border-line/60">
-                      <td className="py-1.5 pr-2 text-ink-soft">{fmtDay(s.sold_at.slice(0, 10))}</td>
-                      <td className="py-1.5 pr-2 text-ink">
-                        {s.name}
-                        {s.is_return ? <span className="ml-1 text-xs text-rust">(return)</span> : null}
-                      </td>
-                      <td className="py-1.5 pr-2 text-right tabular-nums">{s.qty}</td>
-                      <td className="py-1.5 pr-2 text-right tabular-nums">{formatMoney(s.net)}</td>
-                      <td className="py-1.5 text-right tabular-nums">{formatMoney(consignorShare(s))}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {canManageStaff(me) ? (
-                <form action={pay} className="mt-4 grid grid-cols-1 gap-3 rounded-lg bg-paper-dim p-3 sm:grid-cols-4">
-                  <input type="hidden" name="id" value={vendor.id} />
-                  <div>
-                    <label className="label">Covers sales up to</label>
-                    <input name="through" type="date" defaultValue={cutoff} required className="field" />
-                  </div>
-                  <div>
-                    <label className="label">Paid on</label>
-                    <input name="paid_on" type="date" defaultValue={venueToday()} required className="field" />
-                  </div>
-                  <div>
-                    <label className="label">How</label>
-                    <input name="method" defaultValue={vendor.payout_method || ""} className="field" placeholder="Venmo, check…" />
-                  </div>
-                  <div>
-                    <label className="label">Check # / note</label>
-                    <input name="reference" className="field" />
-                  </div>
-                  <div className="sm:col-span-4">
-                    {vendor.email ? (
-                      <label className="mb-2 flex items-center gap-2 text-sm text-ink-soft">
-                        <input type="checkbox" name="email_statement" />
-                        Also email them the statement (it always goes in their account)
-                      </label>
-                    ) : null}
-                    <Button type="submit">Record payment</Button>
-                    <p className="mt-1 text-xs text-ink-muted">
-                      Pay them first (Venmo, check…), then record it here. The amount is worked out from the sales above —
-                      nothing to type.
-                    </p>
-                  </div>
-                </form>
-              ) : (
-                <p className="mt-3 text-xs text-ink-muted">An owner or admin records payouts.</p>
-              )}
-            </>
-          ) : (
-            <p className="mt-2 text-sm text-ink-muted">Nothing owed — no unpaid sales.</p>
-          )}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <div className="space-y-6">
+          {/* Their private link */}
+          <section id="access" className="card p-5">
+            <Heading icon={KeyRound}>Their private link</Heading>
+            <p className="mt-2 text-sm text-ink-soft">
+              {vendor.name} uses this to list what they&apos;re bringing in and see their sales and payouts. No password needed.
+            </p>
+            {link ? (
+              <>
+                <CopyField url={link} className="mt-3" />
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  {vendor.phone ? (
+                    <Button
+                      href={`sms:${vendor.phone}?&body=${encodeURIComponent(textBody)}`}
+                      as="a"
+                      variant="subtle"
+                      size="sm"
+                      icon={MessageSquareText}
+                    >
+                      Text it to them
+                    </Button>
+                  ) : null}
+                  <span className="text-xs text-ink-muted">Anyone with this link sees their sales — send it only to them.</span>
+                </div>
+                {manager ? (
+                  <form action={newLink} className="mt-4">
+                    <input type="hidden" name="id" value={vendor.id} />
+                    <ConfirmButton
+                      label="Replace this link"
+                      variant="ghost"
+                      confirmLabel="Yes, make a new link"
+                      pendingLabel="Replacing…"
+                      question="The old link stops working right away. Use this if it was forwarded or shared by mistake."
+                    />
+                  </form>
+                ) : null}
+              </>
+            ) : (
+              <form action={makeLink} className="mt-3">
+                <input type="hidden" name="id" value={vendor.id} />
+                <Button type="submit" size="sm">Make a private link</Button>
+              </form>
+            )}
+          </section>
 
-          {payouts.length ? (
-            <>
-              <h3 className="mt-6 text-sm font-semibold text-ink">Paid so far</h3>
-              <ul className="mt-2 divide-y divide-line text-sm">
-                {payouts.map((p) => (
-                  <li key={p.id} className="flex flex-wrap gap-x-3 py-2">
-                    <span className="font-semibold text-ink">{formatMoney(p.amount)}</span>
-                    <span className="text-ink-soft">
-                      on {formatDateShort(p.paid_on)} · {p.line_count} sale{p.line_count === 1 ? "" : "s"} through{" "}
-                      {formatDateShort(p.through)} ({formatMoney(p.sales_total)} sold)
-                    </span>
-                    <span className="text-ink-muted">
-                      {[p.method, p.reference].filter(Boolean).join(" · ")} · by {p.created_by}
-                    </span>
+          {/* Pay them */}
+          <section id="payouts" className="card p-5">
+            <Heading icon={Wallet}>Pay them</Heading>
+            <p className="mt-2 text-sm text-ink-soft">
+              Monthly: early each month, pay them for everything sold the month before.
+            </p>
+            {unpaid.length ? (
+              <>
+                <div className="mt-4 overflow-x-auto rounded-xl border border-line">
+                  <table className="w-full text-sm">
+                    <thead className="bg-paper-warm">
+                      <tr className="text-left text-xs font-semibold text-ink-muted">
+                        <th className="px-3 py-2">Sold</th>
+                        <th className="px-3 py-2">Item</th>
+                        <th className="px-3 py-2 text-right">Qty</th>
+                        <th className="px-3 py-2 text-right">Sale</th>
+                        <th className="px-3 py-2 text-right">Their share</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-line">
+                      {unpaid.map((s) => (
+                        <tr key={s.id}>
+                          <td className="whitespace-nowrap px-3 py-2 text-ink-soft">{fmtDay(s.sold_at.slice(0, 10))}</td>
+                          <td className="px-3 py-2 text-ink">
+                            {s.name}
+                            {s.is_return ? <span className="ml-1 text-xs text-rust">(return)</span> : null}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">{s.qty}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{formatMoney(s.net)}</td>
+                          <td className="px-3 py-2 text-right font-semibold tabular-nums text-ink">{formatMoney(consignorShare(s))}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {manager ? (
+                  <form action={pay} className="mt-4 space-y-4 rounded-xl bg-paper-warm p-4">
+                    <input type="hidden" name="id" value={vendor.id} />
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="label" htmlFor="pay-through">Covers sales up to</label>
+                        <input id="pay-through" name="through" type="date" defaultValue={cutoff} required className="field" />
+                      </div>
+                      <div>
+                        <label className="label" htmlFor="pay-on">Paid on</label>
+                        <input id="pay-on" name="paid_on" type="date" defaultValue={venueToday()} required className="field" />
+                      </div>
+                      <div>
+                        <label className="label" htmlFor="pay-how">How</label>
+                        <input id="pay-how" name="method" defaultValue={vendor.payout_method || ""} className="field" placeholder="Venmo, check…" />
+                      </div>
+                      <div>
+                        <label className="label" htmlFor="pay-ref">Check # or note</label>
+                        <input id="pay-ref" name="reference" className="field" />
+                      </div>
+                    </div>
+                    {vendor.email ? (
+                      <Toggle
+                        name="email_statement"
+                        label="Also email them the statement"
+                        hint="It always goes in their account either way."
+                      />
+                    ) : null}
+                    <div>
+                      <Button type="submit">Record payment</Button>
+                      <p className="mt-2 text-xs text-ink-muted">
+                        Pay them first (Venmo, check…), then record it here. The amount is worked out from the sales above —
+                        nothing to type.
+                      </p>
+                    </div>
+                  </form>
+                ) : (
+                  <p className="mt-3 text-xs text-ink-muted">An owner or admin records payouts.</p>
+                )}
+              </>
+            ) : (
+              <p className="mt-3 rounded-xl bg-paper-warm px-4 py-3 text-sm text-ink-muted">Nothing owed — no unpaid sales.</p>
+            )}
+
+            {payouts.length ? (
+              <>
+                <h3 className="mt-6 text-sm font-semibold text-ink">Paid so far</h3>
+                <ul className="mt-2 divide-y divide-line text-sm">
+                  {payouts.map((p) => (
+                    <li key={p.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-2.5">
+                      <span className="font-semibold tabular-nums text-ink">{formatMoney(p.amount)}</span>
+                      <span className="text-ink-soft">
+                        on {formatDateShort(p.paid_on)} · {p.line_count} sale{p.line_count === 1 ? "" : "s"} through{" "}
+                        {formatDateShort(p.through)} ({formatMoney(p.sales_total)} sold)
+                      </span>
+                      <span className="text-xs text-ink-muted">
+                        {[p.method, p.reference].filter(Boolean).join(" · ")} · by {p.created_by}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+          </section>
+
+          {/* Stock sheets */}
+          <section className="card p-5">
+            <Heading icon={ClipboardList}>Stock sheets</Heading>
+            {intakes.length ? (
+              <ul className="mt-3 divide-y divide-line text-sm">
+                {intakes.map((s) => (
+                  <li key={s.id}>
+                    <Link
+                      href={`/admin/inventory/intake/${s.id}`}
+                      className="-mx-2 flex flex-wrap items-center gap-2 rounded-lg px-2 py-2.5 transition hover:bg-paper-dim"
+                    >
+                      <span className="font-semibold text-ink">
+                        #{s.id} · {formatDateShort(s.received_on)}
+                      </span>
+                      <span className="text-ink-muted">
+                        {s.units} item{Math.abs(s.units) === 1 ? "" : "s"}
+                        {s.notes ? ` · ${s.notes}` : ""}
+                      </span>
+                      {s.square_status !== "synced" ? <Badge tone="danger">Not in Square</Badge> : null}
+                    </Link>
                   </li>
                 ))}
               </ul>
-            </>
-          ) : null}
-        </Card>
-      ) : null}
+            ) : (
+              <p className="mt-3 text-sm text-ink-muted">None yet.</p>
+            )}
+          </section>
+        </div>
 
-      <Card pad="md" className="mb-6">
-        <h2 className="text-base font-semibold text-ink">Stock sheets</h2>
-        {intakes.length ? (
-          <ul className="mt-2 divide-y divide-line text-sm">
-            {intakes.map((s) => (
-              <li key={s.id} className="flex flex-wrap gap-2 py-2">
-                <Link href={`/admin/inventory/intake/${s.id}`} className="font-semibold text-ink hover:underline">
-                  #{s.id} · {formatDateShort(s.received_on)}
-                </Link>
-                <span className="text-ink-muted">
-                  {s.units} item{Math.abs(s.units) === 1 ? "" : "s"}
-                  {s.notes ? ` · ${s.notes}` : ""}
-                </span>
-                {s.square_status !== "synced" ? <Badge tone="danger">not in Square</Badge> : null}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-2 text-sm text-ink-muted">None yet.</p>
-        )}
-      </Card>
+        <div className="space-y-6">
+          <EditCard
+            title="Maker"
+            icon={<UserRound className="h-4 w-4" aria-hidden="true" />}
+            action={saveMaker}
+            hidden={hidden}
+            view={
+              <>
+                <Row label="Name">{vendor.name}</Row>
+                <Row label="Contact">{vendor.contact_name || <Empty>None yet</Empty>}</Row>
+                <Row label="Phone">{vendor.phone || <Empty>None yet</Empty>}</Row>
+                {vendor.notes ? <p className="mt-2 rounded-lg bg-paper-warm px-3 py-2 text-sm text-ink-soft">{vendor.notes}</p> : null}
+              </>
+            }
+          >
+            <div>
+              <label className="label" htmlFor="mk-name">Name or shop name</label>
+              <input id="mk-name" name="name" required defaultValue={vendor.name} className="field" />
+            </div>
+            <div>
+              <label className="label" htmlFor="mk-contact">Contact person</label>
+              <input id="mk-contact" name="contact_name" defaultValue={vendor.contact_name || ""} className="field" />
+            </div>
+            <div>
+              <label className="label" htmlFor="mk-phone">Phone</label>
+              <input id="mk-phone" name="phone" type="tel" defaultValue={vendor.phone || ""} className="field" />
+            </div>
+            <div>
+              <label className="label" htmlFor="mk-notes">Notes</label>
+              <textarea id="mk-notes" name="notes" rows={3} defaultValue={vendor.notes || ""} className="field !h-auto" />
+            </div>
+          </EditCard>
 
-      <details className="card p-5">
-        <summary className="cursor-pointer font-semibold text-ink">Edit details</summary>
-        <form action={saveVendor} className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <input type="hidden" name="id" value={vendor.id} />
-          <div>
-            <label className="label">Name</label>
-            <input name="name" defaultValue={vendor.name} className="field" />
-          </div>
-          <div>
-            <label className="label">Contact person</label>
-            <input name="contact_name" defaultValue={vendor.contact_name || ""} className="field" />
-          </div>
-          <div>
-            <label className="label">Their share (%)</label>
-            <input name="default_split" defaultValue={vendor.default_split ?? ""} readOnly={!canManageStaff(me)} inputMode="decimal" className="field" />
-          </div>
-          <div>
-            <label className="label">Email</label>
-            <input name="email" defaultValue={vendor.email || ""} readOnly={!canManageStaff(me)} className="field" />
-          </div>
-          <div>
-            <label className="label">Phone</label>
-            <input name="phone" defaultValue={vendor.phone || ""} className="field" />
-          </div>
-          <div>
-            <label className="label">How they like to be paid</label>
-            <input name="payout_method" defaultValue={vendor.payout_method || ""} readOnly={!canManageStaff(me)} className="field" />
-          </div>
-          <div>
-            <label className="label">Notes</label>
-            <input name="notes" defaultValue={vendor.notes || ""} className="field" />
-          </div>
-          <div>
-            <label className="label">Consignment agreement ends</label>
-            <input name="agreement_ends" type="date" defaultValue={agreementEnds || ""} className="field" />
-            <p className="mt-1 text-xs text-ink-muted">
+          {manager ? (
+            <EditCard
+              title="Money"
+              icon={<Wallet className="h-4 w-4" aria-hidden="true" />}
+              action={saveMoney}
+              hidden={hidden}
+              view={moneyView}
+            >
+              <div>
+                <label className="label" htmlFor="mk-split">Their share of each sale</label>
+                <div className="relative">
+                  <input id="mk-split" name="default_split" inputMode="decimal" defaultValue={vendor.default_split ?? ""} placeholder={`${share} (shop default)`} className="field pr-8" />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-muted">%</span>
+                </div>
+              </div>
+              <div>
+                <label className="label" htmlFor="mk-pay">How they like to be paid</label>
+                <input id="mk-pay" name="payout_method" defaultValue={vendor.payout_method || ""} placeholder="Venmo @…, check, Zelle…" className="field" />
+              </div>
+              <div>
+                <label className="label" htmlFor="mk-email">Email</label>
+                <input id="mk-email" name="email" type="email" defaultValue={vendor.email || ""} className="field" />
+                <p className="mt-1 text-xs text-ink-muted">Their email is what links them to their account — change it only if they ask.</p>
+              </div>
+            </EditCard>
+          ) : (
+            <section className="card p-5">
+              <Heading icon={Wallet}>Money</Heading>
+              <div className="mt-3">{moneyView}</div>
+              <p className="mt-2 text-xs text-ink-muted">An owner or admin changes these.</p>
+            </section>
+          )}
+
+          <EditCard
+            title="Agreement"
+            icon={<CalendarClock className="h-4 w-4" aria-hidden="true" />}
+            action={saveAgreement}
+            hidden={hidden}
+            view={<Row label="Ends">{agreementEnds ? formatDateShort(agreementEnds) : <Empty>No end date</Empty>}</Row>}
+          >
+            <div>
+              <label className="label" htmlFor="mk-ends">Consignment agreement ends</label>
+              <input id="mk-ends" name="agreement_ends" type="date" defaultValue={agreementEnds || ""} className="field" />
+            </div>
+            <p className="text-xs text-ink-muted">
               A month and a week before, the Dashboard asks someone to send them a reminder. Their gallery listing (if they have
               one) uses the same date.
             </p>
-          </div>
-          <div className="flex flex-wrap gap-2 sm:col-span-2">
-            <Button type="submit">Save</Button>
-          </div>
-          <p className="text-xs text-ink-muted sm:col-span-2">
-            Their email is what links them to their account — change it only if they ask.
-          </p>
-        </form>
-        <form action={toggleVendor} className="mt-3">
-          <input type="hidden" name="id" value={vendor.id} />
-          <input type="hidden" name="active" value={vendor.is_active ? "0" : "1"} />
-          <Button type="submit" variant={vendor.is_active ? "danger" : "ghost"} size="sm">
-            {vendor.is_active ? "Mark inactive" : "Reactivate"}
-          </Button>
-        </form>
-      </details>
+          </EditCard>
+
+          <section className={vendor.is_active ? "rounded-2xl border border-rust/20 p-5" : "rounded-2xl border border-line p-5"}>
+            <h2 className={vendor.is_active ? "text-xs font-semibold uppercase tracking-wider text-rust" : "text-xs font-semibold uppercase tracking-wider text-ink-muted"}>
+              {vendor.is_active ? "Stop selling" : "Inactive"}
+            </h2>
+            <p className="mt-2 text-sm text-ink-soft">
+              {vendor.is_active
+                ? `Hides ${vendor.name} from Receive stock. Their sales, payouts and stock sheets stay here.`
+                : `${vendor.name} is hidden from Receive stock. Reactivate them to take in their stock again.`}
+            </p>
+            <form action={toggleVendor} className="mt-3">
+              <input type="hidden" name="id" value={vendor.id} />
+              <input type="hidden" name="active" value={vendor.is_active ? "0" : "1"} />
+              <Button type="submit" variant={vendor.is_active ? "danger" : "ghost"} size="sm">
+                {vendor.is_active ? "Mark inactive" : "Reactivate"}
+              </Button>
+            </form>
+          </section>
+        </div>
+      </div>
     </div>
   );
 }
