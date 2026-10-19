@@ -602,11 +602,12 @@ a.ex-handle:hover { text-decoration-color: var(--ink); }
 /* Phones: "Log in" in words while it fits, just the person icon below that.
    (.dir-b .btn sets the desktop padding, so match its weight to override it.) */
 @media (max-width: 720px) {
-  .dir-b .sh-login { padding: 0 12px; height: 42px; font-size: 11px; }
+  /* Book and Log in: one size, small enough to sit quietly beside the logo. */
+  .dir-b .sh-cta { height: 34px; min-width: 74px; padding: 0 12px; font-size: 10.5px; letter-spacing: .12em; justify-content: center; }
   .sh-login svg { display: none; }
 }
-@media (max-width: 380px) {
-  .dir-b .sh-login { width: 42px; padding: 0; justify-content: center; }
+@media (max-width: 340px) {
+  .dir-b .sh-login { width: 34px; min-width: 34px; padding: 0; }
   .sh-login svg { display: block; }
   .sh-login-text { display: none; }
 }

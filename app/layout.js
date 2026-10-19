@@ -1,12 +1,13 @@
 import "./globals.css";
 import { Josefin_Sans, Plus_Jakarta_Sans } from "next/font/google";
 
-// Clean UI typeface for the admin backend (kept off the public site, which
-// stays on-brand with Josefin Sans).
+// Clean UI typeface for the admin and customer accounts (kept off the public
+// site, which stays on-brand with Josefin Sans).
 const ui = Plus_Jakarta_Sans({
   subsets: ["latin"],
   display: "swap",
-  weight: ["400", "500", "600", "700"],
+  // 300 for the accounts' lighter secondary text.
+  weight: ["300", "400", "500", "600", "700"],
   variable: "--font-ui",
 });
 

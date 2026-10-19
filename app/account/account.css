@@ -1,11 +1,15 @@
 /* ============================================================
    THE ALLEY — accounts (makers, renters, hosts, tenants, exhibitors)
-   The public site's language — Josefin Sans, verde and ink, square
-   edges, small spaced capitals — set with more air and more care.
-   Everything is scoped under .ac.
+   The public site's colours — verde and ink, square edges, small spaced
+   capitals — set in the dashboard's typeface (Plus Jakarta Sans) for a
+   cleaner read. Everything is scoped under .ac.
    ============================================================ */
 
 .ac {
+  /* Same face as the admin: every --font-display / --font-body use below
+     resolves to Plus Jakarta Sans inside an account page. */
+  --font-display: var(--font-ui), system-ui, sans-serif;
+  --font-body: var(--font-ui), system-ui, sans-serif;
   --ac-ease: cubic-bezier(.2, .7, .2, 1);
   --ac-ring: 0 0 0 4px rgba(138, 148, 114, .22);
   min-height: 100vh;
@@ -31,7 +35,7 @@
   font-size: clamp(34px, 4.4vw, 48px);
 }
 .ac-title em { font-style: normal; color: var(--verde-deep); }
-.ac-lede { margin: 14px 0 0; font-weight: 300; font-size: 17px; line-height: 1.65; color: var(--ink-soft); }
+.ac-lede { margin: 14px 0 0; font-weight: 400; font-size: 17px; line-height: 1.65; color: var(--ink-soft); }
 .ac-small { font-size: 13px; color: var(--ink-muted); }
 .ac-h2 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 21px; letter-spacing: -.015em; line-height: 1.15; }
 
