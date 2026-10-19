@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CalendarDays, ChevronDown, ChevronRight, Inbox, Megaphone, Package, Palette, Store } from "lucide-react";
 import { TenantBillsCard } from "./TenantBills.js";
 import { StaffScheduleCard } from "./StaffSchedule.js";
+import { tourHref } from "@/lib/account-tour.js";
 import { venueDayOf, formatDate, formatDateShort, formatMoney, venueNow, venueToday } from "@/lib/constants.js";
 
 const LISTING_STATUS = {
@@ -150,10 +151,10 @@ function Tile({ href, icon: Icon, eyebrow, title, children, go = "Open", wide = 
  *   makerStats  { [vendorId]: { onShelf, soFarThisMonth, due, waiting } }
  *   bills       { [directoryId]: tenantBills(id) }
  *   schedule    upcomingStaffSchedule() — only for tenants who share the staff
- *   demo        links go nowhere (the tour explains them instead)
+ *   demo        the account tour's mode key: links open the tour's sample pages
  */
-export default function AccountDashboard({ account, mine, inbox, makerStats = {}, bills = {}, schedule = null, demo = false }) {
-  const go = (href, kind) => (demo ? `#t-${kind}` : href);
+export default function AccountDashboard({ account, mine, inbox, makerStats = {}, bills = {}, schedule = null, demo = null }) {
+  const go = (href, kind, id) => (demo ? tourHref(demo, kind, id) : href);
   const first = account.name ? account.name.trim().split(/\s+/)[0] : "";
   const nothing =
     !mine.makers.length && !mine.bookings.total && !mine.listings.length && !mine.businesses.length && !mine.exhibitors.length;
@@ -165,7 +166,7 @@ export default function AccountDashboard({ account, mine, inbox, makerStats = {}
       const o = makerStats[m.id] || { onShelf: 0, soFarThisMonth: 0, due: 0, waiting: false };
       const waiting = o.waiting;
       return (
-        <Tile key={`m${m.id}`} wide={wide} href={go(`/account/consign/${m.id}`, "consign")} icon={Package} eyebrow="Consignment" title={m.name}>
+        <Tile key={`m${m.id}`} wide={wide} href={go(`/account/consign/${m.id}`, "consign", m.id)} icon={Package} eyebrow="Consignment" title={m.name}>
           <div className="ac-figures">
             <div className="ac-figure">
               <b>{o.onShelf}</b>
@@ -280,7 +281,7 @@ export default function AccountDashboard({ account, mine, inbox, makerStats = {}
                   const st = LISTING_STATUS[e.status] || { cls: "", label: e.status };
                   return (
                     <li key={e.id}>
-                      <Link href={go(`/host-listing/${e.host_token}`, "listing")} className="ac-row">
+                      <Link href={go(`/host-listing/${e.host_token}`, "listing", e.id)} className="ac-row">
                         <span className="ac-row-main">
                           <span className="ac-row-title">{e.title || "Untitled event"}</span>
                           <span className="ac-row-sub">{e.date ? formatDate(e.date) : "No date yet"}</span>
@@ -308,7 +309,7 @@ export default function AccountDashboard({ account, mine, inbox, makerStats = {}
           <ul className="ac-rows">
             {inbox.map((m) => (
               <li key={m.id}>
-                <Link href={go(`/account/inbox/${m.id}`, "email")} className="ac-row">
+                <Link href={go(`/account/inbox/${m.id}`, "email", m.id)} className="ac-row">
                   <span className="ac-row-main">
                     <span className="ac-row-title">{m.subject}</span>
                   </span>

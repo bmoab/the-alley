@@ -27,7 +27,7 @@ export default async function AccountTourPage({ searchParams }) {
     <div>
       <PageHeader
         title="Account tour"
-        subtitle="What customers see when they sign in at alleyoncenter.com/account. Pick a kind of customer. The people and numbers are made up, and nothing you tap is saved or sent."
+        subtitle="What customers see when they sign in at alleyoncenter.com/account. Pick a kind of customer, then click around like they would. The people and numbers are made up, and nothing you do here is saved, paid or sent."
       />
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
@@ -72,7 +72,7 @@ export default async function AccountTourPage({ searchParams }) {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div>
           <DevicePreview src={`/admin/tour-frame?as=${m.key}`} view={view} title={`Account page: ${m.label}`} />
-          <p className="mt-2 text-xs text-ink-muted">Tap anything in the preview to see what it opens in a real account.</p>
+          <p className="mt-2 text-xs text-ink-muted">Click around: the tiles open the pages they'd see. Paying, saving and uploading are switched off.</p>
         </div>
 
         <aside className="space-y-4">

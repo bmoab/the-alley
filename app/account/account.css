@@ -405,17 +405,44 @@ a.ac-row:hover .ac-row-chev { transform: translateX(4px); color: var(--ink); }
 @media (max-width: 600px) { .ac-explore-body { padding-left: 18px; } .ac-explore-item .ac-pill { display: none; } }
 
 /* Staff schedule (tenants who share the staff cost) */
-.ac-sched-week + .ac-sched-week { margin-top: 18px; }
-.ac-sched-week > .ac-eyebrow { margin: 0 0 4px; }
-.ac-sched-day { display: flex; align-items: baseline; gap: 14px; padding: 10px 0; }
-.ac-sched-date { flex: none; width: 104px; font-size: 14px; font-weight: 600; color: var(--ink); }
-.ac-sched-date.is-today { color: var(--verde-deep); }
-.ac-sched-shifts { display: flex; flex-wrap: wrap; gap: 6px 8px; min-width: 0; }
-.ac-sched-shift { font-size: 13px; font-weight: 300; color: var(--ink-soft); background: var(--paper-warm, #f6f1e7); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
-.ac-sched-shift b { font-weight: 600; color: var(--ink); }
-.ac-sched-none { font-size: 13px; font-weight: 300; color: var(--ink-muted); }
+/* Who's working: each day a row on one shared clock, a bar per shift. */
+.ac-sched-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; list-style: none; font-size: 13px; color: var(--ink-soft); }
+.ac-sched-legend li { display: inline-flex; align-items: center; gap: 7px; font-weight: 500; }
+.ac-sched-legend span { width: 10px; height: 10px; border-radius: 3px; }
+.ac-sched-week + .ac-sched-week { margin-top: 22px; }
+.ac-sched-head { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: end; gap: 12px; margin-bottom: 6px; }
+.ac-sched-head .ac-eyebrow { margin: 0; }
+.ac-sched-axis { position: relative; height: 16px; }
+.ac-sched-axis span { position: absolute; bottom: 0; transform: translateX(-50%); font-size: 11px; color: var(--ink-muted); white-space: nowrap; }
+.ac-sched-axis span.is-first { transform: none; }
+.ac-sched-axis span.is-last { transform: translateX(-100%); }
+.ac-sched-row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; align-items: center; padding: 3px 0; border-top: 1px solid var(--line); }
+.ac-sched-row.is-today { background: linear-gradient(90deg, rgba(138, 148, 114, .12), transparent 70%); }
+.ac-sched-date { margin: 0; display: flex; flex-direction: column; line-height: 1.2; padding-left: 6px; }
+.ac-sched-date b { font-size: 14px; font-weight: 600; color: var(--ink); }
+.ac-sched-date span { font-size: 12px; color: var(--ink-muted); }
+.ac-sched-row.is-today .ac-sched-date b { color: var(--verde-deep); }
+.ac-sched-track { position: relative; min-width: 0; }
+.ac-sched-tick { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line); }
+.ac-sched-bar {
+  position: absolute; height: 26px; display: flex; align-items: center; gap: 6px; padding: 0 8px;
+  border-left: 3px solid; border-radius: 4px; overflow: hidden; white-space: nowrap;
+  font-size: 12px; color: var(--ink-soft);
+}
+.ac-sched-bar b { font-weight: 600; color: var(--ink); }
+.ac-sched-bar.is-open { border: 1px dashed; border-left-width: 3px; }
+.ac-sched-none { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--ink-muted); }
 .ac-sched-foot { margin: 14px 0 0; font-size: 12px; font-weight: 300; color: var(--ink-muted); }
-@media (max-width: 520px) { .ac-sched-date { width: 84px; font-size: 13px; } }
+@media (max-width: 560px) {
+  .ac-sched-head, .ac-sched-row { grid-template-columns: 62px minmax(0, 1fr); gap: 8px; }
+  .ac-sched-date { padding-left: 2px; }
+  .ac-sched-head .ac-eyebrow { font-size: 10px; letter-spacing: .1em; }
+  .ac-sched-date b { font-size: 13px; }
+  .ac-sched-bar { padding: 0 5px; }
+  .ac-sched-bar { gap: 4px; font-size: 11px; }
+  .ac-sched-bar span { font-size: 10.5px; }
+  .ac-sched-axis span { font-size: 10px; }
+}
 
 /* The admin's account tour: what a tap would do, instead of going there. */
 .tour-note {
