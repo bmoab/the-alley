@@ -30,6 +30,7 @@ export default function ConfirmButton({
   question,
   disabled = false,
   disabledLabel,
+  variant = "primary",
 }) {
   const [armed, setArmed] = useState(false);
 
@@ -43,7 +44,7 @@ export default function ConfirmButton({
 
   if (!armed) {
     return (
-      <Button type="button" onClick={() => setArmed(true)}>
+      <Button type="button" variant={variant} onClick={() => setArmed(true)}>
         {label}
       </Button>
     );

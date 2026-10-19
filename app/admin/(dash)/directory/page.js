@@ -1,371 +1,197 @@
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import {
-  listDirectory,
-  createDirectoryEntry,
-  updateDirectoryEntry,
-  deleteDirectoryEntry,
-  getDirectoryEntry,
-  ensureDirectoryToken,
-  listSuites,
-  setTenantSuites,
-  updateSuiteInfo,
-  suitesForTenant,
-  tenantsForSuite,
-} from "@/lib/catalog.js";
-import { emailTenantInvite } from "@/lib/email.js";
+import Link from "next/link";
+import { ImageIcon, Plus, Store } from "lucide-react";
+import { listDirectory, listSuites, suitesForTenant, tenantsForSuite } from "@/lib/catalog.js";
 import { zoneSpace } from "@/lib/building-map.js";
-import ContentImageField from "@/components/ContentImageField.js";
+import { db } from "@/lib/db.js";
+import { venueToday, formatMoney } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
-import Button from "@/components/admin/ui/Button.js";
+import Badge from "@/components/admin/ui/Badge.js";
+import Dialog from "@/components/admin/ui/Dialog.js";
+import SuiteForm from "@/components/admin/directory/SuiteForm.js";
+import AddTenantForm from "@/components/admin/directory/AddTenantForm.js";
 import { requireAdmin } from "@/lib/auth.js";
-import { setTenantRent } from "@/lib/staff-costs.js";
+import { addTenant, saveSuite } from "./actions.js";
+import { tenantStatus, tenantPhoto, initials } from "./shared.js";
 
 export const metadata = { title: "Directory" };
 
-const APP_URL = process.env.APP_URL || "";
-
-function refresh() {
-  revalidatePath("/directory");
-  revalidatePath("/");
-  revalidatePath("/admin/directory");
-}
-
-/* ---- Tenants ---- */
-
-async function addTenant(formData) {
-  "use server";
-  await requireAdmin();
-  const id = createDirectoryEntry({
-    business_name: (formData.get("business_name") || "").toString().trim(),
-    contact_email: (formData.get("contact_email") || "").toString().trim(),
-    active: formData.get("active") != null,
-    active_from: (formData.get("active_from") || "").toString().trim(),
-    active_until: (formData.get("active_until") || "").toString().trim(),
-  });
-  setTenantSuites(id, formData.getAll("suite_ids"));
-  saveRent(id, formData);
-  refresh();
-  redirect("/admin/directory#biz-" + id);
-}
-
-/** Rent amount + pay link; a bad link comes back as a message, not a crash. */
-function saveRent(id, formData) {
-  try {
-    setTenantRent(id, { amount: formData.get("rent_amount"), link: formData.get("rent_link") });
-  } catch (err) {
-    redirect("/admin/directory?toast=" + encodeURIComponent(err.message) + "&toastType=error#biz-" + id);
-  }
-}
-
-async function saveTenant(formData) {
-  "use server";
-  await requireAdmin();
-  const id = Number(formData.get("id"));
-  updateDirectoryEntry(id, {
-    business_name: (formData.get("business_name") || "").toString().trim(),
-    contact_email: (formData.get("contact_email") || "").toString().trim(),
-    active: formData.get("active") != null,
-    active_from: (formData.get("active_from") || "").toString().trim(),
-    active_until: (formData.get("active_until") || "").toString().trim(),
-  });
-  setTenantSuites(id, formData.getAll("suite_ids"));
-  saveRent(id, formData);
-  refresh();
-  redirect("/admin/directory#biz-" + id);
-}
-
-async function removeTenant(formData) {
-  "use server";
-  await requireAdmin();
-  const id = Number(formData.get("id"));
-  setTenantSuites(id, []); // free its suites
-  deleteDirectoryEntry(id);
-  refresh();
-  redirect("/admin/directory");
-}
-
-async function generateLink(formData) {
-  "use server";
-  await requireAdmin();
-  ensureDirectoryToken(Number(formData.get("id")));
-  refresh();
-  redirect("/admin/directory#biz-" + formData.get("id"));
-}
-
-async function emailLink(formData) {
-  "use server";
-  await requireAdmin();
-  const id = Number(formData.get("id"));
-  const token = ensureDirectoryToken(id);
-  const entry = getDirectoryEntry(id);
-  if (entry?.contact_email && token) {
-    try {
-      await emailTenantInvite(entry, token);
-    } catch (err) {
-      console.error("[directory] tenant invite email error:", err.message);
-    }
-  }
-  refresh();
-  if (entry?.contact_email) {
-    redirect(
-      "/admin/directory?toast=" +
-        encodeURIComponent(`Self-edit link emailed to ${entry.contact_email}.`) +
-        "&toastType=success#biz-" + id
-    );
-  }
-  redirect(
-    "/admin/directory?toast=" +
-      encodeURIComponent(
-        "No tenant email on file — add one and save, then try again. The link is ready to copy below."
-      ) +
-      "&toastType=error#biz-" + id
-  );
-}
-
-/* ---- Suites ---- */
-
-async function saveSuite(formData) {
-  "use server";
-  await requireAdmin();
-  updateSuiteInfo(Number(formData.get("id")), {
-    name: (formData.get("name") || "").toString().trim(),
-    available: formData.get("available") != null,
-    vacant_photo: (formData.get("vacant_photo") || "").toString().trim() || null,
-    vacant_blurb: (formData.get("vacant_blurb") || "").toString().trim(),
-  });
-  refresh();
-  redirect("/admin/directory#suite-" + formData.get("id"));
-}
-
-function TenantFields({ entry = {}, suites = [], occupiedIds = [], suiteTenants = {} }) {
-  const isNew = !entry.id;
-  return (
-    <>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div>
-          <label className="label">Business name</label>
-          <input name="business_name" required defaultValue={entry.business_name || ""} className="field" />
-        </div>
-        <div>
-          <label className="label">Tenant email (for their self-edit invite)</label>
-          <input name="contact_email" type="email" defaultValue={entry.contact_email || ""} placeholder="owner@shop.com" className="field" />
-        </div>
-      </div>
-      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-[10rem_1fr]">
-        <div className="min-w-0">
-          <label className="label">Monthly rent ($, optional)</label>
-          <input name="rent_amount" inputMode="decimal" defaultValue={entry.rent_amount ?? ""} placeholder="0.00" className="field" />
-        </div>
-        <div className="min-w-0">
-          <label className="label">Rent payment link (optional)</label>
-          <input name="rent_link" type="url" defaultValue={entry.rent_link || ""} placeholder="https://square.link/… or their recurring invoice link" className="field" />
-          <p className="mt-1 text-xs text-ink-muted">Shows as a “Pay rent” button on their account and business page.</p>
-        </div>
-      </div>
-      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <label className="flex items-center gap-2 self-end pb-2">
-          <input type="checkbox" name="active" defaultChecked={isNew ? true : Number(entry.active) === 1} />
-          <span className="text-sm font-semibold text-ink-soft">Active (show on the website)</span>
-        </label>
-        <div>
-          <label className="label">Active from (optional)</label>
-          <input name="active_from" type="date" defaultValue={entry.active_from || ""} className="field" />
-        </div>
-        <div>
-          <label className="label">Active until (optional)</label>
-          <input name="active_until" type="date" defaultValue={entry.active_until || ""} className="field" />
-        </div>
-      </div>
-
-      {/* Suite assignment — available when adding and when editing. */}
-      <div className="mt-3">
-        <label className="label">Suites occupied (select one or more)</label>
-        <div className="flex flex-wrap gap-x-5 gap-y-2 rounded-lg border border-ink/10 bg-paper-warm p-3">
-          {suites.map((s) => {
-            const mine = occupiedIds.includes(s.id);
-            const others = (suiteTenants[s.id] || []).filter((t) => t.id !== entry.id);
-            return (
-              <label key={s.id} className="flex items-center gap-2 text-sm text-ink-soft">
-                <input type="checkbox" name="suite_ids" value={s.id} defaultChecked={mine} />
-                <span>
-                  {s.name || s.zone}
-                  <span className="ml-1 text-xs text-ink-muted">· {s.floor}</span>
-                  {others.length ? (
-                    <span className="ml-1 text-xs text-ink-muted">
-                      · shared with {others.map((t) => t.business_name).join(", ")}
-                    </span>
-                  ) : null}
-                </span>
-              </label>
-            );
-          })}
-        </div>
-        <p className="mt-1 text-xs text-ink-muted">
-          Two businesses can share one suite — just check the same suite for both. Each keeps its own directory page.
-        </p>
-      </div>
-
-      <p className="mt-4 text-xs text-ink-muted">
-        Their description, category, photo, and links are all filled in by the tenant from their private link below.
-      </p>
-    </>
-  );
-}
-
-function SelfEditLink({ entry }) {
-  const link = entry.edit_token ? `${APP_URL}/business-listing/${entry.edit_token}` : null;
-  return (
-    <div className="mt-4 rounded-xl border border-line bg-paper-warm p-4">
-      <p className="text-sm font-semibold text-ink">Tenant self-edit link</p>
-      {link ? (
-        <>
-          <p className="mt-1 text-xs text-ink-muted">
-            Share this private link so {entry.business_name} can manage their own listing (photo, description,
-            contact). Their edits go live instantly.
-          </p>
-          <input readOnly value={link} className="field mt-2 text-xs" />
-          <form action={emailLink} className="mt-2">
-            <input type="hidden" name="id" value={entry.id} />
-            <Button type="submit" variant="ghost" size="sm">
-              {entry.contact_email ? `Email link to ${entry.contact_email}` : "Add a tenant email above to email this link"}
-            </Button>
-          </form>
-        </>
-      ) : (
-        <form action={generateLink} className="mt-2">
-          <input type="hidden" name="id" value={entry.id} />
-          <Button type="submit" variant="ghost" size="sm">Generate self-edit link</Button>
-        </form>
-      )}
-    </div>
-  );
-}
-
-function SuiteRow({ suite, tenants = [] }) {
-  const occupantNames = tenants.map((t) => t.business_name).join(" & ");
-  return (
-    <details id={`suite-${suite.id}`} className="card p-4">
-      <summary className="flex cursor-pointer items-center justify-between gap-3">
-        <span className="font-semibold text-ink">
-          {suite.name || suite.zone}
-          <span className="ml-2 text-xs font-normal text-ink-muted">
-            {tenants.length ? occupantNames : suite.available ? "Available" : "Vacant"}
-          </span>
-        </span>
-        <span className="shrink-0 text-xs text-ink-muted">zone {suite.zone} · edit ▾</span>
-      </summary>
-      <form action={saveSuite} className="mt-3 grid grid-cols-1 gap-3">
-        <input type="hidden" name="id" value={suite.id} />
-        <div>
-          <label className="label">Suite name / number</label>
-          <input name="name" defaultValue={suite.name || ""} placeholder={suite.zone} className="field" />
-        </div>
-        {tenants.length ? (
-          <p className="text-xs text-ink-muted">
-            Occupied by <strong>{occupantNames}</strong>. Change this from the tenant&apos;s suite checkboxes above.
-          </p>
-        ) : (
-          <div className="rounded-xl border border-line bg-paper-warm p-4">
-            <p className="text-sm font-semibold text-ink">Vacant — show as available?</p>
-            <label className="mt-2 flex items-center gap-2">
-              <input type="checkbox" name="available" defaultChecked={Number(suite.available) === 1} />
-              <span className="text-sm font-semibold text-ink-soft">Mark as available to lease</span>
-            </label>
-            <div className="mt-3">
-              <label className="label">Blurb about the space</label>
-              <textarea name="vacant_blurb" rows={2} defaultValue={suite.vacant_blurb || ""} placeholder="A bright corner studio with street-facing windows…" className="field" />
-            </div>
-            <div className="mt-3">
-              <ContentImageField name="vacant_photo" label="Photo of the space" value={suite.vacant_photo || ""} />
-            </div>
-          </div>
-        )}
-        <Button type="submit" className="w-fit">Save suite</Button>
-      </form>
-    </details>
-  );
-}
-
+/**
+ * The building at a glance: every business as a card (tap one for its page),
+ * then the suites, floor by floor (tap one to edit it).
+ */
 export default async function DirectoryAdminPage() {
   await requireAdmin();
+  const today = venueToday();
+  const month = today.slice(0, 7);
   const tenants = listDirectory();
-  // Exclude the two rentable spaces (gallery = Main Floor, 200 = Loft) — those
-  // are managed under Spaces, not assigned to tenants.
+  // The rentable rooms (Main Floor, Loft, Conference) live in Pages → Spaces.
   const suites = listSuites().filter((s) => !zoneSpace(s.zone));
-  // Junction-backed occupancy maps: which tenants share each suite, and which
-  // suite ids each tenant holds (a suite may have several tenants, and vice versa).
   const suiteTenants = Object.fromEntries(suites.map((s) => [s.id, tenantsForSuite(s.id)]));
-  const occupiedByTenant = Object.fromEntries(
-    tenants.map((t) => [t.id, suitesForTenant(t.id).map((s) => s.id)])
-  );
-  const suiteById = Object.fromEntries(suites.map((s) => [s.id, s]));
+  const paidRent = new Set(db.prepare("SELECT directory_id FROM rent_payments WHERE month = ?").all(month).map((r) => r.directory_id));
 
   const lower = suites.filter((s) => s.floor === "lower");
   const upper = suites.filter((s) => s.floor !== "lower");
+  const open = suites.filter((s) => !suiteTenants[s.id].length);
 
   return (
     <div>
       <PageHeader
         title="Directory"
-        subtitle="Manage the businesses in the building and which suites they occupy. The public directory and the interactive floor map update automatically."
+        subtitle="The businesses in the building and the suites they're in. The public directory and the floor map update on their own."
+        actions={
+          <Dialog
+            title="Add a business"
+            trigger={
+              <>
+                <Plus className="h-4 w-4" aria-hidden="true" /> Add business
+              </>
+            }
+            triggerClassName="inline-flex h-10 items-center gap-2 rounded-xl bg-ink px-4 text-sm font-semibold text-paper transition hover:bg-ink-soft"
+          >
+            <AddTenantForm action={addTenant} />
+          </Dialog>
+        }
       />
 
-      {/* Tenants */}
-      <h2 className="text-xl font-semibold text-ink">Tenants</h2>
-      <details className="mt-3 card p-5" open={tenants.length === 0}>
-        <summary className="cursor-pointer font-semibold text-ink">+ Add a tenant</summary>
-        <form action={addTenant} className="mt-4">
-          <TenantFields suites={suites} suiteTenants={suiteTenants} />
-          <Button type="submit" className="mt-4">Add tenant</Button>
-        </form>
-      </details>
-
-      <div className="mt-4 space-y-4">
-        {tenants.map((e) => {
-          const theirSuites = (occupiedByTenant[e.id] || [])
-            .map((id) => suiteById[id])
-            .filter(Boolean)
-            .map((s) => s.name || s.zone);
-          return (
-            <details key={e.id} id={`biz-${e.id}`} className="card p-5">
-              <summary className="flex cursor-pointer items-center justify-between">
-                <span className="font-semibold text-ink">{e.business_name}</span>
-                <span className="text-xs text-ink-muted">
-                  {theirSuites.length ? `Suite${theirSuites.length > 1 ? "s" : ""} ${theirSuites.join(", ")}` : "no suite"} · edit ▾
-                </span>
-              </summary>
-              <form action={saveTenant} className="mt-4">
-                <input type="hidden" name="id" value={e.id} />
-                <TenantFields entry={e} suites={suites} occupiedIds={occupiedByTenant[e.id] || []} suiteTenants={suiteTenants} />
-                <Button type="submit" className="mt-4">Save</Button>
-              </form>
-              <SelfEditLink entry={e} />
-              <form action={removeTenant} className="mt-2">
-                <input type="hidden" name="id" value={e.id} />
-                <button className="text-sm font-semibold text-rust hover:underline">Remove this tenant</button>
-              </form>
-            </details>
-          );
-        })}
+      <div className="mb-6 flex flex-wrap gap-2 text-sm">
+        <span className="rounded-full border border-line bg-paper px-3 py-1 text-ink-soft">
+          <b className="text-ink">{tenants.length}</b> {tenants.length === 1 ? "business" : "businesses"}
+        </span>
+        <span className="rounded-full border border-line bg-paper px-3 py-1 text-ink-soft">
+          <b className="text-ink">{suites.length - open.length}</b> of {suites.length} suites filled
+        </span>
+        {open.some((s) => Number(s.available) === 1) ? (
+          <span className="rounded-full border border-verde-deep/30 bg-verde/50 px-3 py-1 text-ink">
+            <b>{open.filter((s) => Number(s.available) === 1).length}</b> listed as available
+          </span>
+        ) : null}
       </div>
 
-      {/* Building suites */}
-      <h2 className="mt-10 text-xl font-semibold text-ink">Building suites</h2>
-      <p className="mt-1 text-sm text-ink-muted">
-        Name each suite and, for empty ones, add a photo + blurb and mark it available to lease.
-      </p>
+      {/* Businesses */}
+      {tenants.length ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {tenants.map((t) => {
+            const theirs = suitesForTenant(t.id).map((s) => s.name || s.zone);
+            const status = tenantStatus(t, today);
+            const photo = tenantPhoto(t);
+            const hasRent = t.rent_amount || t.rent_link;
+            return (
+              <Link
+                key={t.id}
+                href={`/admin/directory/${t.id}`}
+                className="group card overflow-hidden p-0 transition duration-200 hover:-translate-y-0.5 hover:border-verde-deep/40 hover:shadow-card-hover"
+              >
+                <div className="relative aspect-[2/1] overflow-hidden bg-verde/50">
+                  {photo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={photo} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center text-3xl font-semibold tracking-wide text-verde-deep">
+                      {initials(t.business_name)}
+                    </span>
+                  )}
+                  {status.key !== "live" ? (
+                    <span className="absolute left-3 top-3">
+                      <Badge tone={status.tone}>{status.label}</Badge>
+                    </span>
+                  ) : null}
+                </div>
+                <div className="p-4">
+                  <p className="truncate text-base font-semibold text-ink">{t.business_name}</p>
+                  <p className="mt-0.5 truncate text-xs text-ink-muted">{t.category || "No category yet"}</p>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {theirs.length ? (
+                      theirs.map((n) => (
+                        <span key={n} className="rounded-full bg-paper-warm px-2.5 py-0.5 text-xs font-semibold text-ink-soft">
+                          Suite {n}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="rounded-full bg-paper-warm px-2.5 py-0.5 text-xs text-ink-muted">No suite</span>
+                    )}
+                    {hasRent ? (
+                      <span
+                        className={
+                          paidRent.has(t.id)
+                            ? "rounded-full bg-verde/60 px-2.5 py-0.5 text-xs font-semibold text-ink"
+                            : "rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800"
+                        }
+                      >
+                        {paidRent.has(t.id) ? "Rent paid" : t.rent_amount ? `Rent ${formatMoney(t.rent_amount)} due` : "Rent due"}
+                      </span>
+                    ) : null}
+                    {t.shares_staff_cost ? (
+                      <span className="rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-800">Shares staff</span>
+                    ) : null}
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="card flex flex-col items-center gap-2 p-10 text-center">
+          <Store className="h-8 w-8 text-verde-deep" aria-hidden="true" />
+          <p className="font-semibold text-ink">No businesses yet</p>
+          <p className="text-sm text-ink-muted">Add the first one with “Add business” above.</p>
+        </div>
+      )}
+
+      {/* Suites */}
+      <h2 className="mt-12 text-xl font-semibold text-ink">Suites</h2>
+      <p className="mt-1 text-sm text-ink-muted">Tap a suite to rename it, or list an empty one as available with a photo.</p>
       {[
-        { title: "Lower Floor", list: lower },
-        { title: "Upper Floor", list: upper },
+        { title: "Upper floor", list: upper },
+        { title: "Lower floor", list: lower },
       ].map((f) =>
         f.list.length ? (
-          <div key={f.title} className="mt-4">
-            <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-ink-muted">{f.title}</h3>
-            <div className="space-y-3">
-              {f.list.map((s) => (
-                <SuiteRow key={s.id} suite={s} tenants={suiteTenants[s.id] || []} />
-              ))}
+          <div key={f.title} className="mt-5">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-muted">{f.title}</h3>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+              {f.list.map((s) => {
+                const who = suiteTenants[s.id].map((t) => t.business_name);
+                const available = !who.length && Number(s.available) === 1;
+                return (
+                  <Dialog
+                    key={s.id}
+                    title={`Suite ${s.name || s.zone}`}
+                    triggerLabel={`Edit suite ${s.name || s.zone}`}
+                    triggerClassName="card block overflow-hidden p-0 text-left transition duration-200 hover:-translate-y-0.5 hover:border-verde-deep/40 hover:shadow-card-hover"
+                    trigger={
+                      <>
+                        <span className="relative block aspect-[3/2] bg-paper-warm">
+                          {!who.length && s.vacant_photo ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={s.vacant_photo} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            <span className="flex h-full w-full items-center justify-center text-2xl font-semibold text-ink/25">
+                              {s.name || s.zone}
+                            </span>
+                          )}
+                          <span className="absolute left-2 top-2">
+                            {who.length ? (
+                              <Badge tone="ink">Occupied</Badge>
+                            ) : available ? (
+                              <Badge tone="success">Available</Badge>
+                            ) : (
+                              <Badge tone="neutral">Empty</Badge>
+                            )}
+                          </span>
+                          {!who.length && !s.vacant_photo ? (
+                            <ImageIcon className="absolute bottom-2 right-2 h-4 w-4 text-ink/25" aria-hidden="true" />
+                          ) : null}
+                        </span>
+                        <span className="block p-3">
+                          <span className="block text-sm font-semibold text-ink">Suite {s.name || s.zone}</span>
+                          <span className="block truncate text-xs text-ink-muted">{who.length ? who.join(" & ") : available ? "Listed for lease" : "Not listed"}</span>
+                        </span>
+                      </>
+                    }
+                  >
+                    <SuiteForm suite={s} occupants={who} action={saveSuite} />
+                  </Dialog>
+                );
+              })}
             </div>
           </div>
         ) : null
