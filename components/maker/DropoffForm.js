@@ -2,16 +2,17 @@
 import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { sendDropoff } from "@/app/maker/actions.js";
+import PhotoPick from "./PhotoPick.js";
 
 /**
  * A maker lists what they're bringing in: more of something already in the
- * shop, or something new, with how many and the price — and, if they like, the
- * group it goes in (picking one of theirs fills in its price). The server
+ * shop, or something new, with how many and the price — and, if they like, a
+ * photo and the group it goes in (picking one of theirs fills in its price). The server
  * re-checks everything (lib/inventory.js submitDropoff).
  */
 
 let rowKey = 0;
-const blankRow = () => ({ key: ++rowKey, itemId: "", name: "", group: "", qty: "", price: "" });
+const blankRow = () => ({ key: ++rowKey, itemId: "", name: "", group: "", photo: "", qty: "", price: "" });
 
 function Submit() {
   const { pending } = useFormStatus();
@@ -26,7 +27,13 @@ function Submit() {
   );
 }
 
-export default function DropoffForm({ items, groups = [], hidden }) {
+export default function DropoffForm({
+  items,
+  groups = [],
+  hidden,
+  placeholder = "e.g. Silver leaf necklace",
+  groupPlaceholder = "e.g. Large Candle",
+}) {
   const [state, formAction] = useFormState(sendDropoff, null);
   const [rows, setRows] = useState([blankRow()]);
   const update = (key, patch) => setRows((list) => list.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -48,7 +55,7 @@ export default function DropoffForm({ items, groups = [], hidden }) {
                 value={r.itemId}
                 onChange={(e) => {
                   const item = items.find((i) => String(i.id) === e.target.value);
-                  update(r.key, { itemId: e.target.value, name: "", group: "", price: item ? String(item.price) : "" });
+                  update(r.key, { itemId: e.target.value, name: "", group: "", photo: "", price: item ? String(item.price) : "" });
                 }}
                 className="field mb-1"
               >
@@ -61,13 +68,16 @@ export default function DropoffForm({ items, groups = [], hidden }) {
               </select>
             ) : null}
             {!r.itemId ? (
-              <input
-                value={r.name}
-                onChange={(e) => update(r.key, { name: e.target.value })}
-                placeholder="e.g. Silver leaf necklace"
-                maxLength={120}
-                className="field"
-              />
+              <div className="flex items-center gap-2">
+                <PhotoPick value={r.photo} onChange={(photo) => update(r.key, { photo })} label="photo" />
+                <input
+                  value={r.name}
+                  onChange={(e) => update(r.key, { name: e.target.value })}
+                  placeholder={placeholder}
+                  maxLength={120}
+                  className="field"
+                />
+              </div>
             ) : null}
           </div>
           {!r.itemId ? (
@@ -77,7 +87,7 @@ export default function DropoffForm({ items, groups = [], hidden }) {
                 value={r.group}
                 onChange={(e) => update(r.key, { group: e.target.value })}
                 maxLength={60}
-                placeholder="e.g. Large Candle"
+                placeholder={groupPlaceholder}
                 className="field"
               />
               {groups.length ? (

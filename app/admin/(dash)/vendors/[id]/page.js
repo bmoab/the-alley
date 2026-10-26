@@ -36,6 +36,7 @@ import {
   payoutLines,
   listDropoffs,
   unlinkedSquareItems,
+  artistForVendor,
   makerInsights,
   suggestedGroups,
 } from "@/lib/inventory.js";
@@ -182,7 +183,10 @@ export default async function VendorPage({ params }) {
   const reminders = reminderHistory("maker", vendor.id).filter((h) => h.ends_on === agreementEnds);
   const reminderDue = dueKind && !reminders.some((h) => h.kind === dueKind) ? dueKind : null;
   const share = splitFor(null, vendor);
-  const insights = makerInsights(vendor.id);
+  const artist = artistForVendor(vendor);
+  // Their costs are theirs alone: never sent to the admin's browser.
+  const raw = makerInsights(vendor.id);
+  const insights = { ...raw, items: raw.items.map(({ cost, ...i }) => ({ ...i, cost: null })) };
   const soldEver = new Set(Object.keys(insights.periods.find((p) => p.key === "all").byItem).map(Number));
   const groupItems = insights.items.filter((i) => i.active || soldEver.has(i.id));
   const groupSuggestions = suggestedGroups(vendor.id);
@@ -231,6 +235,11 @@ export default async function VendorPage({ params }) {
             <span className="rounded-full bg-paper-warm px-2.5 py-0.5 text-xs font-semibold text-ink-soft">{share}% to them</span>
             {hasAccount ? <Badge tone="success">Has an account</Badge> : <Badge tone="neutral">No account yet</Badge>}
             {termsOk ? <Badge tone="success">Terms agreed</Badge> : <Badge tone="warning">Terms not agreed</Badge>}
+            {artist ? (
+              <Link href={`/admin/exhibitors/${artist.id}`} className="transition hover:opacity-80">
+                <Badge tone="sky">Gallery artist: {artist.name} →</Badge>
+              </Link>
+            ) : null}
           </div>
           {vendor.contact_name ? <p className="mt-2 text-sm text-ink-soft">{vendor.contact_name}</p> : null}
           <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm">
@@ -634,7 +643,7 @@ export default async function VendorPage({ params }) {
                 <div className="mt-3">
                   <ItemSetup
                     // A fresh form whenever what's saved changes (sorting, saving).
-                    key={groupItems.map((i) => `${i.id}:${i.group}:${i.cost}`).join("|")}
+                    key={groupItems.map((i) => `${i.id}:${i.group}:${i.cost}:${i.photo}`).join("|")}
                     items={groupItems}
                     suggestions={groupSuggestions}
                     hidden={hidden}

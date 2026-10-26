@@ -1,4 +1,13 @@
-import { makerOverview, makerInsights, makerGroups, suggestedGroups, shortName, termsFor, needsTerms } from "@/lib/inventory.js";
+import {
+  makerOverview,
+  makerInsights,
+  makerGroups,
+  suggestedGroups,
+  shortName,
+  artistForVendor,
+  termsFor,
+  needsTerms,
+} from "@/lib/inventory.js";
 import { venueDayOf, formatDate, formatDateShort, formatMoney, venueToday } from "@/lib/constants.js";
 import { agreeToTerms, withdrawDropoff, saveMakerDetails, saveItems, sortItemsByName } from "@/app/maker/actions.js";
 import DropoffForm from "@/components/maker/DropoffForm.js";
@@ -68,6 +77,9 @@ export default function MakerHome({ vendorId, hidden, notice = null }) {
   const insights = makerInsights(vendorId);
   const groups = makerGroups(vendorId);
   const v = o.vendor;
+  // A gallery artist sells through the same consignment; only the words change.
+  const artist = !!artistForVendor(v);
+  const shelfWord = artist ? "In the gallery" : "On the shelf";
   // Their items, a group at a time (ungrouped last), for the shelf and the setup form.
   const shelf = [...o.items].sort(
     (a, b) => (a.item_group ? 0 : 1) - (b.item_group ? 0 : 1) || (a.item_group || "").localeCompare(b.item_group || "") || a.name.localeCompare(b.name)
@@ -85,7 +97,7 @@ export default function MakerHome({ vendorId, hidden, notice = null }) {
   return (
     <div className="ac-maker space-y-6">
       <header className="ac-hello" style={{ marginBottom: 8 }}>
-        <p className="ac-eyebrow ac-date ac-rise">Consignment</p>
+        <p className="ac-eyebrow ac-date ac-rise">{artist ? "Art sales" : "Consignment"}</p>
         <h1 className="ac-title ac-rise ac-rise-1">{v.name}</h1>
         <p className="ac-lede ac-rise ac-rise-2">
           You get {o.split}% of every sale, paid monthly for the month before.
@@ -116,7 +128,11 @@ export default function MakerHome({ vendorId, hidden, notice = null }) {
       ) : null}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="On the shelf" value={o.onShelf} hint={`${o.items.length} product${o.items.length === 1 ? "" : "s"}`} />
+        <Stat
+          label={shelfWord}
+          value={o.onShelf}
+          hint={artist ? `${o.items.length} piece${o.items.length === 1 ? "" : "s"}` : `${o.items.length} product${o.items.length === 1 ? "" : "s"}`}
+        />
         <Stat label="This month so far" value={formatMoney(o.soFarThisMonth)} hint="your share" />
         <Stat label={`${monthName} payout`} value={formatMoney(o.due)} hint={o.due ? "coming your way" : "nothing owed"} />
         <Stat
@@ -145,6 +161,8 @@ export default function MakerHome({ vendorId, hidden, notice = null }) {
               items={shelf.map((i) => ({ id: i.id, name: i.name, price: i.price, group: i.item_group }))}
               groups={groups}
               hidden={hidden}
+              placeholder={artist ? "e.g. Bear River at dusk, oil, 16 × 20" : undefined}
+              groupPlaceholder={artist ? "e.g. Originals, or Prints" : undefined}
             />
           )}
         </div>
@@ -175,7 +193,7 @@ export default function MakerHome({ vendorId, hidden, notice = null }) {
       </Card>
 
       <Card pad="lg">
-        <h2 className="ac-h2">On the shelf</h2>
+        <h2 className="ac-h2">{shelfWord}</h2>
         {o.items.length ? (
           <div className="-mx-1 mt-2 overflow-x-auto px-1">
             <table className="w-full min-w-[420px] text-sm">
@@ -199,7 +217,13 @@ export default function MakerHome({ vendorId, hidden, notice = null }) {
                   ) : null,
                   <tr key={i.id} className="border-b border-line/60">
                     <td className="py-1.5 pr-2 text-ink">
-                      {shortName(i.name, i.item_group)}
+                      <span className="inline-flex items-center gap-2">
+                        {i.photo ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={i.photo} alt="" className="h-8 w-8 shrink-0 object-cover" />
+                        ) : null}
+                        {shortName(i.name, i.item_group)}
+                      </span>
                       {i.daysOnShelf != null && i.daysOnShelf > o.pickupDays && i.qty_on_hand > 0 ? (
                         <span className="ml-1 text-xs text-rust">time to swap out</span>
                       ) : null}
@@ -220,15 +244,15 @@ export default function MakerHome({ vendorId, hidden, notice = null }) {
         )}
         {setupItems.length ? (
           <details id="setup" className="mt-5 border-t border-line pt-4">
-            <summary className="text-sm font-semibold text-ink">Sort into groups and add your costs (optional)</summary>
+            <summary className="text-sm font-semibold text-ink">Photos, groups and your costs (all optional)</summary>
             <p className="mt-2 text-sm text-ink-soft">
-              Groups put things together in How it&apos;s selling: say Large Candle, with each scent inside it. Add what a piece
-              costs you to make and you&apos;ll see your profit too.
+              Add a photo of each piece if you like. Groups put things together in How it&apos;s selling: say Large Candle, with
+              each scent inside it. Add what a piece costs you to make and you&apos;ll see your profit too.
             </p>
             <div className="mt-3">
               <ItemSetup
                 // A fresh form whenever what's saved changes (sorting, saving).
-                key={setupItems.map((i) => `${i.id}:${i.group}:${i.cost}`).join("|")}
+                key={setupItems.map((i) => `${i.id}:${i.group}:${i.cost}:${i.photo}`).join("|")}
                 items={setupItems}
                 suggestions={suggestedGroups(vendorId)}
                 hidden={hidden}

@@ -7,11 +7,16 @@ import {
   listExhibitorPhotos,
   parseExhibitorLinks,
 } from "@/lib/catalog.js";
+import Link from "next/link";
+import { makerForExhibitor } from "@/lib/agreement-reminders.js";
 import ExhibitorEditForm from "@/components/ExhibitorEditForm.js";
+import MakerHome from "@/components/maker/MakerHome.js";
 import AccountNudge from "@/components/account/AccountNudge.js";
 import PortalFrame, { PortalHead, PortalMissing } from "@/components/account/PortalFrame.js";
 
 export const metadata = { title: "Set up your exhibitor page" };
+// Per-token page: never cache one artist's sales and serve them to another.
+export const dynamic = "force-dynamic";
 
 function refresh() {
   revalidatePath("/exhibitors");
@@ -19,7 +24,7 @@ function refresh() {
   revalidatePath("/admin/exhibitors");
 }
 
-export default function ExhibitorTokenPage({ params }) {
+export default function ExhibitorTokenPage({ params, searchParams }) {
   const exhibitor = getExhibitorByToken(params.token);
 
   if (!exhibitor) {
@@ -59,8 +64,33 @@ export default function ExhibitorTokenPage({ params }) {
     return { ok: true, works: listExhibitorPhotos(ex.id) };
   }
 
+  // An artist whose work we sell: their sales and payouts on a second tab.
+  const vendor = makerForExhibitor(exhibitor);
+  const sells = !!vendor?.is_active;
+  const onSales = sells && searchParams?.tab === "sales";
+  const tabs = sells ? (
+    <nav className="ac-seg" aria-label="Your exhibitor link">
+      <Link href={`/exhibitor/${params.token}`} aria-current={onSales ? undefined : "page"}>
+        Your page
+      </Link>
+      <Link href={`/exhibitor/${params.token}?tab=sales`} aria-current={onSales ? "page" : undefined}>
+        Sales &amp; payouts
+      </Link>
+    </nav>
+  ) : null;
+
+  if (onSales) {
+    return (
+      <PortalFrame label="Exhibitor page" toaster>
+        {tabs}
+        <MakerHome vendorId={vendor.id} hidden={{ artist: params.token }} notice={<AccountNudge email={exhibitor.contact_email} />} />
+      </PortalFrame>
+    );
+  }
+
   return (
-    <PortalFrame label="Exhibitor page">
+    <PortalFrame label="Exhibitor page" toaster={sells}>
+      {tabs}
       <PortalHead eyebrow="Your private exhibitor link" title="Set up your page">
         Your spot on The Alley&apos;s Exhibitors page: your bio, a profile photo and photos of your work. Changes go live on
         our website right away.

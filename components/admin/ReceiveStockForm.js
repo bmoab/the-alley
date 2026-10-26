@@ -49,6 +49,7 @@ export default function ReceiveStockForm({
             name: l.item_id ? "" : l.name,
             // The maker's group for something new rides along unseen.
             group: l.item_id ? "" : l.item_group || "",
+            photo: l.item_id ? "" : l.photo || "",
             qty: String(l.qty),
             price: String(l.price),
           })
@@ -166,12 +167,18 @@ export default function ReceiveStockForm({
                     </Select>
                   ) : null}
                   {!r.itemId ? (
-                    <input
-                      value={r.name}
-                      onChange={(e) => update(r.key, { name: e.target.value })}
-                      placeholder="e.g. Silver leaf necklace"
-                      className="field"
-                    />
+                    <div className="flex items-center gap-2">
+                      {r.photo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={r.photo} alt="Their photo" className="h-10 w-10 shrink-0 rounded-md object-cover" />
+                      ) : null}
+                      <input
+                        value={r.name}
+                        onChange={(e) => update(r.key, { name: e.target.value })}
+                        placeholder="e.g. Silver leaf necklace"
+                        className="field"
+                      />
+                    </div>
                   ) : null}
                 </div>
                 <div className="sm:col-span-2">

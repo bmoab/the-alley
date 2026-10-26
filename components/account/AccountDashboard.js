@@ -166,7 +166,7 @@ export default function AccountDashboard({ account, mine, inbox, makerStats = {}
       const o = makerStats[m.id] || { onShelf: 0, soFarThisMonth: 0, due: 0, waiting: false };
       const waiting = o.waiting;
       return (
-        <Tile key={`m${m.id}`} wide={wide} href={go(`/account/consign/${m.id}`, "consign", m.id)} icon={Package} eyebrow="Consignment" title={m.name}>
+        <Tile key={`m${m.id}`} wide={wide} href={go(`/account/consign/${m.id}`, "consign", m.id)} icon={Package} eyebrow={m.artist ? "Art sales" : "Consignment"} title={m.name}>
           <div className="ac-figures">
             <div className="ac-figure">
               <b>{o.onShelf}</b>

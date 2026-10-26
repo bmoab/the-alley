@@ -109,18 +109,19 @@
 
 /* ---------- segmented choice (password / email link) ---------- */
 .ac-seg { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--line); margin-bottom: 26px; }
-.ac-seg button {
+.ac-seg :is(button, a) {
   position: relative; padding: 0 0 14px; background: none; border: 0; cursor: pointer;
   font: inherit; font-size: 11px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-muted);
   transition: color .2s;
 }
-.ac-seg button:hover { color: var(--ink); }
-.ac-seg button[aria-pressed="true"] { color: var(--ink); }
-.ac-seg button::after {
+.ac-seg :is(button, a):hover { color: var(--ink); }
+.ac-seg :is(button[aria-pressed="true"], a[aria-current="page"]) { color: var(--ink); }
+.ac-seg :is(button, a)::after {
   content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--ink);
   transform: scaleX(0); transition: transform .35s var(--ac-ease);
 }
-.ac-seg button[aria-pressed="true"]::after { transform: scaleX(1); }
+.ac-seg :is(button[aria-pressed="true"], a[aria-current="page"])::after { transform: scaleX(1); }
+.ac-seg a { display: block; text-align: center; }
 
 .ac-collapse { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .35s var(--ac-ease), opacity .25s; }
 .ac-collapse > div { overflow: hidden; }

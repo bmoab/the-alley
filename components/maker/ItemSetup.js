@@ -1,11 +1,12 @@
 "use client";
 import { useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
+import PhotoPick from "./PhotoPick.js";
 
 /**
- * Sort items into groups (optional) and, on the maker's own page, put in what
- * each costs them to make (optional, private to them). A group's cost box
- * fills every item in it. The server re-checks the items are theirs
+ * Sort items into groups, add a photo of each and, on the maker's own page,
+ * put in what each costs them to make (private to them) — all optional. A
+ * group's cost box fills every item in it. The server re-checks the items are theirs
  * (lib/inventory.js saveItemSetup); groups never reach Square.
  */
 
@@ -24,7 +25,7 @@ function Save({ label }) {
 
 export default function ItemSetup({ items, suggestions = [], hidden, action, groupAction, showCost = false, listId = "item-groups" }) {
   const [rows, setRows] = useState(() =>
-    items.map((i) => ({ id: i.id, name: i.name, saved: i.group || "", group: i.group || "", cost: i.cost != null ? String(i.cost) : "" }))
+    items.map((i) => ({ id: i.id, name: i.name, saved: i.group || "", group: i.group || "", photo: i.photo || "", cost: i.cost != null ? String(i.cost) : "" }))
   );
   const update = (id, patch) => setRows((list) => list.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   const groupNames = useMemo(
@@ -89,31 +90,38 @@ export default function ItemSetup({ items, suggestions = [], hidden, action, gro
             </div>
             <ul className="divide-y divide-line">
               {s.rows.map((r) => (
-                <li key={r.id} className={`grid gap-2 px-3 py-2 ${showCost ? "grid-cols-[minmax(0,1fr)_7rem]" : "grid-cols-1"} sm:items-center ${showCost ? "sm:grid-cols-[minmax(0,1fr)_12rem_7rem]" : "sm:grid-cols-[minmax(0,1fr)_14rem]"}`}>
-                  <span className={`min-w-0 text-sm text-ink ${showCost ? "col-span-2 sm:col-span-1" : ""}`}>{r.name}</span>
-                  <input
-                    value={r.group}
-                    onChange={(e) => update(r.id, { group: e.target.value })}
-                    list={listId}
-                    maxLength={60}
-                    placeholder="Group (optional)"
-                    aria-label={`Group for ${r.name}`}
-                    className="field !h-9 text-sm"
-                  />
-                  {showCost ? (
-                    <span className="relative">
-                      <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-ink-muted">$</span>
-                      <input
-                        value={r.cost}
-                        onChange={(e) => update(r.id, { cost: e.target.value })}
-                        inputMode="decimal"
-                        placeholder="Cost"
-                        aria-label={`Your cost for ${r.name}`}
-                        className="field !h-9 text-sm"
-                        style={{ paddingLeft: 22 }}
-                      />
-                    </span>
-                  ) : null}
+                <li key={r.id} className="flex gap-3 px-3 py-2">
+                  <PhotoPick value={r.photo} onChange={(photo) => update(r.id, { photo })} label={`photo of ${r.name}`} />
+                  <div
+                    className={`grid min-w-0 flex-1 gap-2 sm:items-center ${
+                      showCost ? "grid-cols-[minmax(0,1fr)_6.5rem] sm:grid-cols-[minmax(0,1fr)_12rem_7rem]" : "grid-cols-1 sm:grid-cols-[minmax(0,1fr)_14rem]"
+                    }`}
+                  >
+                    <span className={`min-w-0 text-sm text-ink ${showCost ? "col-span-2 sm:col-span-1" : ""}`}>{r.name}</span>
+                    <input
+                      value={r.group}
+                      onChange={(e) => update(r.id, { group: e.target.value })}
+                      list={listId}
+                      maxLength={60}
+                      placeholder="Group (optional)"
+                      aria-label={`Group for ${r.name}`}
+                      className="field !h-9 text-sm"
+                    />
+                    {showCost ? (
+                      <span className="relative">
+                        <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-ink-muted">$</span>
+                        <input
+                          value={r.cost}
+                          onChange={(e) => update(r.id, { cost: e.target.value })}
+                          inputMode="decimal"
+                          placeholder="Cost"
+                          aria-label={`Your cost for ${r.name}`}
+                          className="field !h-9 text-sm"
+                          style={{ paddingLeft: 22 }}
+                        />
+                      </span>
+                    ) : null}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -123,8 +131,8 @@ export default function ItemSetup({ items, suggestions = [], hidden, action, gro
           <Save label="Save" />
           <p className="text-xs text-ink-muted">
             {showCost
-              ? "Both are optional. Your costs are private: only you see them, and they don't change what you're paid."
-              : "Optional. Groups only sort their sales here; nothing changes in Square or on the price tags."}
+              ? "All optional. Your costs are private: only you see them, and they don't change what you're paid."
+              : "All optional. Groups only sort their sales here; nothing changes in Square or on the price tags."}
           </p>
         </div>
       </form>

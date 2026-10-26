@@ -9,6 +9,7 @@ import {
   needsTerms,
   pickupDays,
   termsAreDraft,
+  artistForVendor,
 } from "@/lib/inventory.js";
 import { getSetting } from "@/lib/db.js";
 import { formatDateShort, formatMoney } from "@/lib/constants.js";
@@ -57,6 +58,7 @@ function MakerCard({ v, owedNow, soFar }) {
           ) : soFar ? (
             <span className="rounded-full bg-paper-warm px-2.5 py-0.5 text-xs text-ink-muted">{formatMoney(soFar)} so far</span>
           ) : null}
+          {artistForVendor(v) ? <Badge tone="sky">Gallery artist</Badge> : null}
           {v.is_active && needsTerms(v) ? <Badge tone="warning">Terms not agreed</Badge> : null}
           {!v.is_active ? <Badge tone="neutral">Inactive</Badge> : null}
         </span>

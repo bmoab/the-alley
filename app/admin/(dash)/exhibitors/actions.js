@@ -4,7 +4,9 @@ import { redirect } from "next/navigation";
 import { createExhibitor, updateExhibitor, deleteExhibitor, getExhibitor, ensureExhibitorToken } from "@/lib/catalog.js";
 import { setAgreementEnds, linkExhibitorToMaker, makerForExhibitor } from "@/lib/agreement-reminders.js";
 import { emailExhibitorInvite } from "@/lib/email.js";
-import { requireAdmin } from "@/lib/auth.js";
+import { requireAdmin, getActor } from "@/lib/auth.js";
+import { startSellingArtist } from "@/lib/inventory.js";
+import { logActivity } from "@/lib/activity.js";
 
 /**
  * Exhibitor actions. The section editors on an artist's page each save only
@@ -79,6 +81,31 @@ export async function saveShop(formData) {
   revalidatePath("/admin/vendors");
   refresh(id);
   return { ok: true };
+}
+
+/**
+ * Their work is for sale in the shop: give them a maker record (drop-offs,
+ * tags, the register, sales and payouts), linked to this listing.
+ */
+export async function startSelling(formData) {
+  await requireAdmin();
+  const id = Number(formData.get("id"));
+  let vendor;
+  try {
+    vendor = startSellingArtist(id);
+  } catch (err) {
+    redirect(`/admin/exhibitors/${id}?toast=${encodeURIComponent(err.message)}&toastType=error`);
+  }
+  const e = getExhibitor(id);
+  // One agreement, one date, as when they're linked by hand.
+  const date = e.active_until || vendor.agreement_ends;
+  if (date) setAgreementEnds("artist", id, date);
+  logActivity({ eventType: "vendor_added", description: `Started selling ${e.name}'s art in the shop`, ...(await getActor()) });
+  revalidatePath("/admin/vendors");
+  refresh(id);
+  redirect(
+    `/admin/exhibitors/${id}?toast=${encodeURIComponent(`Ready. ${e.name} can list art for sale on their private link.`)}&toastType=success#selling`
+  );
 }
 
 export async function makeLink(formData) {

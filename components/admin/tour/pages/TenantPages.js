@@ -293,7 +293,7 @@ function SalesTable({ lines }) {
   );
 }
 
-/** Sample shop for Wild Oat Candles, matching the tour's maker numbers (20 on the shelf, $128.40 this month, $274.40 paid). */
+/** Sample shop for Wild Oat Candles, matching the tour's maker numbers (20 on the shelf, $110.06 this month, $235.20 paid). */
 function makerSample() {
   const today = venueToday();
   const monthStart = `${today.slice(0, 8)}01`;
@@ -304,7 +304,7 @@ function makerSample() {
   };
   const lastMonth = (k) => shiftDate(monthStart, { days: -k });
   const r2 = (n) => Math.round(n * 100) / 100;
-  const line = (id, dayYmd, name, qty, net) => ({ id, day: dayYmd, name, qty, net, share: r2(net * 0.7) });
+  const line = (id, dayYmd, name, qty, net) => ({ id, day: dayYmd, name, qty, net, share: r2(net * 0.6) });
 
   const items = [
     { id: 1, name: "Juniper & Sage, 8 oz", price: 24, left: 4, sold: 11, since: shiftDate(today, { days: -64 }) },
@@ -314,7 +314,7 @@ function makerSample() {
     { id: 5, name: "Fireside travel tin", price: 14, left: 4, sold: 10, since: shiftDate(today, { days: -40 }) },
     { id: 6, name: "Wild Oat taper set", price: 18, left: 2, sold: 6, since: shiftDate(today, { days: -21 }) },
   ];
-  // Sold for 183.43 → 128.40 yours at 70%.
+  // Sold for 183.43 → 110.06 yours at 60%.
   const salesThisMonth = [
     line(11, thisMonth(1), "Juniper & Sage, 8 oz", 2, 48),
     line(12, thisMonth(2), "Cedar Smoke, 8 oz", 1, 28),
@@ -324,7 +324,7 @@ function makerSample() {
     line(16, thisMonth(10), "Fireside travel tin", 1, 14),
     line(17, thisMonth(12), "Wild Oat taper set", 1, 17.43),
   ];
-  // Sold for 392.00 → 274.40 yours, paid early this month.
+  // Sold for 392.00 → 235.20 yours, paid early this month.
   const salesLastMonth = [
     line(1, lastMonth(3), "Juniper & Sage, 8 oz", 2, 48),
     line(2, lastMonth(6), "Cedar Smoke, 8 oz", 2, 56),
@@ -336,8 +336,8 @@ function makerSample() {
     line(8, lastMonth(25), "Wild Oat taper set", 2, 36),
   ];
   const payouts = [
-    { id: 2, paid_on: shiftDate(monthStart, { days: 2 }) <= today ? shiftDate(monthStart, { days: 2 }) : today, through: lastMonthEnd, method: "Venmo @willa-oates", amount: 274.4 },
-    { id: 1, paid_on: shiftDate(monthStart, { months: -1, days: 2 }), through: shiftDate(shiftDate(monthStart, { months: -1 }), { days: -1 }), method: "Venmo @willa-oates", amount: 241.5 },
+    { id: 2, paid_on: shiftDate(monthStart, { days: 2 }) <= today ? shiftDate(monthStart, { days: 2 }) : today, through: lastMonthEnd, method: "Venmo @willa-oates", amount: 235.2 },
+    { id: 1, paid_on: shiftDate(monthStart, { months: -1, days: 2 }), through: shiftDate(shiftDate(monthStart, { months: -1 }), { days: -1 }), method: "Venmo @willa-oates", amount: 207 },
   ];
   const dropoffs = [
     { id: 2, created_at: day(-2), units: 12, value: 288, status: "submitted" },
@@ -375,7 +375,7 @@ function makerInsightsSample(o) {
     }
     return byItem;
   };
-  const all = Object.fromEntries(o.items.map((i) => [i.id, { qty: i.sold, net: i.sold * i.price, share: r2(i.sold * i.price * 0.7) }]));
+  const all = Object.fromEntries(o.items.map((i) => [i.id, { qty: i.sold, net: i.sold * i.price, share: r2(i.sold * i.price * 0.6) }]));
   const share = (lines) => r2(lines.reduce((t, l) => t + l.share, 0));
   const qty = (lines) => lines.reduce((t, l) => t + l.qty, 0);
   const thisMonth = `${venueToday().slice(0, 8)}01`;
@@ -384,7 +384,7 @@ function makerInsightsSample(o) {
     const label = new Date(`${start}T12:00:00`).toLocaleDateString("en-US", { month: "short" });
     if (k === 11) return { ym: start.slice(0, 7), label, qty: qty(o.salesThisMonth), share: share(o.salesThisMonth) };
     if (k === 10) return { ym: start.slice(0, 7), label, qty: qty(o.salesLastMonth), share: share(o.salesLastMonth) };
-    if (k === 9) return { ym: start.slice(0, 7), label, qty: 14, share: 241.5 };
+    if (k === 9) return { ym: start.slice(0, 7), label, qty: 14, share: 207 };
     return { ym: start.slice(0, 7), label, qty: 0, share: 0 };
   });
   return {
@@ -403,7 +403,7 @@ function makerInsightsSample(o) {
 export function TourConsign({ m }) {
   const o = makerSample();
   const insights = makerInsightsSample(o);
-  const stats = m.makerStats?.[1] || { onShelf: 20, soFarThisMonth: 128.4, due: 274.4 };
+  const stats = m.makerStats?.[1] || { onShelf: 20, soFarThisMonth: 110.06, due: 235.2 };
   const monthName = new Date(`${o.lastMonthEnd}T12:00:00`).toLocaleDateString("en-US", { month: "long" });
   const thisYear = venueToday().slice(0, 4);
   const sum = (lines) => lines.reduce((t, l) => t + l.share, 0);
@@ -418,7 +418,7 @@ export function TourConsign({ m }) {
             <p className="ac-eyebrow ac-date ac-rise">Consignment</p>
             <h1 className="ac-title ac-rise ac-rise-1">Wild Oat Candles</h1>
             <p className="ac-lede ac-rise ac-rise-2">
-              You get 70% of every sale, paid monthly for the month before. Sales updated{" "}
+              You get 60% of every sale, paid monthly for the month before. Sales updated{" "}
               {formatDateShort(venueToday())}, 6:00 AM.
             </p>
           </header>

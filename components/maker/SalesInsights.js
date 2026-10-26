@@ -50,7 +50,7 @@ function Figure({ label, value, hint }) {
   );
 }
 
-function Line({ name, sub, t, max, showCost, top, children, open, onToggle }) {
+function Line({ name, sub, t, max, showCost, top, photo, children, open, onToggle }) {
   const Head = onToggle ? "button" : "div";
   return (
     <li className="py-2.5">
@@ -58,7 +58,11 @@ function Line({ name, sub, t, max, showCost, top, children, open, onToggle }) {
         {...(onToggle ? { type: "button", onClick: onToggle, "aria-expanded": open } : {})}
         className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-1 text-left ${onToggle ? "group cursor-pointer" : ""}`}
       >
-        <span className="min-w-0 text-sm text-ink">
+        <span className="flex min-w-0 items-center gap-2 text-sm text-ink">
+          {photo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photo} alt="" className="h-7 w-7 shrink-0 rounded object-cover" />
+          ) : null}
           <span className={onToggle ? "font-semibold group-hover:underline" : t.qty ? "" : "text-ink-muted"}>{name}</span>
           {top ? (
             <span className="ml-2 bg-verde px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-ink">Best</span>
@@ -193,11 +197,12 @@ export default function SalesInsights({ items, periods, months, whose = "your", 
                   max={Math.max(1, ...e.children.map((x) => x.t.qty))}
                   showCost={showCost}
                   top={idx === 0 && c.t.qty > 0 && e.children.length > 1}
+                  photo={c.item.photo}
                 />
               ))}
             </Line>
           ) : (
-            <Line key={e.key} name={e.name} sub={subFor(e)} t={e.t} max={max} showCost={showCost} />
+            <Line key={e.key} name={e.name} sub={subFor(e)} t={e.t} max={max} showCost={showCost} photo={e.item.photo} />
           )
         )}
       </ul>

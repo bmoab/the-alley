@@ -136,7 +136,7 @@ function ExhibitorCard({ ex }) {
             <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800">Reminder due</span>
           ) : null}
           {ex.maker ? (
-            <span className="rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-800">Also a maker</span>
+            <span className="rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-800">Sells in the shop</span>
           ) : null}
         </div>
       </div>

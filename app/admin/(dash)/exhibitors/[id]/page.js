@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarRange, Eye, Handshake, KeyRound, Mail, Palette, UserRound } from "lucide-react";
+import { CalendarRange, Eye, Handshake, KeyRound, Mail, PackageOpen, PackagePlus, Palette, Store, UserRound, Wallet } from "lucide-react";
 import { getExhibitor, parseExhibitorLinks } from "@/lib/catalog.js";
 import { REMINDERS, makerForExhibitor } from "@/lib/agreement-reminders.js";
-import { listVendors } from "@/lib/inventory.js";
+import { listVendors, listItems, listSales, listDropoffs, consignorBalances, payoutCutoff, splitFor } from "@/lib/inventory.js";
 import { db } from "@/lib/db.js";
-import { formatDateShort, venueDayOf } from "@/lib/constants.js";
+import { formatDateShort, formatMoney, venueDayOf } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Badge from "@/components/admin/ui/Badge.js";
 import Button from "@/components/admin/ui/Button.js";
@@ -15,7 +15,7 @@ import Toggle from "@/components/admin/ui/Toggle.js";
 import Select from "@/components/admin/ui/Select.js";
 import ConfirmButton from "@/components/admin/ui/ConfirmButton.js";
 import { requireAdmin } from "@/lib/auth.js";
-import { saveArtist, saveOnView, saveShop, makeLink, emailLink, removeExhibitor } from "../actions.js";
+import { saveArtist, saveOnView, saveShop, startSelling, makeLink, emailLink, removeExhibitor } from "../actions.js";
 import { exhibitorStatus, exhibitorPhoto, agreementState, initials } from "../shared.js";
 
 const APP_URL = process.env.APP_URL || "";
@@ -60,6 +60,20 @@ export default async function ExhibitorPage({ params }) {
     ? !!db.prepare("SELECT 1 FROM accounts WHERE lower(email) = ? AND email_verified_at IS NOT NULL").get(email)
     : false;
   const hidden = { id };
+  // Their art for sale: the same consignment as a maker's, through their maker record.
+  const selling = maker?.is_active
+    ? (() => {
+        const cutoff = payoutCutoff();
+        return {
+          onWall: listItems({ vendorId: maker.id, status: "all" }).reduce((t, i) => t + Math.max(0, i.qty_on_hand), 0),
+          sold: listSales({ vendorId: maker.id, kind: "retail" }).reduce((t, l) => t + Number(l.qty), 0),
+          due: consignorBalances({ through: cutoff })[maker.id]?.owed || 0,
+          cutoff,
+          waiting: listDropoffs({ vendorId: maker.id, status: "submitted" }),
+          split: splitFor(null, maker),
+        };
+      })()
+    : null;
 
   return (
     <div>
@@ -127,7 +141,8 @@ export default async function ExhibitorPage({ params }) {
               <KeyRound className="h-4 w-4" aria-hidden="true" /> Their private link
             </h2>
             <p className="mt-2 text-sm text-ink-soft">
-              {ex.name} uses this to add their bio, a portrait and photos of their work. Their changes go live right away.
+              {ex.name} uses this to add their bio, a portrait and photos of their work
+              {selling ? ", and to list art for sale and see their sales and payouts" : ""}. Their changes go live right away.
             </p>
             {link ? (
               <>
@@ -144,6 +159,65 @@ export default async function ExhibitorPage({ params }) {
                 <input type="hidden" name="id" value={id} />
                 <Button type="submit" size="sm">Make their link</Button>
               </form>
+            )}
+          </section>
+
+          {/* Their art for sale */}
+          <section id="selling" className={selling ? "card p-5" : "card border-verde-deep/40 p-5"}>
+            <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-ink-muted">
+              <Store className="h-4 w-4" aria-hidden="true" /> Selling their art
+            </h2>
+            {selling ? (
+              <>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <div className="rounded-xl bg-paper-warm px-3 py-2.5">
+                    <p className="text-xl font-semibold tabular-nums text-ink">{selling.onWall}</p>
+                    <p className="text-xs text-ink-muted">In the gallery</p>
+                  </div>
+                  <div className="rounded-xl bg-paper-warm px-3 py-2.5">
+                    <p className="text-xl font-semibold tabular-nums text-ink">{selling.sold}</p>
+                    <p className="text-xs text-ink-muted">Sold</p>
+                  </div>
+                  <div className={selling.due ? "rounded-xl bg-verde/50 px-3 py-2.5" : "rounded-xl bg-paper-warm px-3 py-2.5"}>
+                    <p className="text-xl font-semibold tabular-nums text-ink">{formatMoney(selling.due)}</p>
+                    <p className="text-xs text-ink-muted">Due now</p>
+                  </div>
+                </div>
+                <p className="mt-3 text-sm text-ink-soft">
+                  {selling.split}% of each sale goes to them, paid monthly. They list art for sale, and see their sales and
+                  payouts, on the Sales &amp; payouts tab of their private link.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button href={`/admin/vendors/${maker.id}`} size="sm" variant="accent" icon={Wallet}>
+                    Sales, payouts and pieces
+                  </Button>
+                  {selling.waiting.length ? (
+                    <Button href={`/admin/inventory/receive?dropoff=${selling.waiting[0].id}`} size="sm" variant="ghost" icon={PackageOpen}>
+                      Count in their drop-off ({selling.waiting[0].units})
+                    </Button>
+                  ) : (
+                    <Button href={`/admin/inventory/receive?vendor=${maker.id}`} size="sm" variant="ghost" icon={PackagePlus}>
+                      Receive art from them
+                    </Button>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="mt-2 text-sm text-ink-soft">
+                  Selling their work in the shop? Start here. They get everything a maker has: list pieces for sale on their
+                  private link, price tags with barcodes, the register, their sales and a monthly payout.
+                </p>
+                <form action={startSelling} className="mt-3">
+                  <input type="hidden" name="id" value={id} />
+                  <Button type="submit" size="sm" variant="accent" icon={Store}>
+                    Start selling their art
+                  </Button>
+                </form>
+                <p className="mt-2 text-xs text-ink-muted">
+                  Already a maker under another name? Link them under In the shop instead.
+                </p>
+              </>
             )}
           </section>
 

@@ -12,6 +12,8 @@ import {
   groupByName,
 } from "@/lib/inventory.js";
 import { logActivity } from "@/lib/activity.js";
+import { getExhibitorByToken } from "@/lib/catalog.js";
+import { makerForExhibitor } from "@/lib/agreement-reminders.js";
 
 /**
  * Who's acting, from the form: a maker's private link (token) or a signed-in
@@ -19,6 +21,15 @@ import { logActivity } from "@/lib/activity.js";
  * hidden fields are only a pointer, never trusted on their own.
  */
 async function resolveMaker(formData) {
+  // A gallery artist on their exhibitor link, acting as their maker record.
+  const artistToken = (formData.get("artist") || "").toString();
+  if (artistToken) {
+    const ex = getExhibitorByToken(artistToken);
+    const vendor = ex ? makerForExhibitor(ex) : null;
+    return vendor?.is_active
+      ? { vendor, back: `/exhibitor/${artistToken}?tab=sales`, by: `${ex.name} (private link)` }
+      : null;
+  }
   const token = (formData.get("token") || "").toString();
   if (token) {
     const vendor = getVendorByToken(token);
@@ -30,8 +41,8 @@ async function resolveMaker(formData) {
 }
 
 function go(back, message, type = "success", hash = "") {
-  revalidatePath(back);
-  redirect(`${back}?toast=${encodeURIComponent(message)}&toastType=${type}${hash}`);
+  revalidatePath(back.split("?")[0]);
+  redirect(`${back}${back.includes("?") ? "&" : "?"}toast=${encodeURIComponent(message)}&toastType=${type}${hash}`);
 }
 
 export async function agreeToTerms(formData) {
