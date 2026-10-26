@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PortalHead } from "@/components/account/PortalFrame.js";
 import { TenantBillsCard } from "@/components/account/TenantBills.js";
+import CalendarSubscribe from "@/components/account/CalendarSubscribe.js";
 import DirectoryEditForm from "@/components/DirectoryEditForm.js";
 import ExhibitorEditForm from "@/components/ExhibitorEditForm.js";
 import DropoffForm from "@/components/maker/DropoffForm.js";
@@ -10,7 +11,7 @@ import Badge from "@/components/admin/ui/Badge.js";
 import Button from "@/components/admin/ui/Button.js";
 import { tourHref } from "@/lib/account-tour.js";
 import { tourNoop } from "@/components/admin/tour/actions.js";
-import { venueToday, shiftDate, formatDate, formatDateShort, formatMoney, formatTime } from "@/lib/constants.js";
+import { venueToday, shiftDate, formatDate, formatDateShort, formatMoney, formatTime, calendarFeedUrl } from "@/lib/constants.js";
 
 /**
  * The account tour's sample pages for a tenant's business listing, a gallery
@@ -68,6 +69,10 @@ export function TourBusiness({ m }) {
 
       <div style={{ marginTop: 28 }}>
         <TenantBillsCard bills={bills} />
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <CalendarSubscribe feedUrl={calendarFeedUrl()} />
       </div>
 
       <div style={{ marginTop: 36 }}>

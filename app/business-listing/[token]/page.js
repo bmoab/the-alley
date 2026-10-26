@@ -13,11 +13,12 @@ import {
   deleteTenantEvent,
 } from "@/lib/catalog.js";
 import { saveUpload } from "@/lib/uploads.js";
-import { formatDate, formatTime, venueToday } from "@/lib/constants.js";
+import { formatDate, formatTime, venueToday, calendarFeedUrl } from "@/lib/constants.js";
 import DirectoryEditForm from "@/components/DirectoryEditForm.js";
 import AccountNudge from "@/components/account/AccountNudge.js";
 import PortalFrame, { PortalHead, PortalMissing } from "@/components/account/PortalFrame.js";
 import TenantBills from "@/components/account/TenantBills.js";
+import CalendarSubscribe from "@/components/account/CalendarSubscribe.js";
 
 export const metadata = { title: "Set up your business listing" };
 
@@ -139,6 +140,10 @@ export default function BusinessListingPage({ params, searchParams }) {
 
         <div style={{ marginTop: 28 }}>
           <TenantBills directoryId={entry.id} />
+        </div>
+
+        <div style={{ marginTop: 20 }}>
+          <CalendarSubscribe feedUrl={calendarFeedUrl()} />
         </div>
 
         <div style={{ marginTop: 36 }}>

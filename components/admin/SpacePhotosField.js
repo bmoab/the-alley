@@ -1,6 +1,9 @@
 "use client";
 import { useState } from "react";
 import { ArrowLeft, ArrowRight, X } from "lucide-react";
+import { parseCrop } from "@/lib/crop.js";
+import CroppedImg from "@/components/site/CroppedImg.js";
+import CropButton from "./CropButton.js";
 
 async function uploadFile(file) {
   const fd = new FormData();
@@ -15,7 +18,7 @@ async function uploadFile(file) {
 function parse(value) {
   try {
     const list = JSON.parse(value || "[]");
-    return Array.isArray(list) ? list.filter((p) => p?.path) : [];
+    return Array.isArray(list) ? list.filter((p) => p?.path).map((p) => ({ ...p, crop: parseCrop(p.crop) })) : [];
   } catch {
     return [];
   }
@@ -24,8 +27,9 @@ function parse(value) {
 /**
  * A room's photos in the Pages editor: a small gallery to add, remove, caption
  * and reorder (drag, or the arrows). The FIRST photo is the main one — the big
- * photo on the Spaces page and the room's card on the homepage. Posts the list
- * as JSON [{ path, caption }] under `name`; Save writes it to the room.
+ * photo on the Spaces page and the room's card on the homepage. Each can be
+ * cropped. Posts the list as JSON [{ path, caption, crop }] under `name`; Save
+ * writes it to the room.
  */
 export default function SpacePhotosField({ name, label, value }) {
   const [photos, setPhotos] = useState(() => parse(value));
@@ -52,7 +56,7 @@ export default function SpacePhotosField({ name, label, value }) {
     for (const file of files) {
       try {
         const path = await uploadFile(file);
-        setPhotos((list) => [...list, { path, caption: "" }]);
+        setPhotos((list) => [...list, { path, caption: "", crop: null }]);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -64,7 +68,11 @@ export default function SpacePhotosField({ name, label, value }) {
   return (
     <div className="card p-5">
       <label className="label">{label}</label>
-      <input type="hidden" name={name} value={JSON.stringify(photos.map((p) => ({ path: p.path, caption: p.caption || "" })))} />
+      <input
+        type="hidden"
+        name={name}
+        value={JSON.stringify(photos.map((p) => ({ path: p.path, caption: p.caption || "", crop: p.crop ? JSON.stringify(p.crop) : "" })))}
+      />
 
       {photos.length ? (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -97,8 +105,12 @@ export default function SpacePhotosField({ name, label, value }) {
               } ${dragFrom === i ? "opacity-50" : ""}`}
             >
               <div className="relative aspect-[4/3] cursor-grab bg-paper-warm active:cursor-grabbing">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.path} alt="" draggable={false} className="h-full w-full select-none object-cover" />
+                {p.crop ? (
+                  <CroppedImg src={p.path} crop={p.crop} className="h-full w-full select-none" />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.path} alt="" draggable={false} className="h-full w-full select-none object-cover" />
+                )}
                 <div className="absolute inset-x-1 top-1 flex justify-between opacity-100 sm:opacity-0 sm:transition sm:group-hover:opacity-100">
                   <span className="flex gap-1">
                     <IconButton label="Move earlier" onClick={() => move(i, i - 1)} disabled={i === 0}>
@@ -124,6 +136,14 @@ export default function SpacePhotosField({ name, label, value }) {
                   Make main
                 </button>
               )}
+              <div className="flex justify-center border-t border-line bg-paper px-2 py-1.5">
+                <CropButton
+                  src={p.path}
+                  crop={p.crop}
+                  onChange={(crop) => setPhotos((list) => list.map((x, j) => (j === i ? { ...x, crop } : x)))}
+                  help="Drag inside the box to move it, or a corner or edge to resize it. Nothing outside the box shows on the Spaces page or the homepage; where a frame is a different shape, the box's edges may be trimmed slightly. The full-size view still shows the whole photo."
+                />
+              </div>
               <input
                 value={p.caption || ""}
                 onChange={(e) => {

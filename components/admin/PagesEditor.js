@@ -254,6 +254,7 @@ export default function PagesEditor({ slug, route, label, fields, values, saved,
                 framing={f.kind === "framing"}
                 pos={values[`${f.key}_pos`] || "50% 50%"}
                 fit={values[`${f.key}_fit`] || "cover"}
+                crop={values[`${f.key}_crop`] || ""}
               />
             )}
           </div>

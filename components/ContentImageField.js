@@ -1,5 +1,8 @@
 "use client";
 import { useRef, useState } from "react";
+import { parseCrop } from "@/lib/crop.js";
+import CroppedImg from "@/components/site/CroppedImg.js";
+import CropButton from "@/components/admin/CropButton.js";
 
 async function uploadFile(file) {
   const fd = new FormData();
@@ -22,6 +25,7 @@ const HEIGHTS = [
  * optionally captures how the photo should be shown on the site:
  *   - `${name}_fit`  cover | contain   ("show the whole photo" = contain)
  *   - `${name}_pos`  "x% y%"           focal point kept in view when cropping
+ *   - `${name}_crop` a crop box (lib/crop.js) — exactly what shows; wins over the focal point
  *   - `${name}_h`    px                banner height (framing + height only)
  * The live preview mirrors the site so the owner sees the actual crop. Lives
  * inside a server-component form; all values post via hidden inputs.
@@ -36,6 +40,7 @@ export default function ContentImageField({
   pos = "50% 50%",
   fit = "cover",
   heightPx = 440,
+  crop: cropValue = "",
 }) {
   const [path, setPath] = useState(value || "");
   const [uploading, setUploading] = useState(false);
@@ -43,6 +48,7 @@ export default function ContentImageField({
   const [objectPos, setObjectPos] = useState(pos || "50% 50%");
   const [whole, setWhole] = useState(fit === "contain");
   const [h, setH] = useState(Number(heightPx) || 440);
+  const [crop, setCrop] = useState(() => parseCrop(cropValue));
   const previewRef = useRef(null);
 
   const [px, py] = objectPos.split(" ").map((v) => parseFloat(v) || 50);
@@ -55,6 +61,7 @@ export default function ContentImageField({
     setUploading(true);
     try {
       setPath(await uploadFile(file));
+      setCrop(null); // a new photo starts uncropped
     } catch (err) {
       setError(err.message);
     } finally {
@@ -65,7 +72,7 @@ export default function ContentImageField({
   // Click / drag the preview to set the focal point (only meaningful when the
   // photo is being cropped to fill — "show whole photo" disables it).
   function setFocusFromEvent(e) {
-    if (whole || !previewRef.current) return;
+    if (whole || crop || !previewRef.current) return;
     const r = previewRef.current.getBoundingClientRect();
     const x = Math.min(100, Math.max(0, ((e.clientX - r.left) / r.width) * 100));
     const y = Math.min(100, Math.max(0, ((e.clientY - r.top) / r.height) * 100));
@@ -82,6 +89,7 @@ export default function ContentImageField({
         <>
           <input type="hidden" name={`${name}_fit`} value={objectFit} />
           <input type="hidden" name={`${name}_pos`} value={objectPos} />
+          <input type="hidden" name={`${name}_crop`} value={crop && !whole ? JSON.stringify(crop) : ""} />
         </>
       ) : null}
       {height ? <input type="hidden" name={`${name}_h`} value={h} /> : null}
@@ -96,18 +104,22 @@ export default function ContentImageField({
             // Preview at the site's shape: for the banner use the chosen height
             // (scaled down a touch), else a standard 10rem strip.
             height: height ? Math.round((Number(h) || 440) * 0.42) : 160,
-            cursor: framing && !whole ? "crosshair" : "default",
+            cursor: framing && !whole && !crop ? "crosshair" : "default",
           }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={path}
-            alt={`${label} preview`}
-            className="h-full w-full select-none"
-            draggable={false}
-            style={{ objectFit, objectPosition: objectPos }}
-          />
-          {framing && !whole ? (
+          {framing && crop && !whole ? (
+            <CroppedImg src={path} crop={crop} alt={`${label} preview`} className="h-full w-full select-none" />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={path}
+              alt={`${label} preview`}
+              className="h-full w-full select-none"
+              draggable={false}
+              style={{ objectFit, objectPosition: objectPos }}
+            />
+          )}
+          {framing && !whole && !crop ? (
             <span
               aria-hidden="true"
               className="pointer-events-none absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow"
@@ -133,9 +145,17 @@ export default function ContentImageField({
             Show the whole photo (no cropping)
           </label>
           {!whole ? (
-            <p className="text-xs text-ink-muted">
-              Click or drag on the photo above to choose what stays in view.
-            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <CropButton
+                src={path}
+                crop={crop}
+                onChange={setCrop}
+                help="Drag inside the box to move it, or a corner or edge to resize it. Nothing outside the box shows on the page. The photo's space changes shape a little with the screen, so the box's edges may be trimmed slightly."
+              />
+              <p className="text-xs text-ink-muted">
+                {crop ? "Cropped — the preview shows what's on the page." : "Or click or drag on the photo above to choose what stays in view."}
+              </p>
+            </div>
           ) : null}
           {height ? (
             <div className="flex items-center gap-2 pt-1">

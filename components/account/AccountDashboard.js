@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { CalendarDays, ChevronDown, ChevronRight, Inbox, Megaphone, Package, Palette, Store } from "lucide-react";
 import { TenantBillsCard } from "./TenantBills.js";
+import CalendarSubscribe from "./CalendarSubscribe.js";
 import { StaffScheduleCard } from "./StaffSchedule.js";
 import { tourHref } from "@/lib/account-tour.js";
-import { venueDayOf, formatDate, formatDateShort, formatMoney, venueNow, venueToday } from "@/lib/constants.js";
+import { venueDayOf, formatDate, formatDateShort, formatMoney, venueNow, venueToday, calendarFeedUrl } from "@/lib/constants.js";
 
 const LISTING_STATUS = {
   draft: { cls: "ac-pill--wait", label: "Not finished" },
@@ -265,6 +266,7 @@ export default function AccountDashboard({ account, mine, inbox, makerStats = {}
           ))}
           {schedule ? <StaffScheduleCard ok={schedule.ok} weeks={schedule.weeks} /> : null}
           {tiles.map((render, i) => render(tiles.length % 2 === 1 && i === tiles.length - 1))}
+          {mine.businesses.length ? <CalendarSubscribe feedUrl={calendarFeedUrl()} /> : null}
 
           {mine.listings.length ? (
             <div className="ac-tile ac-tile--wide ac-rise">

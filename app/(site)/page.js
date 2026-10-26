@@ -33,6 +33,7 @@ export default async function HomePage() {
   // rents cheaper than the Main Floor and the Loft.
   const rooms = SPACES.map((s) => {
     const rules = spaceRules(s.id);
+    const lead = listSpacePhotos(s.id)[0];
     return {
       id: s.id,
       name: s.name,
@@ -42,7 +43,8 @@ export default async function HomePage() {
       rateLabel: `$${rules.rate} / hour`,
       tag: `${s.name.toLowerCase()} · ${s.location.toLowerCase()}`,
       // Lead image = the first photo from this space's gallery (single source).
-      image: listSpacePhotos(s.id)[0]?.image_path || null,
+      image: lead?.image_path || null,
+      imageCrop: lead?.crop || null,
     };
   });
 

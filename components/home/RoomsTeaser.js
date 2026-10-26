@@ -12,7 +12,7 @@ export default function RoomsTeaser({ rooms = [] }) {
     <div className="rooms-grid">
       {rooms.map((r, i) => (
         <article key={r.id} className="room reveal">
-          <PhotoSlot src={r.image || null} tag={r.tag} variant={VARIANTS[i % VARIANTS.length]} className="room-photo" />
+          <PhotoSlot src={r.image || null} tag={r.tag} variant={VARIANTS[i % VARIANTS.length]} className="room-photo" crop={r.imageCrop} />
           <div className="room-body">
             <div className="room-meta mono">
               <span>{r.location}</span>

@@ -61,17 +61,17 @@ const TEXT = {
 };
 
 // Photo fields. kind: "crop" = drag a box over the photo (its shape sets the
-// banner's height; also saves `${key}_crop`); "framing" = pick what stays in
-// view (saves `${key}_fit` + `${key}_pos`); "plain" = just the photo.
+// banner's height; also saves `${key}_crop`); "framing" = crop it, or pick what
+// stays in view (saves `${key}_fit` + `${key}_pos` + `${key}_crop`); "plain" = just the photo.
 const IMG = {
   home_hero_image: {
     label: "Hero banner photo (above the headline)",
     hint: "Wide banner across the top of the homepage. Use “Adjust crop” to frame exactly what shows.",
     kind: "crop",
   },
-  about_image: { label: "Story photo (beside the text)", hint: "Click or drag on the photo to choose what stays in view.", kind: "framing" },
+  about_image: { label: "Story photo (beside the text)", hint: "Crop it, or click or drag on the photo to choose what stays in view.", kind: "framing" },
 };
-const IMG_EXTRA = { crop: ["_crop"], framing: ["_fit", "_pos"] };
+const IMG_EXTRA = { crop: ["_crop"], framing: ["_fit", "_pos", "_crop"] };
 
 // Photo galleries: each room's photos (the space_photos table, not page text).
 // Posted as JSON [{ path, caption }]; the first is the room's main photo.
@@ -243,7 +243,9 @@ export default async function PageEditor({ params, searchParams }) {
   const keys = [...page.text, ...page.image.flatMap(imageKeys), ...page.list];
   const values = Object.fromEntries(keys.map((k) => [k, c[k] || ""]));
   for (const key of page.gallery || []) {
-    values[key] = JSON.stringify(listSpacePhotos(GALLERY[key].space).map((p) => ({ path: p.image_path, caption: p.caption || "" })));
+    values[key] = JSON.stringify(
+      listSpacePhotos(GALLERY[key].space).map((p) => ({ path: p.image_path, caption: p.caption || "", crop: p.crop || "" }))
+    );
   }
 
   return (

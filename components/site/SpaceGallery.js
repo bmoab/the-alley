@@ -16,7 +16,7 @@ import Lightbox from "@/components/site/Lightbox.js";
 export default function SpaceGallery({ photos = [], lead = "verde", label = "", editKey }) {
   const real = photos.filter((p) => p.image_path);
   const shots = real.length
-    ? real.map((p) => ({ src: p.image_path, tag: p.caption || "", variant: lead }))
+    ? real.map((p) => ({ src: p.image_path, tag: p.caption || "", variant: lead, crop: p.crop || null }))
     : [{ src: null, tag: "", variant: lead }];
 
   const [sel, setSel] = useState(0);
@@ -33,7 +33,7 @@ export default function SpaceGallery({ photos = [], lead = "verde", label = "", 
           aria-label={cur.tag ? `View ${cur.tag} full size` : "View this photo full size"}
           onClick={() => setLbIndex(index)}
         >
-          <PhotoSlot src={cur.src} tag={cur.tag} variant={cur.variant} className="space-photo" />
+          <PhotoSlot src={cur.src} tag={cur.tag} variant={cur.variant} className="space-photo" crop={cur.crop} />
         </button>
       ) : (
         // Nothing uploaded yet — the placeholder isn't worth enlarging.
@@ -51,7 +51,7 @@ export default function SpaceGallery({ photos = [], lead = "verde", label = "", 
               aria-label={`View ${g.tag || "photo " + (i + 1)}`}
               aria-pressed={i === sel}
             >
-              <PhotoSlot src={g.src || null} tag="" variant={g.variant} showTag={false} />
+              <PhotoSlot src={g.src || null} tag="" variant={g.variant} showTag={false} crop={g.crop} />
             </button>
           ))}
         </div>

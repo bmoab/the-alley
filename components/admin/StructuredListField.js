@@ -17,7 +17,8 @@ import ListImageCell from "./ListImageCell.js";
  * `schema.kind`:
  *   "strings" → each item is a string (one input per row).
  *   "objects" → each item is an object; `schema.fields:[{key,label,placeholder,textarea?,type?}]`.
- *               type "image" = an uploaded photo, stored as `key` + `${key}_pos` (what stays in view).
+ *               type "image" = an uploaded photo, stored as `key` + `${key}_pos` (what stays in view)
+ *               + `${key}_crop` (a crop box, lib/crop.js — wins over the focal point).
  *   "tuples"  → each item is a positional array; `schema.fields:[{label,placeholder,textarea?}]`.
  */
 
@@ -55,7 +56,10 @@ function clean(items, schema) {
       const out = {};
       for (const f of schema.fields) {
         out[f.key] = (o[f.key] || "").trim();
-        if (f.type === "image") out[`${f.key}_pos`] = o[`${f.key}_pos`] || "";
+        if (f.type === "image") {
+          out[`${f.key}_pos`] = o[`${f.key}_pos`] || "";
+          out[`${f.key}_crop`] = o[`${f.key}_crop`] || "";
+        }
       }
       return out;
     })
@@ -125,7 +129,10 @@ export default function StructuredListField({ name, value = "[]", schema, onChan
                           <ListImageCell
                             path={item[f.key] || ""}
                             pos={item[`${f.key}_pos`] || "50% 50%"}
-                            onChange={({ path, pos }) => update(i, { ...items[i], [f.key]: path, [`${f.key}_pos`]: pos })}
+                            crop={item[`${f.key}_crop`] || ""}
+                            onChange={({ path, pos, crop }) =>
+                              update(i, { ...items[i], [f.key]: path, [`${f.key}_pos`]: pos, [`${f.key}_crop`]: crop || "" })
+                            }
                           />
                         ) : (
                           field({

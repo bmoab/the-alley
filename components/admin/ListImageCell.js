@@ -1,5 +1,8 @@
 "use client";
 import { useRef, useState } from "react";
+import { parseCrop } from "@/lib/crop.js";
+import CroppedImg from "@/components/site/CroppedImg.js";
+import CropButton from "./CropButton.js";
 
 async function uploadFile(file) {
   const fd = new FormData();
@@ -15,9 +18,12 @@ async function uploadFile(file) {
  * A photo inside a list item (a founder's portrait, say). The preview is the
  * same size and shape as on the site — `shape` "circle" is the About page's
  * 88px round portrait — and clicking or dragging on it picks what stays in
- * view. Reports { path, pos } through onChange; the list stores them.
+ * view, or Crop frames it exactly (a square box for a round portrait).
+ * Reports { path, pos, crop } through onChange (crop as JSON, "" for none).
  */
-export default function ListImageCell({ path = "", pos = "50% 50%", shape = "circle", onChange }) {
+export default function ListImageCell({ path = "", pos = "50% 50%", crop: cropValue = "", shape = "circle", onChange }) {
+  const crop = parseCrop(cropValue);
+  const cropJson = crop ? JSON.stringify(crop) : "";
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const ref = useRef(null);
@@ -29,7 +35,7 @@ export default function ListImageCell({ path = "", pos = "50% 50%", shape = "cir
     setError("");
     setUploading(true);
     try {
-      onChange({ path: await uploadFile(file), pos: "50% 50%" });
+      onChange({ path: await uploadFile(file), pos: "50% 50%", crop: "" });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -39,11 +45,11 @@ export default function ListImageCell({ path = "", pos = "50% 50%", shape = "cir
   }
 
   function focusFrom(e) {
-    if (!ref.current || !path) return;
+    if (!ref.current || !path || crop) return;
     const r = ref.current.getBoundingClientRect();
     const x = Math.min(100, Math.max(0, ((e.clientX - r.left) / r.width) * 100));
     const y = Math.min(100, Math.max(0, ((e.clientY - r.top) / r.height) * 100));
-    onChange({ path, pos: `${Math.round(x)}% ${Math.round(y)}%` });
+    onChange({ path, pos: `${Math.round(x)}% ${Math.round(y)}%`, crop: cropJson });
   }
 
   return (
@@ -58,9 +64,11 @@ export default function ListImageCell({ path = "", pos = "50% 50%", shape = "cir
           if (e.buttons === 1) focusFrom(e);
         }}
         className={`relative h-[88px] w-[88px] shrink-0 overflow-hidden bg-paper-warm ${shape === "circle" ? "rounded-full" : "rounded-lg"}`}
-        style={{ cursor: path ? "crosshair" : "default", touchAction: "none" }}
+        style={{ cursor: path && !crop ? "crosshair" : "default", touchAction: "none" }}
       >
-        {path ? (
+        {path && crop ? (
+          <CroppedImg src={path} crop={crop} className="h-full w-full select-none" />
+        ) : path ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={path} alt="" draggable={false} className="h-full w-full select-none object-cover" style={{ objectPosition: `${px}% ${py}%` }} />
         ) : (
@@ -74,8 +82,23 @@ export default function ListImageCell({ path = "", pos = "50% 50%", shape = "cir
         </label>
         {path ? (
           <>
-            <p>Click or drag on the photo to choose what stays in view. This is exactly how it shows on the site.</p>
-            <button type="button" onClick={() => onChange({ path: "", pos: "50% 50%" })} className="font-semibold text-rust hover:underline">
+            <p>
+              {crop
+                ? "Cropped. This is exactly how it shows on the site."
+                : "Click or drag on the photo to choose what stays in view, or crop it. This is exactly how it shows on the site."}
+            </p>
+            <CropButton
+              src={path}
+              crop={crop}
+              aspect={shape === "circle" ? 1 : null}
+              onChange={(box) => onChange({ path, pos, crop: box ? JSON.stringify(box) : "" })}
+              help={
+                shape === "circle"
+                  ? "Drag the square to move it, or a corner to resize it. The circle on the site shows what's inside it."
+                  : undefined
+              }
+            />
+            <button type="button" onClick={() => onChange({ path: "", pos: "50% 50%", crop: "" })} className="block font-semibold text-rust hover:underline">
               Remove photo
             </button>
           </>

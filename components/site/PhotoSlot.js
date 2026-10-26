@@ -1,10 +1,15 @@
+import { parseCrop, isWholePhoto } from "@/lib/crop.js";
+import CroppedImg from "./CroppedImg.js";
+
 /**
  * PhotoSlot — the public-site image cell.
  *
  * Renders the brand's duotone placeholder (`.photo`) with an optional tracked
  * caption tag. When a real uploaded image `src` is present it fills the cell
  * (object-cover) and the duotone sits behind it. `variant` tints the
- * placeholder ("" | "verde" | "soft"); `ar` sets an aspect-ratio.
+ * placeholder ("" | "verde" | "soft"); `ar` sets an aspect-ratio. `crop` (the
+ * owner's crop box from the Pages editor, JSON or object) shows exactly that
+ * part of the photo, filling the cell.
  *
  * Server component (no interactivity) so it can be used inside server pages.
  */
@@ -19,17 +24,22 @@ export default function PhotoSlot({
   showTag = true,
   objectFit,
   objectPosition,
+  crop,
 }) {
   const variantClass = variant === "verde" ? "photo--verde" : variant === "soft" ? "photo--soft" : "";
   const css = { ...style };
   if (ar) css.aspectRatio = ar;
   // Owner-set framing (Site Photos): override the default cover crop / centering.
+  const box = objectFit === "contain" ? null : parseCrop(crop);
+  const cropped = box && !isWholePhoto(box);
   const imgStyle = {};
   if (objectFit) imgStyle.objectFit = objectFit;
   if (objectPosition) imgStyle.objectPosition = objectPosition;
   return (
     <div className={`photo ${variantClass} ${className}`.trim()} style={css}>
-      {src ? (
+      {src && cropped ? (
+        <CroppedImg src={src} crop={box} alt={alt || tag || ""} />
+      ) : src ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img className="photo__img" src={src} alt={alt || tag || ""} loading="lazy" style={imgStyle} />
       ) : null}
