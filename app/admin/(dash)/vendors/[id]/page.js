@@ -214,7 +214,9 @@ export default async function VendorPage({ params }) {
 
   const moneyView = (
     <>
-      <Row label="Their share">{share}% of each sale</Row>
+      <Row label="Their share">
+        {share}% of each sale{vendor.default_split == null ? <span className="font-normal text-ink-muted"> (shop share)</span> : null}
+      </Row>
       <Row label="Paid by">{vendor.payout_method || <Empty>Not set</Empty>}</Row>
       <Row label="Email">{vendor.email || <Empty>None yet</Empty>}</Row>
     </>
@@ -541,9 +543,13 @@ export default async function VendorPage({ params }) {
               <div>
                 <label className="label" htmlFor="mk-split">Their share of each sale</label>
                 <div className="relative">
-                  <input id="mk-split" name="default_split" inputMode="decimal" defaultValue={vendor.default_split ?? ""} placeholder={`${share} (shop default)`} className="field pr-8" />
+                  <input id="mk-split" name="default_split" inputMode="decimal" defaultValue={vendor.default_split ?? ""} placeholder={`${share} (shop share)`} className="field pr-8" />
                   <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-muted">%</span>
                 </div>
+                <p className="mt-1 text-xs text-ink-muted">
+                  Leave blank to use the shop share (Makers → Share and consignment terms). A change asks them to agree again on
+                  their page, with a note; sales from then on use it.
+                </p>
               </div>
               <div>
                 <label className="label" htmlFor="mk-pay">How they like to be paid</label>

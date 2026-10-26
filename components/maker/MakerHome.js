@@ -5,6 +5,7 @@ import {
   suggestedGroups,
   shortName,
   artistForVendor,
+  agreedSplit,
   termsFor,
   needsTerms,
 } from "@/lib/inventory.js";
@@ -89,6 +90,9 @@ export default function MakerHome({ vendorId, hidden, notice = null }) {
   const setupItems = insights.items.filter((i) => i.active || soldEver.has(i.id));
   const terms = termsFor(v);
   const mustAgree = needsTerms(v);
+  // Agreed before, and their share has moved since: say so plainly.
+  const wasSplit = mustAgree ? agreedSplit(v) : null;
+  const shareChanged = wasSplit != null && wasSplit !== o.split;
   const monthName = new Date(o.dueThrough + "T12:00:00").toLocaleDateString("en-US", { month: "long" });
   const thisYear = venueToday().slice(0, 4);
   const sum = (lines, k) => lines.reduce((t, l) => t + Number(l[k] || 0), 0);
@@ -111,8 +115,22 @@ export default function MakerHome({ vendorId, hidden, notice = null }) {
       {mustAgree ? (
         <Card pad="lg" id="terms" className="border-verde-deep/50">
           <h2 className="ac-h2">
-            {v.terms_accepted_at ? "Our consignment terms have changed" : "First, our consignment terms"}
+            {shareChanged
+              ? "Your share has changed"
+              : v.terms_accepted_at
+                ? "Our consignment terms have changed"
+                : "First, our consignment terms"}
           </h2>
+          {shareChanged ? (
+            <p className="mt-2 text-sm text-ink">
+              You now get <strong>{o.split}%</strong> of each sale (it was {wasSplit}%). That&apos;s for sales from the change on;
+              anything sold before stays at {wasSplit}%. Read the updated terms below and agree to keep listing drop-offs.
+            </p>
+          ) : v.terms_accepted_at ? (
+            <p className="mt-2 text-sm text-ink">
+              We&apos;ve updated the terms since you agreed. Read them below and agree to keep listing drop-offs.
+            </p>
+          ) : null}
           <div className="mt-2 max-h-80 overflow-y-auto whitespace-pre-line rounded-lg bg-paper-dim p-3 text-sm text-ink-soft">
             {terms.text}
           </div>

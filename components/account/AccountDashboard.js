@@ -148,7 +148,7 @@ function Tile({ href, icon: Icon, eyebrow, title, children, go = "Open", wide = 
  * than reading it, so the admin's account tour can show it with sample people.
  *
  *   mine        whatsMine(email)
- *   makerStats  { [vendorId]: { onShelf, soFarThisMonth, due, waiting } }
+ *   makerStats  { [vendorId]: { onShelf, soFarThisMonth, due, waiting, termsChanged } }
  *   bills       { [directoryId]: tenantBills(id) }
  *   schedule    upcomingStaffSchedule() — only for tenants who share the staff
  *   demo        the account tour's mode key: links open the tour's sample pages
@@ -183,6 +183,7 @@ export default function AccountDashboard({ account, mine, inbox, makerStats = {}
               </div>
             ) : null}
           </div>
+          {o.termsChanged ? <p className="ac-tile-body">Your terms have changed. Open this to read them and agree.</p> : null}
           {waiting ? <p className="ac-tile-body">You have a drop-off waiting to be brought in.</p> : null}
         </Tile>
       );

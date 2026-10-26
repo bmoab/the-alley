@@ -14,6 +14,8 @@ import {
   linkSquareItems,
   saveItemSetup,
   groupByName,
+  countNeedingTerms,
+  defaultSplit,
 } from "@/lib/inventory.js";
 import { listMakerCategories, CONSIGNMENT_CATEGORY } from "@/lib/square-retail.js";
 import { setAgreementEnds } from "@/lib/agreement-reminders.js";
@@ -65,13 +67,24 @@ export async function addVendor(formData) {
 export async function updateTerms(formData) {
   await requireStaffManager();
   try {
-    saveTerms({ text: formData.get("terms"), days: formData.get("days") });
+    saveTerms({ text: formData.get("terms"), days: formData.get("days"), split: formData.get("split") });
   } catch (err) {
     redirect(`/admin/vendors?toast=${encodeURIComponent(err.message)}&toastType=error#terms`);
   }
-  logActivity({ eventType: "consignment_terms_updated", description: "Updated the consignment terms", ...(await getActor()) });
+  const asked = countNeedingTerms();
+  logActivity({
+    eventType: "consignment_terms_updated",
+    description: `Updated the consignment terms (share ${defaultSplit()}%)`,
+    ...(await getActor()),
+  });
   revalidatePath("/admin/vendors");
-  redirect(`/admin/vendors?toast=${encodeURIComponent("Terms saved. Makers will be asked to agree to the new version.")}&toastType=success`);
+  redirect(
+    `/admin/vendors?toast=${encodeURIComponent(
+      asked
+        ? `Saved. ${asked} maker${asked === 1 ? "" : "s"} and artist${asked === 1 ? "" : "s"} will be asked to agree to the new version on their page.`
+        : "Saved."
+    )}&toastType=success`
+  );
 }
 
 /** Save one section's fields, keeping everything else as it is. */

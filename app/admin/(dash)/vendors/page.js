@@ -157,21 +157,33 @@ export default async function VendorsPage() {
 
       <details id="terms" className="card mt-12 p-5" open={draft}>
         <summary className="flex cursor-pointer items-center gap-2 font-semibold text-ink">
-          Consignment terms {draft ? <Badge tone="warning">Draft — please review</Badge> : null}
+          Share and consignment terms <span className="font-normal text-ink-muted">· {defaultSplit()}% to makers and artists</span>
+          {draft ? <Badge tone="warning">Draft — please review</Badge> : null}
         </summary>
         <p className="mt-2 max-w-prose text-sm text-ink-soft">
-          Every maker agrees to these (typing their name) before they can list a drop-off. {"{split}"} becomes their % and{" "}
-          {"{days}"} the days below. Saving a change asks every maker to agree again.
+          Every maker and artist agrees to these (typing their name) before they can list a drop-off. {"{split}"} becomes their
+          share and {"{days}"} the days below. Someone with their own share (on their page, under Money) keeps it.
+        </p>
+        <p className="mt-2 max-w-prose text-sm text-ink-soft">
+          Change the share or the words and everyone it affects is asked to agree again on their page, with a note saying what
+          changed. Sales from then on use the new share; sales before keep theirs.
         </p>
         {manager ? (
           <form action={updateTerms} className="mt-4 space-y-3">
             <textarea name="terms" rows={18} defaultValue={getSetting("consignment_terms", "")} className="field !h-auto font-mono text-xs" />
             <div className="flex flex-wrap items-end gap-3">
+              <div className="w-48">
+                <label className="label" htmlFor="terms-split">Makers&apos; and artists&apos; share</label>
+                <div className="relative">
+                  <input id="terms-split" name="split" inputMode="decimal" defaultValue={defaultSplit()} required className="field pr-8" />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-muted">%</span>
+                </div>
+              </div>
               <div className="w-40">
                 <label className="label" htmlFor="terms-days">Days on the shelf</label>
                 <input id="terms-days" name="days" inputMode="numeric" defaultValue={pickupDays()} className="field" />
               </div>
-              <Button type="submit">Save terms</Button>
+              <Button type="submit">Save</Button>
             </div>
           </form>
         ) : (

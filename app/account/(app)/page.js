@@ -1,7 +1,7 @@
 import { requireAccount, whatsMine, listInbox } from "@/lib/accounts.js";
 import { tenantBills } from "@/lib/staff-costs.js";
 import { sharesStaffCost, upcomingStaffSchedule } from "@/lib/staff-schedule.js";
-import { makerOverview } from "@/lib/inventory.js";
+import { makerOverview, needsTerms } from "@/lib/inventory.js";
 import AccountDashboard from "@/components/account/AccountDashboard.js";
 
 export const metadata = { title: "Your account" };
@@ -17,7 +17,17 @@ export default async function AccountHome() {
   const makerStats = Object.fromEntries(
     mine.makers.map((m) => {
       const o = makerOverview(m.id);
-      return [m.id, { onShelf: o.onShelf, soFarThisMonth: o.soFarThisMonth, due: o.due, waiting: o.dropoffs.some((d) => d.status === "submitted") }];
+      return [
+        m.id,
+        {
+          onShelf: o.onShelf,
+          soFarThisMonth: o.soFarThisMonth,
+          due: o.due,
+          waiting: o.dropoffs.some((d) => d.status === "submitted"),
+          // Agreed before, but the terms or their share changed since.
+          termsChanged: !!o.vendor.terms_accepted_at && needsTerms(o.vendor),
+        },
+      ];
     })
   );
   const bills = Object.fromEntries(mine.businesses.map((b) => [b.id, tenantBills(b.id)]));
