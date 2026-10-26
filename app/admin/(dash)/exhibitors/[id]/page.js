@@ -165,7 +165,7 @@ export default async function ExhibitorPage({ params }) {
           {/* Their art for sale */}
           <section id="selling" className={selling ? "card p-5" : "card border-verde-deep/40 p-5"}>
             <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-ink-muted">
-              <Store className="h-4 w-4" aria-hidden="true" /> Selling their art
+              <Store className="h-4 w-4" aria-hidden="true" /> Art sales
             </h2>
             {selling ? (
               <>
@@ -211,7 +211,7 @@ export default async function ExhibitorPage({ params }) {
                 <form action={startSelling} className="mt-3">
                   <input type="hidden" name="id" value={id} />
                   <Button type="submit" size="sm" variant="accent" icon={Store}>
-                    Start selling their art
+                    Turn on art sales
                   </Button>
                 </form>
                 <p className="mt-2 text-xs text-ink-muted">

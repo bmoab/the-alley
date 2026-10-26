@@ -100,11 +100,11 @@ export async function startSelling(formData) {
   // One agreement, one date, as when they're linked by hand.
   const date = e.active_until || vendor.agreement_ends;
   if (date) setAgreementEnds("artist", id, date);
-  logActivity({ eventType: "vendor_added", description: `Started selling ${e.name}'s art in the shop`, ...(await getActor()) });
+  logActivity({ eventType: "vendor_added", description: `Turned on art sales for ${e.name}`, ...(await getActor()) });
   revalidatePath("/admin/vendors");
   refresh(id);
   redirect(
-    `/admin/exhibitors/${id}?toast=${encodeURIComponent(`Ready. ${e.name} can list art for sale on their private link.`)}&toastType=success#selling`
+    `/admin/exhibitors/${id}?toast=${encodeURIComponent(`Art sales are on. ${e.name} can list art for sale on their private link.`)}&toastType=success#selling`
   );
 }
 
