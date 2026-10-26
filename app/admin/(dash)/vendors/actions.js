@@ -10,7 +10,12 @@ import {
   ensureVendorToken,
   rotateVendorToken,
   saveTerms,
+  setVendorCategory,
+  linkSquareItems,
+  saveItemSetup,
+  groupByName,
 } from "@/lib/inventory.js";
+import { listMakerCategories, CONSIGNMENT_CATEGORY } from "@/lib/square-retail.js";
 import { setAgreementEnds } from "@/lib/agreement-reminders.js";
 import { logActivity } from "@/lib/activity.js";
 
@@ -120,6 +125,77 @@ export async function saveAgreement(formData) {
   logActivity({ eventType: "vendor_updated", description: `Updated ${v.name}'s agreement end date`, ...(await getActor()) });
   refresh(id);
   return { ok: true };
+}
+
+/** Which of the makers' categories in Square their items go in. Blank = match by name. */
+export async function saveSquareCategory(formData) {
+  await requireAdmin();
+  const id = Number(formData.get("id"));
+  const v = getVendor(id);
+  if (!v) return { error: "That maker is gone — reload the page." };
+  const categoryId = str(formData, "square_category_id");
+  if (categoryId) {
+    let list;
+    try {
+      list = await listMakerCategories();
+    } catch {
+      return { error: "Square can't be reached right now. Try again in a minute." };
+    }
+    if (!list.some((c) => c.id === categoryId)) return { error: `That category isn't inside ${CONSIGNMENT_CATEGORY} in Square anymore.` };
+  }
+  setVendorCategory(id, categoryId || null);
+  logActivity({ eventType: "vendor_updated", description: `Set ${v.name}'s category in Square`, ...(await getActor()) });
+  refresh(id);
+  return { ok: true };
+}
+
+/** Make items already in their Square category theirs here, so those sales count toward their payouts. */
+export async function linkFromSquare(formData) {
+  await requireAdmin();
+  const id = Number(formData.get("id"));
+  const v = getVendor(id);
+  if (!v) back(id, "That maker is gone — reload the page.", "error");
+  const ids = formData.getAll("variation").map(String).filter(Boolean);
+  let linked;
+  try {
+    linked = await linkSquareItems(id, ids);
+  } catch (err) {
+    back(id, `Square didn't answer: ${err.message}`, "error", "#square-items");
+  }
+  if (linked) {
+    logActivity({
+      eventType: "vendor_updated",
+      description: `Linked ${linked} item${linked === 1 ? "" : "s"} already in Square to ${v.name}`,
+      ...(await getActor()),
+    });
+  }
+  back(
+    id,
+    linked
+      ? `Linked ${linked} item${linked === 1 ? "" : "s"}. Their sales from now on count toward ${v.name}'s payouts.`
+      : "Nothing to link — those were already linked.",
+    linked ? "success" : "neutral",
+    "#square-items"
+  );
+}
+
+/** Staff sort a maker's items into groups — never their costs, which are the maker's own. */
+export async function saveGroups(formData) {
+  await requireAdmin();
+  const id = Number(formData.get("id"));
+  try {
+    saveItemSetup(id, JSON.parse((formData.get("rows") || "[]").toString()));
+  } catch (err) {
+    back(id, err instanceof SyntaxError ? "Couldn't read that — try again." : err.message, "error", "#groups");
+  }
+  back(id, "Groups saved.", "success", "#selling");
+}
+
+export async function sortGroupsByName(formData) {
+  await requireAdmin();
+  const id = Number(formData.get("id"));
+  const n = groupByName(id);
+  back(id, n ? `Sorted ${n} items into groups.` : "Nothing to sort.", n ? "success" : "neutral", "#groups");
 }
 
 export async function toggleVendor(formData) {

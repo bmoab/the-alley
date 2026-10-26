@@ -1,7 +1,9 @@
-import { makerOverview, termsFor, needsTerms } from "@/lib/inventory.js";
+import { makerOverview, makerInsights, makerGroups, suggestedGroups, shortName, termsFor, needsTerms } from "@/lib/inventory.js";
 import { venueDayOf, formatDate, formatDateShort, formatMoney, venueToday } from "@/lib/constants.js";
-import { agreeToTerms, withdrawDropoff, saveMakerDetails } from "@/app/maker/actions.js";
+import { agreeToTerms, withdrawDropoff, saveMakerDetails, saveItems, sortItemsByName } from "@/app/maker/actions.js";
 import DropoffForm from "@/components/maker/DropoffForm.js";
+import SalesInsights from "@/components/maker/SalesInsights.js";
+import ItemSetup from "@/components/maker/ItemSetup.js";
 import Card from "@/components/admin/ui/Card.js";
 import Badge from "@/components/admin/ui/Badge.js";
 import Button from "@/components/admin/ui/Button.js";
@@ -63,7 +65,16 @@ function SalesTable({ lines }) {
  */
 export default function MakerHome({ vendorId, hidden, notice = null }) {
   const o = makerOverview(vendorId);
+  const insights = makerInsights(vendorId);
+  const groups = makerGroups(vendorId);
   const v = o.vendor;
+  // Their items, a group at a time (ungrouped last), for the shelf and the setup form.
+  const shelf = [...o.items].sort(
+    (a, b) => (a.item_group ? 0 : 1) - (b.item_group ? 0 : 1) || (a.item_group || "").localeCompare(b.item_group || "") || a.name.localeCompare(b.name)
+  );
+  const grouped = shelf.some((i) => i.item_group);
+  const soldEver = new Set(Object.keys(insights.periods.find((p) => p.key === "all").byItem).map(Number));
+  const setupItems = insights.items.filter((i) => i.active || soldEver.has(i.id));
   const terms = termsFor(v);
   const mustAgree = needsTerms(v);
   const monthName = new Date(o.dueThrough + "T12:00:00").toLocaleDateString("en-US", { month: "long" });
@@ -114,6 +125,11 @@ export default function MakerHome({ vendorId, hidden, notice = null }) {
         />
       </div>
 
+      <Card pad="lg" id="selling">
+        <h2 className="ac-h2">How it&apos;s selling</h2>
+        <SalesInsights items={insights.items} periods={insights.periods} months={insights.months} whose="your" showCost />
+      </Card>
+
       <Card pad="lg" id="dropoffs">
         <h2 className="ac-h2">Bringing something in?</h2>
         <p className="mt-1 text-sm text-ink-soft">
@@ -126,7 +142,8 @@ export default function MakerHome({ vendorId, hidden, notice = null }) {
             // Keyed on the list so a sent drop-off clears the form.
             <DropoffForm
               key={o.dropoffs.length}
-              items={o.items.map((i) => ({ id: i.id, name: i.name, price: i.price }))}
+              items={shelf.map((i) => ({ id: i.id, name: i.name, price: i.price, group: i.item_group }))}
+              groups={groups}
               hidden={hidden}
             />
           )}
@@ -172,10 +189,17 @@ export default function MakerHome({ vendorId, hidden, notice = null }) {
                 </tr>
               </thead>
               <tbody>
-                {o.items.map((i) => (
+                {shelf.map((i, idx) => [
+                  grouped && (idx === 0 || shelf[idx - 1].item_group !== i.item_group) ? (
+                    <tr key={`g-${i.item_group || ""}`}>
+                      <td colSpan={5} className="pb-1 pt-3 text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                        {i.item_group || "Not in a group"}
+                      </td>
+                    </tr>
+                  ) : null,
                   <tr key={i.id} className="border-b border-line/60">
                     <td className="py-1.5 pr-2 text-ink">
-                      {i.name}
+                      {shortName(i.name, i.item_group)}
                       {i.daysOnShelf != null && i.daysOnShelf > o.pickupDays && i.qty_on_hand > 0 ? (
                         <span className="ml-1 text-xs text-rust">time to swap out</span>
                       ) : null}
@@ -186,14 +210,35 @@ export default function MakerHome({ vendorId, hidden, notice = null }) {
                     <td className="py-1.5 text-right whitespace-nowrap text-ink-soft">
                       {i.first_received ? formatDateShort(i.first_received) : "—"}
                     </td>
-                  </tr>
-                ))}
+                  </tr>,
+                ])}
               </tbody>
             </table>
           </div>
         ) : (
           <p className="mt-2 text-sm text-ink-muted">Nothing yet — list your first drop-off above.</p>
         )}
+        {setupItems.length ? (
+          <details id="setup" className="mt-5 border-t border-line pt-4">
+            <summary className="text-sm font-semibold text-ink">Sort into groups and add your costs (optional)</summary>
+            <p className="mt-2 text-sm text-ink-soft">
+              Groups put things together in How it&apos;s selling: say Large Candle, with each scent inside it. Add what a piece
+              costs you to make and you&apos;ll see your profit too.
+            </p>
+            <div className="mt-3">
+              <ItemSetup
+                // A fresh form whenever what's saved changes (sorting, saving).
+                key={setupItems.map((i) => `${i.id}:${i.group}:${i.cost}`).join("|")}
+                items={setupItems}
+                suggestions={suggestedGroups(vendorId)}
+                hidden={hidden}
+                action={saveItems}
+                groupAction={sortItemsByName}
+                showCost
+              />
+            </div>
+          </details>
+        ) : null}
       </Card>
 
       <Card pad="lg">

@@ -4,11 +4,15 @@ import { revalidatePath } from "next/cache";
 import {
   CalendarClock,
   ClipboardList,
+  ChartNoAxesColumn,
+  FolderTree,
   KeyRound,
+  Layers,
   Mail,
   MessageSquareText,
   PackageOpen,
   PackagePlus,
+  Link2,
   Phone,
   Tags,
   UserRound,
@@ -31,8 +35,13 @@ import {
   needsTerms,
   payoutLines,
   listDropoffs,
+  unlinkedSquareItems,
+  makerInsights,
+  suggestedGroups,
 } from "@/lib/inventory.js";
 import { getAccountByEmail } from "@/lib/accounts.js";
+import { isSquareConfigured } from "@/lib/square.js";
+import { listMakerCategories, pickMakerCategory, CONSIGNMENT_CATEGORY } from "@/lib/square-retail.js";
 import { makerPayoutStatement } from "@/lib/email.js";
 import { logActivity } from "@/lib/activity.js";
 import { formatDateShort, formatMoney, venueToday, venueDayOf } from "@/lib/constants.js";
@@ -41,10 +50,24 @@ import Badge from "@/components/admin/ui/Badge.js";
 import Button from "@/components/admin/ui/Button.js";
 import CopyField from "@/components/admin/ui/CopyField.js";
 import EditCard from "@/components/admin/ui/EditCard.js";
+import Select from "@/components/admin/ui/Select.js";
 import Toggle from "@/components/admin/ui/Toggle.js";
 import ConfirmButton from "@/components/admin/ui/ConfirmButton.js";
 import { fmtDay } from "@/lib/shift-format.js";
-import { saveMaker, saveMoney, saveAgreement, toggleVendor, makeLink, newLink } from "../actions.js";
+import SalesInsights from "@/components/maker/SalesInsights.js";
+import ItemSetup from "@/components/maker/ItemSetup.js";
+import {
+  saveMaker,
+  saveMoney,
+  saveAgreement,
+  saveSquareCategory,
+  linkFromSquare,
+  saveGroups,
+  sortGroupsByName,
+  toggleVendor,
+  makeLink,
+  newLink,
+} from "../actions.js";
 import { initials } from "../../directory/shared.js";
 
 export function generateMetadata({ params }) {
@@ -159,8 +182,31 @@ export default async function VendorPage({ params }) {
   const reminders = reminderHistory("maker", vendor.id).filter((h) => h.ends_on === agreementEnds);
   const reminderDue = dueKind && !reminders.some((h) => h.kind === dueKind) ? dueKind : null;
   const share = splitFor(null, vendor);
+  const insights = makerInsights(vendor.id);
+  const soldEver = new Set(Object.keys(insights.periods.find((p) => p.key === "all").byItem).map(Number));
+  const groupItems = insights.items.filter((i) => i.active || soldEver.has(i.id));
+  const groupSuggestions = suggestedGroups(vendor.id);
   const termsOk = !needsTerms(vendor);
   const hidden = { id: vendor.id };
+  // Their category in Square: picked here, or found / made by name.
+  let squareCats = null;
+  if (isSquareConfigured()) {
+    try {
+      squareCats = await listMakerCategories();
+    } catch {
+      squareCats = null;
+    }
+  }
+  const squareCat = squareCats ? pickMakerCategory(squareCats, vendor.name, vendor.square_category_id) : null;
+  // Their items typed straight into Square before drop-offs came through here.
+  let unlinked = [];
+  if (squareCat) {
+    try {
+      ({ rows: unlinked } = await unlinkedSquareItems(vendor, squareCats));
+    } catch {
+      unlinked = [];
+    }
+  }
 
   const moneyView = (
     <>
@@ -263,6 +309,12 @@ export default async function VendorPage({ params }) {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="space-y-6">
+          {/* What's selling */}
+          <section id="selling" className="card p-5">
+            <Heading icon={ChartNoAxesColumn}>How it&apos;s selling</Heading>
+            <SalesInsights items={insights.items} periods={insights.periods} months={insights.months} whose="their" />
+          </section>
+
           {/* Their private link */}
           <section id="access" className="card p-5">
             <Heading icon={KeyRound}>Their private link</Heading>
@@ -518,6 +570,118 @@ export default async function VendorPage({ params }) {
               one) uses the same date.
             </p>
           </EditCard>
+
+          <EditCard
+            title="In Square"
+            icon={<FolderTree className="h-4 w-4" aria-hidden="true" />}
+            action={saveSquareCategory}
+            hidden={hidden}
+            view={
+              !isSquareConfigured() ? (
+                <p className="text-sm text-ink-muted">Square isn&apos;t connected.</p>
+              ) : !squareCats ? (
+                <p className="text-sm text-ink-muted">Square can&apos;t be reached right now.</p>
+              ) : squareCat ? (
+                <>
+                  <Row label="Category">{squareCat.name}</Row>
+                  <p className="mt-1 text-xs text-ink-muted">
+                    Inside {CONSIGNMENT_CATEGORY}. Their items go in here when a drop-off is received.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Row label="Category">
+                    <Empty>Not yet</Empty>
+                  </Row>
+                  <p className="mt-1 text-xs text-ink-muted">
+                    Their first drop-off makes &ldquo;{vendor.name}&rdquo; inside {CONSIGNMENT_CATEGORY} in Square.
+                  </p>
+                </>
+              )
+            }
+          >
+            {squareCats ? (
+              <div>
+                <label className="label" htmlFor="mk-cat">Their category in Square</label>
+                <Select id="mk-cat" name="square_category_id" defaultValue={squareCat?.picked ? squareCat.id : ""}>
+                  <option value="">Match by name</option>
+                  {squareCats.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+                <p className="mt-1 text-xs text-ink-muted">
+                  Only needed if their category in Square has a different name. Match by name finds theirs, or makes one with
+                  their first drop-off.
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-ink-muted">Square can&apos;t be reached right now. Try again in a minute.</p>
+            )}
+          </EditCard>
+
+          {groupItems.length ? (
+            <section id="groups" className="card p-5">
+              <Heading icon={Layers}>Groups</Heading>
+              <p className="mt-2 text-sm text-ink-soft">
+                Optional. Put their items together (say Large Candle, with each scent inside) and How it&apos;s selling shows
+                which group and which scent sells best. {vendor.name} can do this from their page too, and add their own costs
+                there.
+              </p>
+              <details className="mt-3" open={!!groupSuggestions.length && !insights.items.some((i) => i.group)}>
+                <summary className="text-sm font-semibold text-verde-deep">Sort their items</summary>
+                <div className="mt-3">
+                  <ItemSetup
+                    // A fresh form whenever what's saved changes (sorting, saving).
+                    key={groupItems.map((i) => `${i.id}:${i.group}:${i.cost}`).join("|")}
+                    items={groupItems}
+                    suggestions={groupSuggestions}
+                    hidden={hidden}
+                    action={saveGroups}
+                    groupAction={sortGroupsByName}
+                    listId="vendor-groups"
+                  />
+                </div>
+              </details>
+            </section>
+          ) : null}
+
+          {unlinked.length ? (
+            <section id="square-items" className="card border-verde-deep/40 p-5">
+              <Heading icon={Link2}>Already in Square</Heading>
+              <p className="mt-2 text-sm text-ink-soft">
+                {unlinked.length === 1 ? "This item" : `These ${unlinked.length} items`} in their {squareCat.name} category
+                {unlinked.length === 1 ? " was" : " were"} added straight in Square, so {unlinked.length === 1 ? "its sales don't" : "their sales don't"} show
+                up under Pay them. Link {unlinked.length === 1 ? "it" : "them"} to {vendor.name} and sales from now on count toward
+                what they&apos;re owed.
+              </p>
+              <ul className="mt-3 max-h-72 divide-y divide-line overflow-y-auto rounded-xl border border-line text-sm">
+                {unlinked.map((r) => (
+                  <li key={r.variationId} className="flex items-baseline justify-between gap-3 px-3 py-2">
+                    <span className="min-w-0 truncate text-ink">
+                      {r.name}
+                      {r.variationName ? <span className="text-ink-muted"> — {r.variationName}</span> : null}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-ink-soft">{r.price != null ? formatMoney(r.price) : "Price at the register"}</span>
+                  </li>
+                ))}
+              </ul>
+              <form action={linkFromSquare} className="mt-3">
+                <input type="hidden" name="id" value={vendor.id} />
+                {unlinked.map((r) => (
+                  <input key={r.variationId} type="hidden" name="variation" value={r.variationId} />
+                ))}
+                <ConfirmButton
+                  label={`Link ${unlinked.length === 1 ? "it" : `all ${unlinked.length}`} to ${vendor.name}`}
+                  variant="accent"
+                  confirmLabel="Yes, link them"
+                  pendingLabel="Linking…"
+                  question={`Sales from now on count toward ${vendor.name}'s payouts. Anything sold before today was paid the old way and isn't added. Nothing changes in Square.`}
+                />
+              </form>
+            </section>
+          ) : null}
 
           <section className={vendor.is_active ? "rounded-2xl border border-rust/20 p-5" : "rounded-2xl border border-line p-5"}>
             <h2 className={vendor.is_active ? "text-xs font-semibold uppercase tracking-wider text-rust" : "text-xs font-semibold uppercase tracking-wider text-ink-muted"}>

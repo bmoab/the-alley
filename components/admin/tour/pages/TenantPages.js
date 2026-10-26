@@ -4,6 +4,7 @@ import { TenantBillsCard } from "@/components/account/TenantBills.js";
 import DirectoryEditForm from "@/components/DirectoryEditForm.js";
 import ExhibitorEditForm from "@/components/ExhibitorEditForm.js";
 import DropoffForm from "@/components/maker/DropoffForm.js";
+import SalesInsights from "@/components/maker/SalesInsights.js";
 import Card from "@/components/admin/ui/Card.js";
 import Badge from "@/components/admin/ui/Badge.js";
 import Button from "@/components/admin/ui/Button.js";
@@ -345,8 +346,63 @@ function makerSample() {
   return { items, salesThisMonth, salesLastMonth, payouts, dropoffs, lastMonthEnd };
 }
 
+/**
+ * The same shop's "How it's selling", worked out from the sample above: the
+ * three 8 oz scents in one group, with a cost so the profit shows.
+ */
+function makerInsightsSample(o) {
+  const r2 = (n) => Math.round(n * 100) / 100;
+  const GROUP = "8 oz candle";
+  const inGroup = { 1: "Juniper & Sage", 2: "Cedar Smoke", 4: "Lavender Field" };
+  const items = o.items.map((i) => ({
+    id: i.id,
+    name: i.name,
+    short: inGroup[i.id] || i.name,
+    group: inGroup[i.id] ? GROUP : null,
+    price: i.price,
+    cost: inGroup[i.id] ? 7.5 : null,
+    left: i.left,
+    active: true,
+  }));
+  const idOf = Object.fromEntries(o.items.map((i) => [i.name, i.id]));
+  const tallyLines = (lines) => {
+    const byItem = {};
+    for (const l of lines) {
+      const b = (byItem[idOf[l.name]] ||= { qty: 0, net: 0, share: 0 });
+      b.qty += l.qty;
+      b.net = r2(b.net + l.net);
+      b.share = r2(b.share + l.share);
+    }
+    return byItem;
+  };
+  const all = Object.fromEntries(o.items.map((i) => [i.id, { qty: i.sold, net: i.sold * i.price, share: r2(i.sold * i.price * 0.7) }]));
+  const share = (lines) => r2(lines.reduce((t, l) => t + l.share, 0));
+  const qty = (lines) => lines.reduce((t, l) => t + l.qty, 0);
+  const thisMonth = `${venueToday().slice(0, 8)}01`;
+  const months = Array.from({ length: 12 }, (_, k) => {
+    const start = shiftDate(thisMonth, { months: k - 11 });
+    const label = new Date(`${start}T12:00:00`).toLocaleDateString("en-US", { month: "short" });
+    if (k === 11) return { ym: start.slice(0, 7), label, qty: qty(o.salesThisMonth), share: share(o.salesThisMonth) };
+    if (k === 10) return { ym: start.slice(0, 7), label, qty: qty(o.salesLastMonth), share: share(o.salesLastMonth) };
+    if (k === 9) return { ym: start.slice(0, 7), label, qty: 14, share: 241.5 };
+    return { ym: start.slice(0, 7), label, qty: 0, share: 0 };
+  });
+  return {
+    items,
+    periods: [
+      { key: "month", label: "This month", byItem: tallyLines(o.salesThisMonth) },
+      { key: "last", label: "Last month", byItem: tallyLines(o.salesLastMonth) },
+      { key: "year", label: "This year", byItem: all },
+      { key: "all", label: "All time", byItem: all },
+    ],
+    months,
+    groups: [{ name: GROUP, price: 24 }],
+  };
+}
+
 export function TourConsign({ m }) {
   const o = makerSample();
+  const insights = makerInsightsSample(o);
   const stats = m.makerStats?.[1] || { onShelf: 20, soFarThisMonth: 128.4, due: 274.4 };
   const monthName = new Date(`${o.lastMonthEnd}T12:00:00`).toLocaleDateString("en-US", { month: "long" });
   const thisYear = venueToday().slice(0, 4);
@@ -377,13 +433,18 @@ export function TourConsign({ m }) {
             />
           </div>
 
+          <Card pad="lg" id="selling">
+            <h2 className="ac-h2">How it&apos;s selling</h2>
+            <SalesInsights items={insights.items} periods={insights.periods} months={insights.months} whose="your" showCost />
+          </Card>
+
           <Card pad="lg" id="dropoffs">
             <h2 className="ac-h2">Bringing something in?</h2>
             <p className="mt-1 text-sm text-ink-soft">
               List it here first. When you come in we count it together, put it in the register and print the price tags.
             </p>
             <div className="mt-4">
-              <DropoffForm items={o.items.map((i) => ({ id: i.id, name: i.name, price: i.price }))} hidden={hidden} />
+              <DropoffForm items={o.items.map((i) => ({ id: i.id, name: i.name, price: i.price }))} groups={insights.groups} hidden={hidden} />
             </div>
             <ul className="mt-5 divide-y divide-line border-t border-line text-sm">
               {o.dropoffs.map((d) => {

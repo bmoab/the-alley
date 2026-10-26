@@ -43,7 +43,16 @@ export default function ReceiveStockForm({
   const [vendorId, setVendorId] = useState(String(dropoff?.vendor_id || initialVendorId || ""));
   const [rows, setRows] = useState(() =>
     dropoff
-      ? dropoff.lines.map((l) => blankRow({ itemId: l.item_id ? String(l.item_id) : "", name: l.item_id ? "" : l.name, qty: String(l.qty), price: String(l.price) }))
+      ? dropoff.lines.map((l) =>
+          blankRow({
+            itemId: l.item_id ? String(l.item_id) : "",
+            name: l.item_id ? "" : l.name,
+            // The maker's group for something new rides along unseen.
+            group: l.item_id ? "" : l.item_group || "",
+            qty: String(l.qty),
+            price: String(l.price),
+          })
+        )
       : [blankRow()]
   );
   const vendor = vendors.find((v) => String(v.id) === vendorId) || null;

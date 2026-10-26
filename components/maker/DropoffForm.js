@@ -5,12 +5,13 @@ import { sendDropoff } from "@/app/maker/actions.js";
 
 /**
  * A maker lists what they're bringing in: more of something already in the
- * shop, or something new, with how many and the price. The server re-checks
- * everything (lib/inventory.js submitDropoff).
+ * shop, or something new, with how many and the price — and, if they like, the
+ * group it goes in (picking one of theirs fills in its price). The server
+ * re-checks everything (lib/inventory.js submitDropoff).
  */
 
 let rowKey = 0;
-const blankRow = () => ({ key: ++rowKey, itemId: "", name: "", qty: "", price: "" });
+const blankRow = () => ({ key: ++rowKey, itemId: "", name: "", group: "", qty: "", price: "" });
 
 function Submit() {
   const { pending } = useFormStatus();
@@ -25,7 +26,7 @@ function Submit() {
   );
 }
 
-export default function DropoffForm({ items, hidden }) {
+export default function DropoffForm({ items, groups = [], hidden }) {
   const [state, formAction] = useFormState(sendDropoff, null);
   const [rows, setRows] = useState([blankRow()]);
   const update = (key, patch) => setRows((list) => list.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -47,7 +48,7 @@ export default function DropoffForm({ items, hidden }) {
                 value={r.itemId}
                 onChange={(e) => {
                   const item = items.find((i) => String(i.id) === e.target.value);
-                  update(r.key, { itemId: e.target.value, name: "", price: item ? String(item.price) : "" });
+                  update(r.key, { itemId: e.target.value, name: "", group: "", price: item ? String(item.price) : "" });
                 }}
                 className="field mb-1"
               >
@@ -69,6 +70,39 @@ export default function DropoffForm({ items, hidden }) {
               />
             ) : null}
           </div>
+          {!r.itemId ? (
+            <div className="col-span-6">
+              <label className="label">Group (optional)</label>
+              <input
+                value={r.group}
+                onChange={(e) => update(r.key, { group: e.target.value })}
+                maxLength={60}
+                placeholder="e.g. Large Candle"
+                className="field"
+              />
+              {groups.length ? (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {groups.map((g) => {
+                    const on = r.group.trim().toLowerCase() === g.name.toLowerCase();
+                    return (
+                      <button
+                        key={g.name}
+                        type="button"
+                        aria-pressed={on}
+                        // Same group, same price: fill it in unless they've typed one.
+                        onClick={() => update(r.key, on ? { group: "" } : { group: g.name, ...(r.price ? {} : { price: String(g.price) }) })}
+                        className={`rounded-lg border px-2.5 py-1 text-xs font-semibold transition ${
+                          on ? "border-ink bg-ink text-paper" : "border-line text-ink-soft hover:border-ink-muted hover:text-ink"
+                        }`}
+                      >
+                        {g.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <div className="col-span-2">
             <label className="label">How many</label>
             <input value={r.qty} onChange={(e) => update(r.key, { qty: e.target.value })} inputMode="numeric" className="field" />

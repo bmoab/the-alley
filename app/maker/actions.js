@@ -8,6 +8,8 @@ import {
   submitDropoff,
   cancelDropoff,
   updateVendor,
+  saveItemSetup,
+  groupByName,
 } from "@/lib/inventory.js";
 import { logActivity } from "@/lib/activity.js";
 
@@ -89,4 +91,24 @@ export async function saveMakerDetails(formData) {
   });
   logActivity({ eventType: "vendor_updated", description: `${who.vendor.name} updated their contact / payout details`, actorName: who.by });
   go(who.back, "Saved.", "success", "#details");
+}
+
+/** Their groups and costs (both optional; costs are private to them). */
+export async function saveItems(formData) {
+  const who = await resolveMaker(formData);
+  if (!who) redirect("/account/sign-in");
+  try {
+    const rows = JSON.parse((formData.get("rows") || "[]").toString());
+    saveItemSetup(who.vendor.id, rows, { withCost: true });
+  } catch (err) {
+    go(who.back, err instanceof SyntaxError ? "Couldn't read that — try again." : err.message, "error", "#setup");
+  }
+  go(who.back, "Saved.", "success", "#selling");
+}
+
+export async function sortItemsByName(formData) {
+  const who = await resolveMaker(formData);
+  if (!who) redirect("/account/sign-in");
+  const n = groupByName(who.vendor.id);
+  go(who.back, n ? `Sorted ${n} items into groups.` : "Nothing to sort.", n ? "success" : "neutral", "#setup");
 }
