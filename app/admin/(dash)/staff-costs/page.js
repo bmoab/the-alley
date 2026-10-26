@@ -14,6 +14,7 @@ import {
   freshMonth,
   getMonth,
   listMonths,
+  monthBounds,
   monthIsOver,
   monthLabel,
   previousMonth,
@@ -24,7 +25,8 @@ import {
   shareCandidates,
   staffCostSettings,
 } from "@/lib/staff-costs.js";
-import { formatMoney } from "@/lib/constants.js";
+import { formatMoney, shiftDate, venueToday } from "@/lib/constants.js";
+import { weekStart } from "@/lib/staff.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
 import Button from "@/components/admin/ui/Button.js";
@@ -168,6 +170,104 @@ function Line({ label, value, strong, hint }) {
       </span>
       <span className={`tabular-nums ${strong ? "font-semibold text-ink" : "text-ink"}`}>{formatMoney(value)}</span>
     </div>
+  );
+}
+
+const shortDay = (ymd) => new Date(`${ymd}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+/** "Oct 11–17", or "Sep 27–Oct 3" when a week crosses months. */
+function weekLabel(start) {
+  const end = shiftDate(start, { days: 6 });
+  return start.slice(0, 7) === end.slice(0, 7) ? `${shortDay(start)}–${Number(end.slice(8))}` : `${shortDay(start)}–${shortDay(end)}`;
+}
+
+/**
+ * The month's hours by Sunday–Saturday week, so each column can be checked
+ * against Square's Timecards screen for that week. Weeks that cross into the
+ * next or last month only count this month's days here.
+ */
+function WeekByWeek({ month, people, over }) {
+  const { start, end } = monthBounds(month);
+  const lastWeek = over ? weekStart(end) : weekStart(venueToday() < end ? venueToday() : end);
+  const weeks = [];
+  for (let w = weekStart(start); w <= lastWeek; w = shiftDate(w, { days: 7 })) weeks.push(w);
+  const partial = (w) => w < start || shiftDate(w, { days: 6 }) > end;
+  const total = (w) => people.reduce((sum, p) => sum + (p.weeks[w]?.hours || 0), 0);
+  const totalWages = (w) => people.reduce((sum, p) => sum + (p.weeks[w]?.wages || 0), 0);
+  const hrs = (n) => Math.round(n * 100) / 100;
+
+  return (
+    <Card className="mt-4">
+      <h2 className="font-semibold text-ink">Week by week</h2>
+      <p className="mt-0.5 text-xs text-ink-muted">
+        Each column matches one week on Square&apos;s Timecards screen (Staff → Time tracking → Timecards), Sunday to
+        Saturday: hours here are Square&apos;s paid hours. Only clocked hours count, not the schedule.
+      </p>
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-line text-left text-xs text-ink-muted">
+              <th className="py-1 pr-3 font-medium">Who</th>
+              {weeks.map((w) => (
+                <th key={w} className="whitespace-nowrap py-1 pr-3 text-right font-medium">
+                  {weekLabel(w)}
+                  {partial(w) ? <span className="block font-normal">{monthLabel(month).split(" ")[0]} days only</span> : null}
+                </th>
+              ))}
+              <th className="py-1 text-right font-medium">{over ? "Month" : "So far"}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {people.map((p) => (
+              <tr key={p.id} className="border-b border-line/60">
+                <td className="whitespace-nowrap py-1.5 pr-3 text-ink">{p.name}</td>
+                {weeks.map((w) => {
+                  const c = p.weeks[w];
+                  return (
+                    <td key={w} className="py-1.5 pr-3 text-right tabular-nums">
+                      {c?.hours ? (
+                        <>
+                          {c.hours} hrs
+                          <span className="block text-xs text-ink-muted">
+                            {formatMoney(c.wages)}
+                            {c.otHours ? ` · ${c.otHours} OT` : ""}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-ink-muted">—</span>
+                      )}
+                    </td>
+                  );
+                })}
+                <td className="py-1.5 text-right font-semibold tabular-nums text-ink">
+                  {p.hours} hrs
+                  <span className="block text-xs font-normal text-ink-muted">{formatMoney(p.wages)}</span>
+                </td>
+              </tr>
+            ))}
+            <tr>
+              <td className="py-1.5 pr-3 font-semibold text-ink">Everyone</td>
+              {weeks.map((w) => (
+                <td key={w} className="py-1.5 pr-3 text-right font-semibold tabular-nums text-ink">
+                  {total(w) ? (
+                    <>
+                      {hrs(total(w))} hrs
+                      <span className="block text-xs font-normal text-ink-muted">{formatMoney(totalWages(w))}</span>
+                    </>
+                  ) : (
+                    <span className="font-normal text-ink-muted">—</span>
+                  )}
+                </td>
+              ))}
+              <td className="py-1.5 text-right font-semibold tabular-nums text-ink">
+                {hrs(people.reduce((s, p) => s + p.hours, 0))} hrs
+                <span className="block text-xs font-normal text-ink-muted">{formatMoney(people.reduce((s, p) => s + p.wages, 0))}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </Card>
   );
 }
 
@@ -399,6 +499,10 @@ export default async function StaffCostsPage({ searchParams }) {
           </Card>
         </div>
       )}
+
+      {m?.detail.people?.length && m.detail.people.every((p) => p.weeks) ? (
+        <WeekByWeek month={month} people={m.detail.people} over={over} />
+      ) : null}
 
       <details className="card mt-4 p-5">
         <summary className="cursor-pointer font-semibold text-ink">Who pays, and the cost settings</summary>

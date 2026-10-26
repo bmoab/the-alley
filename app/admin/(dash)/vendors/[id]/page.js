@@ -2,8 +2,11 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import {
+  BellRing,
   CalendarClock,
   ClipboardList,
+  Eye,
+  History,
   ChartNoAxesColumn,
   FolderTree,
   KeyRound,
@@ -44,6 +47,10 @@ import { getAccountByEmail } from "@/lib/accounts.js";
 import { isSquareConfigured } from "@/lib/square.js";
 import { listMakerCategories, pickMakerCategory, CONSIGNMENT_CATEGORY } from "@/lib/square-retail.js";
 import { makerPayoutStatement } from "@/lib/email.js";
+import { vendorHistory, listAgreements, reminderFor } from "@/lib/vendor-record.js";
+import { formatPayout } from "@/lib/payout.js";
+import PayoutMethodField from "@/components/maker/PayoutMethodField.js";
+import VendorHistory from "@/components/maker/VendorHistory.js";
 import { logActivity } from "@/lib/activity.js";
 import { formatDateShort, formatMoney, venueToday, venueDayOf } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
@@ -60,7 +67,6 @@ import ItemSetup from "@/components/maker/ItemSetup.js";
 import {
   saveMaker,
   saveMoney,
-  saveAgreement,
   saveSquareCategory,
   linkFromSquare,
   saveGroups,
@@ -191,6 +197,8 @@ export default async function VendorPage({ params }) {
   const groupItems = insights.items.filter((i) => i.active || soldEver.has(i.id));
   const groupSuggestions = suggestedGroups(vendor.id);
   const termsOk = !needsTerms(vendor);
+  const remind = reminderFor(vendor);
+  const history = vendorHistory(vendor.id);
   const hidden = { id: vendor.id };
   // Their category in Square: picked here, or found / made by name.
   let squareCats = null;
@@ -217,7 +225,7 @@ export default async function VendorPage({ params }) {
       <Row label="Their share">
         {share}% of each sale{vendor.default_split == null ? <span className="font-normal text-ink-muted"> (shop share)</span> : null}
       </Row>
-      <Row label="Paid by">{vendor.payout_method || <Empty>Not set</Empty>}</Row>
+      <Row label="Paid by">{vendor.payout_method ? formatPayout(vendor.payout_method) : <Empty>Not set yet — they can pick on their page</Empty>}</Row>
       <Row label="Email">{vendor.email || <Empty>None yet</Empty>}</Row>
     </>
   );
@@ -299,6 +307,14 @@ export default async function VendorPage({ params }) {
         <Button href={`/admin/inventory?vendor=${vendor.id}&status=all`} variant="ghost" icon={Tags}>
           Their items
         </Button>
+        <Button href={`/admin/maker-view/${vendor.id}`} variant="ghost" icon={Eye}>
+          See their page
+        </Button>
+        {remind ? (
+          <Button href={`/admin/vendors/remind?id=${vendor.id}`} variant="ghost" icon={BellRing}>
+            Remind them
+          </Button>
+        ) : null}
         {waitingDropoffs.length ? (
           <Button href={`/admin/inventory/receive?dropoff=${waitingDropoffs[0].id}`} variant="ghost" icon={PackageOpen}>
             Count in their drop-off ({waitingDropoffs[0].units} items)
@@ -419,11 +435,11 @@ export default async function VendorPage({ params }) {
                       </div>
                       <div>
                         <label className="label" htmlFor="pay-how">How</label>
-                        <input id="pay-how" name="method" defaultValue={vendor.payout_method || ""} className="field" placeholder="Venmo, check…" />
+                        <input id="pay-how" name="method" defaultValue={formatPayout(vendor.payout_method)} className="field" placeholder="Venmo, Zelle, check…" />
                       </div>
                       <div>
-                        <label className="label" htmlFor="pay-ref">Check # or note</label>
-                        <input id="pay-ref" name="reference" className="field" />
+                        <label className="label" htmlFor="pay-ref">Transaction ID or check #</label>
+                        <input id="pay-ref" name="reference" className="field" placeholder="From the Venmo or Zelle receipt" />
                       </div>
                     </div>
                     {vendor.email ? (
@@ -436,8 +452,8 @@ export default async function VendorPage({ params }) {
                     <div>
                       <Button type="submit">Record payment</Button>
                       <p className="mt-2 text-xs text-ink-muted">
-                        Pay them first (Venmo, check…), then record it here. The amount is worked out from the sales above —
-                        nothing to type.
+                        Pay them first from The Alley&apos;s business account (Venmo, Zelle, check), then record it here with the
+                        transaction ID. The amount is worked out from the sales above — nothing to type.
                       </p>
                     </div>
                   </form>
@@ -461,7 +477,7 @@ export default async function VendorPage({ params }) {
                         {formatDateShort(p.through)} ({formatMoney(p.sales_total)} sold)
                       </span>
                       <span className="text-xs text-ink-muted">
-                        {[p.method, p.reference].filter(Boolean).join(" · ")} · by {p.created_by}
+                        {[p.method && formatPayout(p.method), p.reference].filter(Boolean).join(" · ")} · by {p.created_by}
                       </span>
                     </li>
                   ))}
@@ -489,6 +505,9 @@ export default async function VendorPage({ params }) {
                         {s.notes ? ` · ${s.notes}` : ""}
                       </span>
                       {s.square_status !== "synced" ? <Badge tone="danger">Not in Square</Badge> : null}
+                      {s.units > 0 ? (
+                        s.confirmed_at ? <Badge tone="success">Confirmed by them</Badge> : <Badge tone="neutral">Not confirmed yet</Badge>
+                      ) : null}
                     </Link>
                   </li>
                 ))}
@@ -496,6 +515,19 @@ export default async function VendorPage({ params }) {
             ) : (
               <p className="mt-3 text-sm text-ink-muted">None yet.</p>
             )}
+          </section>
+
+          {/* Their record */}
+          <section id="record" className="card p-5">
+            <Heading icon={History}>Record</Heading>
+            <p className="mt-2 text-sm text-ink-soft">
+              Everything between {vendor.name} and The Alley, newest first. They see the same list on their page.
+            </p>
+            <VendorHistory
+              rows={history}
+              agreements={listAgreements(vendor.id)}
+              intakeHref={(intakeId) => `/admin/inventory/intake/${intakeId}`}
+            />
           </section>
         </div>
 
@@ -551,10 +583,7 @@ export default async function VendorPage({ params }) {
                   their page, with a note; sales from then on use it.
                 </p>
               </div>
-              <div>
-                <label className="label" htmlFor="mk-pay">How they like to be paid</label>
-                <input id="mk-pay" name="payout_method" defaultValue={vendor.payout_method || ""} placeholder="Venmo @…, check, Zelle…" className="field" />
-              </div>
+              <PayoutMethodField defaultValue={vendor.payout_method || ""} label="How they like to be paid" id="mk-pay" />
               <div>
                 <label className="label" htmlFor="mk-email">Email</label>
                 <input id="mk-email" name="email" type="email" defaultValue={vendor.email || ""} className="field" />
@@ -568,23 +597,6 @@ export default async function VendorPage({ params }) {
               <p className="mt-2 text-xs text-ink-muted">An owner or admin changes these.</p>
             </section>
           )}
-
-          <EditCard
-            title="Agreement"
-            icon={<CalendarClock className="h-4 w-4" aria-hidden="true" />}
-            action={saveAgreement}
-            hidden={hidden}
-            view={<Row label="Ends">{agreementEnds ? formatDateShort(agreementEnds) : <Empty>No end date</Empty>}</Row>}
-          >
-            <div>
-              <label className="label" htmlFor="mk-ends">Consignment agreement ends</label>
-              <input id="mk-ends" name="agreement_ends" type="date" defaultValue={agreementEnds || ""} className="field" />
-            </div>
-            <p className="text-xs text-ink-muted">
-              A month and a week before, the Dashboard asks someone to send them a reminder. Their gallery listing (if they have
-              one) uses the same date.
-            </p>
-          </EditCard>
 
           <EditCard
             title="In Square"

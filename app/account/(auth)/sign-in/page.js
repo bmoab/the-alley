@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAccount, safeNext } from "@/lib/accounts.js";
+import { getSignedInUser, homeFor } from "@/lib/auth.js";
 import { signIn, emailLink } from "@/app/account/actions.js";
 import { SignInForm, Note } from "@/components/account/AuthBits.js";
 
@@ -16,6 +17,12 @@ const ERRORS = {
 export default async function SignInPage({ searchParams }) {
   const next = safeNext(searchParams?.next);
   if (await getAccount()) redirect(next);
+  // Already signed in on the team side (the owner's email works here too):
+  // the header's "Log in" goes straight back, instead of asking again.
+  if (next === "/account" && !searchParams?.error) {
+    const staff = await getSignedInUser();
+    if (staff) redirect(staff.must_change_password ? "/admin/set-password" : homeFor(staff));
+  }
   const email = searchParams?.email || "";
   const error = ERRORS[searchParams?.error];
   // Came back from sending a link (or a dead link)? Open on the link tab.

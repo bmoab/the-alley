@@ -5,6 +5,7 @@ import CalendarSubscribe from "@/components/account/CalendarSubscribe.js";
 import DirectoryEditForm from "@/components/DirectoryEditForm.js";
 import ExhibitorEditForm from "@/components/ExhibitorEditForm.js";
 import DropoffForm from "@/components/maker/DropoffForm.js";
+import PayoutMethodField from "@/components/maker/PayoutMethodField.js";
 import SalesInsights from "@/components/maker/SalesInsights.js";
 import Card from "@/components/admin/ui/Card.js";
 import Badge from "@/components/admin/ui/Badge.js";
@@ -544,8 +545,7 @@ export function TourConsign({ m }) {
                 <input name="phone" type="tel" defaultValue="(435) 555-0142" className="field" />
               </div>
               <div className="sm:col-span-2">
-                <label className="label">How you&apos;d like to be paid</label>
-                <input name="payout_method" defaultValue="Venmo @willa-oates" className="field" placeholder="Venmo @…, Zelle, check…" />
+                <PayoutMethodField defaultValue="Venmo · @willa-oates" id="tour-pay" />
               </div>
               <div className="sm:col-span-2">
                 <Button type="submit" variant="ghost">Save</Button>

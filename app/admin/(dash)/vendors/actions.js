@@ -67,7 +67,7 @@ export async function addVendor(formData) {
 export async function updateTerms(formData) {
   await requireStaffManager();
   try {
-    saveTerms({ text: formData.get("terms"), days: formData.get("days"), split: formData.get("split") });
+    saveTerms({ text: formData.get("terms"), days: formData.get("days"), split: formData.get("split"), by: (await getActor()).actorName });
   } catch (err) {
     redirect(`/admin/vendors?toast=${encodeURIComponent(err.message)}&toastType=error#terms`);
   }
@@ -92,7 +92,7 @@ async function patch(id, fields) {
   if (!getVendor(id)) return { error: "That maker is gone — reload the page." };
   let v;
   try {
-    v = updateVendor(id, fields);
+    v = updateVendor(id, fields, { by: `${(await getActor()).actorName} (The Alley)` });
   } catch (err) {
     return { error: err.message };
   }

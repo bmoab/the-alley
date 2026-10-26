@@ -230,8 +230,9 @@ export default function ReceiveStockForm({
         <div className="card p-5">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="label">Signed for by (the person dropping it off)</label>
-              <input name="signed_name" className="field" placeholder="Type their name" />
+              <label className="label">Dropped off by (optional)</label>
+              <input name="signed_name" className="field" placeholder="If it's someone other than the maker" />
+              <p className="mt-1 text-xs text-ink-muted">The maker checks the count and confirms it on their own page afterwards.</p>
             </div>
             <div>
               <label className="label">Notes (optional)</label>

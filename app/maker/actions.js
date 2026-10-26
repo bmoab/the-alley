@@ -14,6 +14,7 @@ import {
 import { logActivity } from "@/lib/activity.js";
 import { getExhibitorByToken } from "@/lib/catalog.js";
 import { makerForExhibitor } from "@/lib/agreement-reminders.js";
+import { confirmIntake } from "@/lib/vendor-record.js";
 
 /**
  * Who's acting, from the form: a maker's private link (token) or a signed-in
@@ -99,7 +100,7 @@ export async function saveMakerDetails(formData) {
     contact_name: formData.get("contact_name"),
     phone: formData.get("phone"),
     payout_method: formData.get("payout_method"),
-  });
+  }, { by: who.by });
   logActivity({ eventType: "vendor_updated", description: `${who.vendor.name} updated their contact / payout details`, actorName: who.by });
   go(who.back, "Saved.", "success", "#details");
 }
@@ -122,4 +123,18 @@ export async function sortItemsByName(formData) {
   if (!who) redirect("/account/sign-in");
   const n = groupByName(who.vendor.id);
   go(who.back, n ? `Sorted ${n} items into groups.` : "Nothing to sort.", n ? "success" : "neutral", "#setup");
+}
+
+/** They checked a stock sheet against what they brought in, and it's right. */
+export async function confirmSheet(formData) {
+  const who = await resolveMaker(formData);
+  if (!who) redirect("/account/sign-in");
+  const id = Number(formData.get("intake"));
+  try {
+    confirmIntake(who.vendor.id, id, formData.get("confirmed_name"));
+  } catch (err) {
+    go(who.back, err.message, "error", `#sheet-${id}`);
+  }
+  logActivity({ eventType: "stock_confirmed", description: `${who.vendor.name} confirmed stock sheet #${id}`, actorName: who.by });
+  go(who.back, "Thanks — confirmed.", "success", "#record");
 }

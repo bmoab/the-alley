@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Handshake, PackagePlus, Plus } from "lucide-react";
+import { BellRing, Handshake, PackagePlus, Plus } from "lucide-react";
 import { requireAdmin, getCurrentUser, canManageStaff } from "@/lib/auth.js";
 import {
   listVendors,
@@ -12,6 +12,7 @@ import {
   artistForVendor,
 } from "@/lib/inventory.js";
 import { getSetting } from "@/lib/db.js";
+import { reminderFor } from "@/lib/vendor-record.js";
 import { formatDateShort, formatMoney } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Badge from "@/components/admin/ui/Badge.js";
@@ -85,6 +86,7 @@ export default async function VendorsPage() {
   const dueCount = Object.values(due).filter((b) => b.owed > 0).length;
   const onShelf = active.reduce((t, v) => t + Number(v.on_hand || 0), 0);
   const noTerms = active.filter((v) => needsTerms(v)).length;
+  const toRemind = active.filter((v) => reminderFor(v)).length;
   const monthName = new Date(cutoff + "T12:00:00").toLocaleDateString("en-US", { month: "long" });
   const draft = termsAreDraft();
 
@@ -128,6 +130,19 @@ export default async function VendorsPage() {
         <Stat value={onShelf} label="Items on the shelf" />
         <Stat value={noTerms} label={noTerms === 1 ? "Hasn't agreed to the terms" : "Haven't agreed to the terms"} />
       </div>
+
+      {toRemind ? (
+        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-paper-warm px-4 py-3 text-sm">
+          <BellRing className="h-4 w-4 text-ink-muted" aria-hidden="true" />
+          <span className="text-ink">
+            {toRemind} {toRemind === 1 ? "maker or artist hasn't" : "makers and artists haven't"} agreed to the current terms or made
+            an account yet.
+          </span>
+          <Button href="/admin/vendors/remind" size="sm" variant="accent" className="ml-auto">
+            Remind them
+          </Button>
+        </div>
+      ) : null}
 
       {active.length ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">

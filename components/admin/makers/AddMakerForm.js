@@ -1,6 +1,7 @@
 "use client";
 import { useFormStatus } from "react-dom";
 import Button from "../ui/Button.js";
+import PayoutMethodField from "@/components/maker/PayoutMethodField.js";
 
 function Add() {
   const { pending } = useFormStatus();
@@ -43,9 +44,8 @@ export default function AddMakerForm({ action, manager, defaultSplit }) {
             </div>
           </div>
         ) : null}
-        <div>
-          <label className="label" htmlFor="new-maker-pay">How they like to be paid</label>
-          <input id="new-maker-pay" name="payout_method" className="field" placeholder="Venmo @…, check, Zelle…" />
+        <div className="sm:col-span-2">
+          <PayoutMethodField label="How they like to be paid (optional)" id="new-maker-pay" />
         </div>
         <div className="sm:col-span-2">
           <label className="label" htmlFor="new-maker-notes">Notes</label>

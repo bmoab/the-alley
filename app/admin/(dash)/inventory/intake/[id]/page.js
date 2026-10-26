@@ -145,10 +145,25 @@ export default async function IntakePage({ params }) {
         </table>
 
         {intake.notes ? <p className="mt-4 text-sm text-ink-soft">Notes: {intake.notes}</p> : null}
+        {/* Before makers confirmed online, staff sometimes typed their own name here. */}
+        {intake.signed_name && intake.signed_name !== intake.received_by ? (
+          <p className="mt-4 text-sm text-ink-soft">Dropped off by {intake.signed_name}</p>
+        ) : null}
         <div className="mt-8 grid grid-cols-1 gap-6 text-sm sm:grid-cols-2">
           <div>
-            <p className="border-b border-ink/40 pb-1 text-ink">{intake.signed_name || " "}</p>
-            <p className="mt-1 text-xs text-ink-muted">{consigned ? "Consignor" : "Delivered by"}</p>
+            <p className="border-b border-ink/40 pb-1 text-ink">{intake.confirmed_name || " "}</p>
+            <p className="mt-1 text-xs text-ink-muted">
+              {consigned ? "Consignor" : "Delivered by"}
+              {isReturn
+                ? ""
+                : intake.confirmed_at
+                  ? ` · confirmed on their page ${new Date(`${intake.confirmed_at.replace(" ", "T")}Z`).toLocaleString("en-US", {
+                      timeZone: "America/Denver",
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })}`
+                  : " · not confirmed yet — they confirm it on their page"}
+            </p>
           </div>
           <div>
             <p className="border-b border-ink/40 pb-1 text-ink">{intake.received_by}</p>

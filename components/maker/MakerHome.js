@@ -10,7 +10,12 @@ import {
   needsTerms,
 } from "@/lib/inventory.js";
 import { venueDayOf, formatDate, formatDateShort, formatMoney, venueToday } from "@/lib/constants.js";
-import { agreeToTerms, withdrawDropoff, saveMakerDetails, saveItems, sortItemsByName } from "@/app/maker/actions.js";
+import { agreeToTerms, withdrawDropoff, saveMakerDetails, saveItems, sortItemsByName, confirmSheet } from "@/app/maker/actions.js";
+import { vendorHistory, listAgreements, intakesToConfirm } from "@/lib/vendor-record.js";
+import { getIntake } from "@/lib/inventory.js";
+import { formatPayout } from "@/lib/payout.js";
+import PayoutMethodField from "@/components/maker/PayoutMethodField.js";
+import VendorHistory from "@/components/maker/VendorHistory.js";
 import DropoffForm from "@/components/maker/DropoffForm.js";
 import SalesInsights from "@/components/maker/SalesInsights.js";
 import ItemSetup from "@/components/maker/ItemSetup.js";
@@ -72,10 +77,19 @@ function SalesTable({ lines }) {
  * A maker's whole view: terms, drop-offs, what's on the shelf, what sold and
  * what they've been paid. Shared by their account (/account/consign/[id]) and
  * their private link (/maker/[token]); `hidden` tells the actions which.
+ * `preview` is the team looking at it (Makers → See their page): the same
+ * page, minus their private costs.
  */
-export default function MakerHome({ vendorId, hidden, notice = null }) {
+export default function MakerHome({ vendorId, hidden, notice = null, preview = false }) {
   const o = makerOverview(vendorId);
-  const insights = makerInsights(vendorId);
+  const raw = makerInsights(vendorId);
+  const insights = preview ? { ...raw, items: raw.items.map((i) => ({ ...i, cost: null })) } : raw;
+  const showCost = !preview;
+  const toConfirm = intakesToConfirm(vendorId);
+  const history = vendorHistory(vendorId);
+  const sheets = Object.fromEntries(
+    history.filter((r) => r.kind === "received" && r.intakeId).map((r) => [r.intakeId, getIntake(r.intakeId)?.lines || []])
+  );
   const groups = makerGroups(vendorId);
   const v = o.vendor;
   // A gallery artist sells through the same consignment; only the words change.
@@ -145,6 +159,48 @@ export default function MakerHome({ vendorId, hidden, notice = null }) {
         </Card>
       ) : null}
 
+      {toConfirm.map((sheet) => {
+        const units = sheet.lines.reduce((t, l) => t + l.qty, 0);
+        return (
+          <Card key={sheet.id} pad="lg" id={`sheet-${sheet.id}`} className="border-verde-deep/50">
+            <h2 className="ac-h2">Check what we counted in on {formatDate(sheet.received_on)}</h2>
+            <p className="mt-1 text-sm text-ink-soft">
+              {units} item{units === 1 ? "" : "s"}, counted in by {sheet.received_by}. If it matches what you brought, confirm it
+              below. Something off? Reply to any of our emails or write to thealleyoncenter@gmail.com and we&apos;ll fix it.
+            </p>
+            <div className="-mx-1 mt-3 overflow-x-auto px-1">
+              <table className="w-full min-w-[320px] text-sm">
+                <thead>
+                  <tr className="border-b border-line text-left text-xs uppercase tracking-wider text-ink-muted">
+                    <th className="py-1.5 pr-2">Item</th>
+                    <th className="py-1.5 pr-2 text-right">Qty</th>
+                    <th className="py-1.5 text-right">Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sheet.lines.map((l) => (
+                    <tr key={l.id} className="border-b border-line/60">
+                      <td className="py-1.5 pr-2 text-ink">{l.name}</td>
+                      <td className="py-1.5 pr-2 text-right tabular-nums">{l.qty}</td>
+                      <td className="py-1.5 text-right tabular-nums">{formatMoney(l.price)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <form action={confirmSheet} className="mt-3 flex flex-wrap items-end gap-2">
+              {hiddenFields}
+              <input type="hidden" name="intake" value={sheet.id} />
+              <div className="min-w-[14rem] flex-1">
+                <label className="label">Type your name to confirm</label>
+                <input name="confirmed_name" required className="field" autoComplete="name" defaultValue="" />
+              </div>
+              <Button type="submit">These are right</Button>
+            </form>
+          </Card>
+        );
+      })}
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat
           label={shelfWord}
@@ -161,7 +217,7 @@ export default function MakerHome({ vendorId, hidden, notice = null }) {
 
       <Card pad="lg" id="selling">
         <h2 className="ac-h2">How it&apos;s selling</h2>
-        <SalesInsights items={insights.items} periods={insights.periods} months={insights.months} whose="your" showCost />
+        <SalesInsights items={insights.items} periods={insights.periods} months={insights.months} whose="your" showCost={showCost} />
       </Card>
 
       <Card pad="lg" id="dropoffs">
@@ -276,7 +332,7 @@ export default function MakerHome({ vendorId, hidden, notice = null }) {
                 hidden={hidden}
                 action={saveItems}
                 groupAction={sortItemsByName}
-                showCost
+                showCost={showCost}
               />
             </div>
           </details>
@@ -304,7 +360,7 @@ export default function MakerHome({ vendorId, hidden, notice = null }) {
               <li key={p.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2">
                 <span className="text-ink">
                   {formatDate(p.paid_on)}
-                  <span className="text-ink-muted"> · sales through {formatDateShort(p.through)}{p.method ? ` · ${p.method}` : ""}</span>
+                  <span className="text-ink-muted"> · sales through {formatDateShort(p.through)}{p.method ? ` · ${formatPayout(p.method)}` : ""}</span>
                 </span>
                 <span className="font-semibold tabular-nums text-ink">{formatMoney(p.amount)}</span>
               </li>
@@ -328,8 +384,7 @@ export default function MakerHome({ vendorId, hidden, notice = null }) {
             <input name="phone" type="tel" defaultValue={v.phone || ""} className="field" />
           </div>
           <div className="sm:col-span-2">
-            <label className="label">How you&apos;d like to be paid</label>
-            <input name="payout_method" defaultValue={v.payout_method || ""} className="field" placeholder="Venmo @…, Zelle, check…" />
+            <PayoutMethodField defaultValue={v.payout_method || ""} id="my-pay" />
           </div>
           <div className="sm:col-span-2">
             <Button type="submit" variant="ghost">Save</Button>
@@ -339,6 +394,15 @@ export default function MakerHome({ vendorId, hidden, notice = null }) {
             </p>
           </div>
         </form>
+      </Card>
+
+      <Card pad="lg" id="record">
+        <h2 className="ac-h2">Your record with us</h2>
+        <p className="mt-1 text-sm text-ink-soft">
+          Everything between you and The Alley: each time you agreed to the terms (open one to read the exact words), what
+          we counted in, payouts, and any change to your terms or share. We see the same list.
+        </p>
+        <VendorHistory rows={history} agreements={listAgreements(vendorId)} intakes={sheets} />
       </Card>
     </div>
   );
