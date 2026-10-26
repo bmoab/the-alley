@@ -287,7 +287,25 @@ function CropModal({ src, nat, initial, onCancel, onSave }) {
             draggable={false}
             style={{ width: disp.w, height: disp.h, display: "block", borderRadius: 6 }}
           />
-          {/* Dim everything outside the box (classic crop mask). */}
+          {/* Dim the photo outside the box (classic crop mask). Clipped to the
+              photo — unclipped, the shadow dimmed the whole window, buttons
+              and all. The box and its handles sit above it, unclipped, so a
+              handle at the photo's edge can still be grabbed. */}
+          <div
+            aria-hidden="true"
+            style={{ position: "absolute", inset: 0, overflow: "hidden", borderRadius: 6, pointerEvents: "none" }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                left: px.left,
+                top: px.top,
+                width: px.width,
+                height: px.height,
+                boxShadow: "0 0 0 9999px rgba(20,16,12,.55)",
+              }}
+            />
+          </div>
           <div
             onPointerDown={(e) => startDrag(e, null)}
             data-crop-box
@@ -297,7 +315,6 @@ function CropModal({ src, nat, initial, onCancel, onSave }) {
               top: px.top,
               width: px.width,
               height: px.height,
-              boxShadow: "0 0 0 9999px rgba(20,16,12,.55)",
               outline: "2px solid #fff",
               cursor: "move",
             }}
