@@ -10,12 +10,14 @@ import {
   MONTH_RE,
   buildMonth,
   cancelShare,
+  currentMonth,
+  freshMonth,
   getMonth,
   listMonths,
+  monthIsOver,
   monthLabel,
   previousMonth,
   refreshPayments,
-  refreshShares,
   saveMonthEdits,
   saveSetup,
   sendMonth,
@@ -141,12 +143,12 @@ async function setup(formData) {
       monthlyFees: formData.get("monthly_fees"),
     });
     setSetting("staff_cost_notify", parseList(notify).join(", "));
-    // An unsent month picks up the new payers right away.
-    if (month) refreshShares(month);
+    // An unsent month picks up the new payers and figures right away.
+    if (month && !getMonth(month)?.locked) await buildMonth(month);
   } catch (err) {
     back(month, err.message, "error");
   }
-  back(month, "Saved. Rebuild a month to use new tax or fee figures.");
+  back(month, "Saved.");
 }
 
 const STATUS = {
@@ -171,10 +173,22 @@ function Line({ label, value, strong, hint }) {
 
 export default async function StaffCostsPage({ searchParams }) {
   await requireStaffManager();
-  const month = MONTH_RE.test(searchParams?.month || "") ? searchParams.month : previousMonth();
-  const m = getMonth(month);
+  // Opens on last month while its bills are still to send, else this month so far.
+  const last = getMonth(previousMonth());
+  const month = MONTH_RE.test(searchParams?.month || "")
+    ? searchParams.month
+    : last && !last.locked
+      ? previousMonth()
+      : currentMonth();
+  const over = monthIsOver(month);
+  // Until its bills go out, a month follows Square: hours and rates changed
+  // there show up here within minutes.
+  const m = await freshMonth(month);
   const months = listMonths();
-  if (!months.some((x) => x.month === month)) months.unshift({ month, total: null });
+  for (const x of [currentMonth(), previousMonth(), month]) {
+    if (!months.some((y) => y.month === x)) months.push({ month: x, total: null });
+  }
+  months.sort((a, b) => b.month.localeCompare(a.month));
   const candidates = shareCandidates();
   const settings = staffCostSettings();
   const notifySetting = getSetting("staff_cost_notify", "");
@@ -187,7 +201,7 @@ export default async function StaffCostsPage({ searchParams }) {
       <PageHeader
         eyebrow="Shop"
         title="Shared staff cost"
-        subtitle="The tenants and the shop split what the staff cost each month, evenly. On the 1st the site adds up last month from Square's timecards and emails you; nothing goes to a tenant until you press Send. Each tenant then gets a Square invoice, due with rent."
+        subtitle="The tenants and the shop split what the staff cost each month, evenly. It follows Square as the month goes: hours from the timecards, at each person's pay rate on their job in Square. On the 1st the site emails you last month's total; nothing goes to a tenant until you press Send. Each tenant then gets a Square invoice, due with rent."
       />
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -221,11 +235,19 @@ export default async function StaffCostsPage({ searchParams }) {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Card>
             <div className="flex items-baseline justify-between gap-2">
-              <h2 className="font-semibold text-ink">How {monthLabel(month)} adds up</h2>
+              <h2 className="font-semibold text-ink">
+                How {monthLabel(month)} adds up{over ? "" : " so far"}
+                {m.built_at && !m.locked ? (
+                  <span className="block text-xs font-normal text-ink-muted">
+                    From Square,{" "}
+                    {new Date(m.built_at).toLocaleString("en-US", { timeZone: "America/Denver", dateStyle: "medium", timeStyle: "short" })}
+                  </span>
+                ) : null}
+              </h2>
               {!m.locked ? (
                 <form action={build}>
                   <input type="hidden" name="month" value={month} />
-                  <Button type="submit" size="sm" variant="ghost">Rebuild from Square</Button>
+                  <Button type="submit" size="sm" variant="ghost">Refresh from Square</Button>
                 </form>
               ) : null}
             </div>
@@ -310,7 +332,12 @@ export default async function StaffCostsPage({ searchParams }) {
           </Card>
 
           <Card>
-            <h2 className="font-semibold text-ink">Who pays what</h2>
+            <h2 className="font-semibold text-ink">Who pays what{over ? "" : " so far"}</h2>
+            {!over ? (
+              <p className="mt-1 text-xs text-ink-muted">
+                Updates as hours go into Square. Bills can go out once {monthLabel(month).split(" ")[0]} is over.
+              </p>
+            ) : null}
             <ul className="mt-3 divide-y divide-line/60">
               {m.shares.map((s) => {
                 const [tone, label] = s.directory_id == null ? ["sage", "The shop's share"] : STATUS[s.status] || STATUS.draft;
@@ -347,7 +374,7 @@ export default async function StaffCostsPage({ searchParams }) {
             </ul>
 
             <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-4">
-              {toBill.length ? (
+              {toBill.length && over ? (
                 <form action={send}>
                   <input type="hidden" name="month" value={month} />
                   <ConfirmButton
