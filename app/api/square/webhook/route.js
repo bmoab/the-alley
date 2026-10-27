@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getBookingByInvoice, getBookingByDepositInvoice, markDepositPaid } from "@/lib/bookings.js";
 import { getInvoiceStatus } from "@/lib/square.js";
 import { confirmBookingPaid } from "@/lib/payments.js";
+import { rememberPayment } from "@/lib/payment-details.js";
 
 export const dynamic = "force-dynamic";
 
@@ -71,6 +72,7 @@ export async function POST(request) {
           const status = await getInvoiceStatus(invoiceId);
           if (status === "paid") {
             markDepositPaid(holder.id);
+            await rememberPayment(invoiceId);
             console.log(`[square:webhook] series #${holder.series_id} deposit paid (holder #${holder.id})`);
           }
         }

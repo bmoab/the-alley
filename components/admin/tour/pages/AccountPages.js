@@ -1,5 +1,6 @@
-import { ChevronRight } from "lucide-react";
 import { tourHref } from "@/lib/account-tour.js";
+import { readFilters, filterActivity, typesPresent } from "@/lib/activity-feed.js";
+import ActivityFeed from "@/components/account/ActivityFeed.js";
 import { emailShell } from "@/lib/email.js";
 import { venueDayOf, formatDate } from "@/lib/constants.js";
 import { Submit } from "@/components/account/AuthBits.js";
@@ -7,54 +8,36 @@ import PasswordInput from "@/components/auth/PasswordInput.js";
 import { tourNoop } from "../actions.js";
 
 /**
- * The account's own pages for the tour — Inbox, one email, Settings — with
- * the same markup as app/account/(app)/inbox and settings, and sample mail.
+ * The account's own pages for the tour — Activity, one email, Settings — with
+ * the same markup as app/account/(app)/activity and settings, and sample rows.
  */
 
-export function TourInbox({ m }) {
+export function TourActivity({ m, sp = {} }) {
+  const f = readFilters(sp);
+  const { rows, counts, total } = filterActivity(m.activity, f);
+  const base = tourHref(m.key, "activity");
   return (
-    <>
-      <header className="ac-hello">
-        <p className="ac-eyebrow ac-date ac-rise">Inbox</p>
-        <h1 className="ac-title ac-rise ac-rise-1">Everything we&apos;ve sent you</h1>
-        <p className="ac-lede ac-rise ac-rise-2">
-          Invoices, receipts, payouts and updates to {m.account.email} — kept here, so there&apos;s nothing to dig for.
-        </p>
-      </header>
-      {m.inbox.length ? (
-        <ul className="ac-mail ac-rows ac-rise ac-rise-3">
-          {m.inbox.map((e) => (
-            <li key={e.id}>
-              <a href={tourHref(m.key, "email", e.id)}>
-                <span className="ac-mail-mark" aria-hidden="true">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/brand/emblem-black.png" alt="" />
-                </span>
-                <span className="ac-row-main">
-                  <span className="ac-row-title">{e.subject}</span>
-                  <span className="ac-row-sub">The Alley On Center</span>
-                </span>
-                <span className="ac-mail-date">{formatDate(venueDayOf(e.sent_at))}</span>
-                <ChevronRight className="ac-row-chev" width={18} height={18} aria-hidden="true" />
-              </a>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <div className="ac-set-card ac-rise ac-rise-3">
-          <p className="ac-tile-body">Nothing yet. From now on, every email we send you is kept here too.</p>
-        </div>
-      )}
-    </>
+    <ActivityFeed
+      email={m.account.email}
+      rows={rows}
+      f={f}
+      counts={counts}
+      types={typesPresent(m.activity)}
+      total={total}
+      hrefFor={(q) => (q ? `${base}&${q.slice(1)}` : base)}
+      action="/admin/tour-frame"
+      keep={{ as: m.key, page: "activity" }}
+      emailHref={(id) => tourHref(m.key, "email", id)}
+    />
   );
 }
 
 export function TourEmail({ m, id }) {
   const e = m.inbox.find((x) => String(x.id) === String(id)) || m.inbox[0];
-  if (!e) return <TourInbox m={m} />;
+  if (!e) return <TourActivity m={m} />;
   return (
     <>
-      <a href={tourHref(m.key, "inbox")} className="ac-rulelink ac-rise">Inbox</a>
+      <a href={tourHref(m.key, "activity")} className="ac-rulelink ac-rise">Activity</a>
       <h1 className="ac-title ac-rise ac-rise-1" style={{ fontSize: "clamp(26px,3.4vw,38px)", marginTop: 22 }}>{e.subject}</h1>
       <article className="ac-letter ac-rise ac-rise-2" style={{ marginTop: 26 }}>
         <div className="ac-letter-head">

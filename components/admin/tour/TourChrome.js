@@ -1,4 +1,4 @@
-import { House, Inbox, Settings } from "lucide-react";
+import { History, House, Settings } from "lucide-react";
 import { tourHref } from "@/lib/account-tour.js";
 
 const initials = (name) =>
@@ -11,7 +11,7 @@ const initials = (name) =>
 
 const TABS = [
   ["home", "Home", House],
-  ["inbox", "Inbox", Inbox],
+  ["activity", "Activity", History],
   ["settings", "Settings", Settings],
 ];
 

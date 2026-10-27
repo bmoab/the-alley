@@ -66,7 +66,7 @@ export default async function RemindPage({ searchParams }) {
       <PageHeader
         eyebrow="Makers"
         title={id && list[0] ? `Remind ${list[0].v.name}` : "Remind makers and artists"}
-        subtitle="An email asking them to agree to the terms and/or make their account, with a button to their own page. It also goes in their account inbox. Nothing is sent until you press Send."
+        subtitle="An email asking them to agree to the terms and/or make their account, with a button to their own page. A copy goes in their account's Activity. Nothing is sent until you press Send."
       />
 
       {!list.length ? (

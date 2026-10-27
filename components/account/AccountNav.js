@@ -1,11 +1,11 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { House, Inbox, Settings } from "lucide-react";
+import { History, House, Settings } from "lucide-react";
 
 const TABS = [
   { href: "/account", label: "Home", icon: House },
-  { href: "/account/inbox", label: "Inbox", icon: Inbox },
+  { href: "/account/activity", label: "Activity", icon: History },
   { href: "/account/settings", label: "Settings", icon: Settings },
 ];
 
@@ -21,7 +21,7 @@ export default function AccountNav({ unread = 0 }) {
       {TABS.map(({ href, label }) => (
         <Link key={href} href={href} className="ac-tab" aria-current={isActive(pathname, href) ? "page" : undefined}>
           {label}
-          {href === "/account/inbox" && unread ? <span className="ac-tab-count">{unread}</span> : null}
+          {href === "/account/activity" && unread ? <span className="ac-tab-count">{unread}</span> : null}
         </Link>
       ))}
     </nav>

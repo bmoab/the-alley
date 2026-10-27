@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { CalendarDays, ChevronDown, ChevronRight, Inbox, Megaphone, Package, Palette, Store } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronRight, History, Megaphone, Package, Palette, Store } from "lucide-react";
 import { TenantBillsCard } from "./TenantBills.js";
 import CalendarSubscribe from "./CalendarSubscribe.js";
 import { StaffScheduleCard } from "./StaffSchedule.js";
 import { tourHref } from "@/lib/account-tour.js";
-import { venueDayOf, formatDate, formatDateShort, formatMoney, venueNow, venueToday, calendarFeedUrl } from "@/lib/constants.js";
+import { formatDate, formatDateShort, formatMoney, venueNow, venueToday, calendarFeedUrl } from "@/lib/constants.js";
 
 const LISTING_STATUS = {
   draft: { cls: "ac-pill--wait", label: "Not finished" },
@@ -65,11 +65,11 @@ const FEATURES = [
     cta: ["See the directory", "/directory"],
   },
   {
-    key: "inbox",
-    icon: Inbox,
-    title: "Every email in one place",
-    body: "A copy of every email we send you — confirmations, invoices, receipts, payouts — is kept in your Inbox, so nothing gets lost in your email.",
-    cta: ["Open your inbox", "/account/inbox"],
+    key: "activity",
+    icon: History,
+    title: "Everything in one place",
+    body: "Activity keeps a record of everything that happens on your account — bookings, payments with their receipts, sales, drop-offs, payouts, agreements and every email we send you. Search it, or narrow it down by kind and date.",
+    cta: ["Open your activity", "/account/activity"],
   },
 ];
 
@@ -80,7 +80,7 @@ function Explore({ mine }) {
     makers: mine.makers.length > 0,
     exhibitors: mine.exhibitors.length > 0,
     businesses: mine.businesses.length > 0,
-    inbox: true,
+    activity: true,
   };
   return (
     <section className="ac-section ac-rise ac-rise-5" id="explore">
@@ -103,7 +103,7 @@ function Explore({ mine }) {
             </summary>
             <div className="ac-explore-body">
               <p className="ac-tile-body">{body}</p>
-              {!have[key] || key === "inbox" ? (
+              {!have[key] || key === "activity" ? (
                 <Link href={cta[1]} className="ac-tile-go" style={{ marginTop: 14 }}>
                   {cta[0]} <span className="ac-arrow" aria-hidden="true">→</span>
                 </Link>
@@ -145,16 +145,17 @@ function Tile({ href, icon: Icon, eyebrow, title, children, go = "Open", wide = 
 
 /**
  * The account home: everything this person has with The Alley, as tiles, then
- * what else an account can do, then the newest emails. Takes its data rather
+ * what else an account can do, then the latest activity. Takes its data rather
  * than reading it, so the admin's account tour can show it with sample people.
  *
  *   mine        whatsMine(email)
  *   makerStats  { [vendorId]: { onShelf, soFarThisMonth, due, waiting, termsChanged } }
  *   bills       { [directoryId]: tenantBills(id) }
  *   schedule    upcomingStaffSchedule() — only for tenants who share the staff
+ *   recent      the newest few Activity rows (lib/account-activity.js)
  *   demo        the account tour's mode key: links open the tour's sample pages
  */
-export default function AccountDashboard({ account, mine, inbox, makerStats = {}, bills = {}, schedule = null, demo = null }) {
+export default function AccountDashboard({ account, mine, recent = [], makerStats = {}, bills = {}, schedule = null, demo = null }) {
   const go = (href, kind, id) => (demo ? tourHref(demo, kind, id) : href);
   const first = account.name ? account.name.trim().split(/\s+/)[0] : "";
   const nothing =
@@ -305,25 +306,34 @@ export default function AccountDashboard({ account, mine, inbox, makerStats = {}
 
       <section className="ac-section ac-rise ac-rise-4">
         <div className="ac-section-head">
-          <h2 className="ac-h2">Latest from us</h2>
-          <Link href={go("/account/inbox", "inbox")} className="ac-link">Inbox</Link>
+          <h2 className="ac-h2">Latest activity</h2>
+          <Link href={go("/account/activity", "activity")} className="ac-link">See it all</Link>
         </div>
-        {inbox.length ? (
+        {recent.length ? (
           <ul className="ac-rows">
-            {inbox.map((m) => (
-              <li key={m.id}>
-                <Link href={go(`/account/inbox/${m.id}`, "email", m.id)} className="ac-row">
+            {recent.map((r) => (
+              <li key={r.key}>
+                <Link
+                  href={r.emailId != null ? go(`/account/activity/email/${r.emailId}`, "email", r.emailId) : go(`/account/activity?type=${r.type}`, "activity")}
+                  className="ac-row"
+                >
                   <span className="ac-row-main">
-                    <span className="ac-row-title">{m.subject}</span>
+                    <span className="ac-row-title">{r.title}</span>
                   </span>
-                  <span className="ac-mail-date">{formatDateShort(venueDayOf(m.sent_at))}</span>
+                  {r.amount != null ? (
+                    <span className={`ac-act-amt ${r.flow === "in" ? "is-in" : ""}`}>
+                      {r.flow === "in" ? "+" : ""}
+                      {formatMoney(r.amount)}
+                    </span>
+                  ) : null}
+                  <span className="ac-mail-date">{formatDateShort(String(r.at).slice(0, 10))}</span>
                   <ChevronRight className="ac-row-chev" width={18} height={18} aria-hidden="true" />
                 </Link>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="ac-small">A copy of every email we send you will be kept here, so nothing gets lost in your inbox.</p>
+          <p className="ac-small">Bookings, payments, sales and every email we send you will show up here.</p>
         )}
       </section>
     </>

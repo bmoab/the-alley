@@ -85,7 +85,7 @@ export default async function AgreementReminderPage({ params, searchParams }) {
             <input type="hidden" name="id" value={p.id} />
             <input type="hidden" name="kind" value={kind} />
             <p className="text-sm text-ink-soft">
-              To <strong className="text-ink">{p.email || "—"}</strong>. A copy goes in their Alley account inbox, and their reply comes to the shop&apos;s email.
+              To <strong className="text-ink">{p.email || "—"}</strong>. A copy goes in their Alley account&apos;s Activity, and their reply comes to the shop&apos;s email.
             </p>
             <div>
               <label className="label">Subject</label>

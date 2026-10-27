@@ -1,4 +1,5 @@
-import { requireAccount, whatsMine, listInbox } from "@/lib/accounts.js";
+import { requireAccount, whatsMine } from "@/lib/accounts.js";
+import { accountActivity } from "@/lib/account-activity.js";
 import { tenantBills } from "@/lib/staff-costs.js";
 import { sharesStaffCost, upcomingStaffSchedule } from "@/lib/staff-schedule.js";
 import { makerOverview, needsTerms } from "@/lib/inventory.js";
@@ -9,7 +10,7 @@ export const metadata = { title: "Your account" };
 /**
  * Everything this person has with The Alley, gathered by their (proven) email:
  * consignment, bookings, event listings, a tenant's business listing, an
- * exhibitor page — plus the newest emails we've sent them.
+ * exhibitor page — plus the latest of their Activity.
  */
 export default async function AccountHome() {
   const account = await requireAccount();
@@ -36,7 +37,7 @@ export default async function AccountHome() {
     <AccountDashboard
       account={account}
       mine={mine}
-      inbox={listInbox(account.email, { limit: 4 })}
+      recent={accountActivity(account, mine).rows.slice(0, 5)}
       makerStats={makerStats}
       bills={bills}
       schedule={schedule}

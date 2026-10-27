@@ -532,7 +532,7 @@ export default async function SettingsPage() {
             &ldquo;Your new Alley account — everything in one place,&rdquo; with screenshots. Tenants get a version about their
             business page and bills (staff costs &ldquo;if applicable&rdquo;); everyone else gets one about bookings, listings and
             consignment, with nothing about staff costs. Each address is emailed once, whichever version it gets, and a copy
-            lands in their account inbox.
+            lands in their account&apos;s Activity.
           </p>
           <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
             <AccountsAudience

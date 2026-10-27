@@ -36,6 +36,9 @@ export default function TourGuard({ links }) {
       say(links[kind] || `Goes to ${href.startsWith("/") ? `alleyoncenter.com${href}` : "that page"}.`);
     };
     const onSubmit = (e) => {
+      // Filtering and searching the tour's own Activity page still work.
+      const form = e.target;
+      if (form.method === "get" && (form.getAttribute("action") || "").startsWith("/admin/tour-frame")) return;
       e.preventDefault();
       e.stopPropagation();
       say("Saves their changes. Nothing is saved in the tour.");
