@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { SPACES, EVENT_TYPES, GUEST_RANGES, formatTime } from "@/lib/constants.js";
+import { SPACES, BOOKABLE_SPACES, isBookable, EVENT_TYPES, GUEST_RANGES, formatTime } from "@/lib/constants.js";
 import { generateSeriesDates, describeRule, WEEKDAYS, weekOfMonthFor, weekdayOf } from "@/lib/recurrence.js";
 import { useBodyScrollLock } from "@/components/hooks.js";
 import { submitBooking, submitBookingSeries } from "@/app/(site)/book/actions.js";
@@ -80,7 +80,8 @@ export function BookProvider({ children, config }) {
   useBodyScrollLock(open);
 
   const openBook = useCallback((rid = null) => {
-    setRoomId(rid);
+    // An old #book-main link opens the room picker instead of a retired room.
+    setRoomId(rid && isBookable(rid) ? rid : null);
     setOpen(true);
   }, []);
 
@@ -390,7 +391,7 @@ function BookModal({ initialRoom, config, onClose }) {
               <h3 style={{ fontSize: 26, marginBottom: 4 }}>Which space?</h3>
               <p className="lede" style={{ fontSize: 15, marginTop: 0, marginBottom: 22 }}>Every room, every occasion.</p>
               <div style={{ display: "grid", gap: 14 }}>
-                {SPACES.map((r, i) => {
+                {BOOKABLE_SPACES.map((r, i) => {
                   // Each card advertises its OWN rate and capacity.
                   const rc = configFor(config, r.id);
                   return (

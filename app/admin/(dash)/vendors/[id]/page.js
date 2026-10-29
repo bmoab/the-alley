@@ -6,6 +6,7 @@ import {
   CalendarClock,
   ClipboardList,
   Eye,
+  FileSignature,
   History,
   ChartNoAxesColumn,
   FolderTree,
@@ -36,6 +37,11 @@ import {
   splitFor,
   round2,
   needsTerms,
+  termsAsk,
+  agreedSplit,
+  termsFor,
+  termsTemplate,
+  generalTerms,
   payoutLines,
   listDropoffs,
   unlinkedSquareItems,
@@ -67,6 +73,7 @@ import ItemSetup from "@/components/maker/ItemSetup.js";
 import {
   saveMaker,
   saveMoney,
+  saveVendorTerms,
   saveSquareCategory,
   linkFromSquare,
   saveGroups,
@@ -220,6 +227,19 @@ export default async function VendorPage({ params }) {
     }
   }
 
+  // Their own terms, or the general ones (which someone who's agreed is held to the version of).
+  const ownTerms = termsTemplate(vendor).trim() !== generalTerms().trim();
+  const termsView = (
+    <>
+      <Row label="Terms">
+        {ownTerms ? (vendor.terms_text && vendor.terms_accepted_at && !vendor.terms_changed_at ? "The version they agreed to" : "Their own terms") : "The general terms"}
+      </Row>
+      <div className="mt-2 max-h-48 overflow-y-auto whitespace-pre-line rounded-xl bg-paper-warm p-3 text-xs text-ink-soft">
+        {termsFor(vendor).text}
+      </div>
+    </>
+  );
+
   const moneyView = (
     <>
       <Row label="Their share">
@@ -277,7 +297,9 @@ export default async function VendorPage({ params }) {
             {termsOk
               ? `Agreed to the terms ${formatDateShort(venueDayOf(vendor.terms_accepted_at))} as “${vendor.terms_accepted_name}”.`
               : vendor.terms_accepted_at
-                ? "The terms changed since they agreed — they'll be asked again."
+                ? termsAsk(vendor) === "share"
+                  ? `Their share changed since they agreed to ${agreedSplit(vendor)}% — they'll be asked to agree to ${share}%.`
+                  : "Their terms changed since they agreed — they'll be asked on their page."
                 : "They're asked to agree to the terms first thing."}
           </p>
         </div>
@@ -594,6 +616,37 @@ export default async function VendorPage({ params }) {
             <section className="card p-5">
               <Heading icon={Wallet}>Money</Heading>
               <div className="mt-3">{moneyView}</div>
+              <p className="mt-2 text-xs text-ink-muted">An owner or admin changes these.</p>
+            </section>
+          )}
+
+          {manager ? (
+            <EditCard
+              title="Terms"
+              icon={<FileSignature className="h-4 w-4" aria-hidden="true" />}
+              action={saveVendorTerms}
+              hidden={hidden}
+              view={termsView}
+            >
+              <div>
+                <label className="label" htmlFor="mk-terms">Their consignment terms</label>
+                <textarea id="mk-terms" name="terms" rows={14} defaultValue={termsTemplate(vendor)} className="field !h-auto font-mono text-xs" />
+                <p className="mt-1 text-xs text-ink-muted">
+                  For just this person. {"{split}"} becomes their share (under Money) and {"{days}"} the days on the shelf.
+                  {vendor.terms_accepted_at ? " They've agreed already, so a change asks them to agree to the new words on their page." : ""}
+                </p>
+              </div>
+              {ownTerms ? (
+                <label className="flex items-start gap-2 text-sm text-ink-soft">
+                  <input type="checkbox" name="general" className="mt-1" />
+                  <span>Put them on today&apos;s general terms instead</span>
+                </label>
+              ) : null}
+            </EditCard>
+          ) : (
+            <section className="card p-5">
+              <Heading icon={FileSignature}>Terms</Heading>
+              <div className="mt-3">{termsView}</div>
               <p className="mt-2 text-xs text-ink-muted">An owner or admin changes these.</p>
             </section>
           )}

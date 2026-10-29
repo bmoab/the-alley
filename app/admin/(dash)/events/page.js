@@ -12,6 +12,7 @@ import { getCurrentUser, canManageBookings, requireAdmin } from "@/lib/auth.js";
 import {
   venueDayOf,
   SPACES,
+  BOOKABLE_SPACES,
   DATE_PRESETS,
   DEFAULT_DATE_PRESET,
   resolveDateRange,
@@ -531,7 +532,7 @@ export default async function EventsPage({ searchParams }) {
               <label className="label">Space</label>
               <Select name="space" defaultValue="all">
                 <option value="all">Whole building</option>
-                {SPACES.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {BOOKABLE_SPACES.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </Select>
             </div>
             <div><label className="label">From date</label><input name="start_date" type="date" required className="field" /></div>

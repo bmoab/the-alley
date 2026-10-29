@@ -110,7 +110,7 @@ export default async function VendorsPage() {
               }
               triggerClassName="inline-flex h-10 items-center gap-2 rounded-xl bg-ink px-4 text-sm font-semibold text-paper transition hover:bg-ink-soft"
             >
-              <AddMakerForm action={addVendor} manager={manager} defaultSplit={defaultSplit()} />
+              <AddMakerForm action={addVendor} manager={manager} defaultSplit={defaultSplit()} terms={getSetting("consignment_terms", "")} />
             </Dialog>
           </>
         }
@@ -180,8 +180,9 @@ export default async function VendorsPage() {
           share and {"{days}"} the days below. Someone with their own share (on their page, under Money) keeps it.
         </p>
         <p className="mt-2 max-w-prose text-sm text-ink-soft">
-          Change the share or the words and everyone it affects is asked to agree again on their page, with a note saying what
-          changed. Sales from then on use the new share; sales before keep theirs.
+          These are the general terms: a change here is for new makers and anyone who hasn&apos;t agreed yet. Everyone who&apos;s
+          agreed keeps the terms and share they agreed to. To give one person their own terms or share, change them as you add
+          them, or later on their page under Terms; if they&apos;ve agreed already, they&apos;re asked to agree to the new ones.
         </p>
         {manager ? (
           <form action={updateTerms} className="mt-4 space-y-3">
@@ -200,6 +201,13 @@ export default async function VendorsPage() {
               </div>
               <Button type="submit">Save</Button>
             </div>
+            <label className="flex max-w-prose items-start gap-2 text-sm text-ink-soft">
+              <input type="checkbox" name="everyone" className="mt-1" />
+              <span>
+                Also put everyone on these terms, including anyone with their own, and ask them to agree. They keep their own
+                share, and can keep listing once they agree.
+              </span>
+            </label>
           </form>
         ) : (
           <p className="mt-3 whitespace-pre-line rounded-xl bg-paper-warm p-4 text-sm text-ink-soft">{getSetting("consignment_terms", "")}</p>

@@ -6,7 +6,7 @@ import PageHeader from "@/components/admin/ui/PageHeader.js";
 import PagesEditor from "@/components/admin/PagesEditor.js";
 import { cx } from "@/components/admin/ui/cx.js";
 import { requireAdmin } from "@/lib/auth.js";
-import { SPACES } from "@/lib/constants.js";
+import { SPACES, BOOKABLE_SPACES } from "@/lib/constants.js";
 import { listSpacePhotos, setSpacePhotos, spacePhotosKey } from "@/lib/catalog.js";
 
 /**
@@ -147,7 +147,7 @@ const PAGES = {
   spaces: {
     label: "Spaces", route: "/spaces",
     text: ["spaces_hero_eyebrow", "spaces_hero_title", "spaces_hero_lede", "spaces_listing_heading", "spaces_listing_body", "spaces_book_heading", "spaces_book_body"],
-    list: [], image: [], gallery: SPACES.map((s) => spacePhotosKey(s.id)),
+    list: [], image: [], gallery: BOOKABLE_SPACES.map((s) => spacePhotosKey(s.id)),
   },
   directory: {
     label: "Directory", route: "/directory",

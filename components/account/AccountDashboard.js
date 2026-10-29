@@ -33,7 +33,7 @@ const FEATURES = [
     key: "bookings",
     icon: CalendarDays,
     title: "Book a room",
-    body: "Rent the Main Floor, the Loft or the Conference Room for a class, party, meeting or workshop. Send a request, we confirm it, and you pay online — your bookings, receipts and date changes all live here.",
+    body: "Rent the Loft or the Conference Room for a class, party, meeting or workshop. Send a request, we confirm it, and you pay online — your bookings, receipts and date changes all live here.",
     cta: ["Request a room", "/book"],
   },
   {

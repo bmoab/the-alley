@@ -99,17 +99,17 @@ function FloorPlan({ floor, zones, active, setActive, phone }) {
           const data = zones[s.code];
           const tenants = data?.tenants || [];
           const isActive = active === s.code;
-          // A zone carrying a `space` is bookable (Main Floor / Loft /
-          // Conference Room), not leasable — key off that rather than listing
-          // kinds, so a new rentable space styles itself.
-          const bookable = !!s.space;
-          const state = bookable ? "special" : tenants.length ? "filled" : "open";
+          // A zone carrying a `space` is one of The Alley's own rooms (the
+          // Loft, the Conference Room, the shop), not leasable — key off that
+          // rather than listing kinds, so a new space styles itself.
+          const ours = !!s.space;
+          const state = ours ? "special" : tenants.length ? "filled" : "open";
           const label = data?.name || s.code;
           const tenantLabel = tenants.length
             ? tenants.map((t) => t.business_name).join(" & ")
             : null;
-          const zoneLabel = bookable
-            ? `${data?.space?.name || label} — rental space`
+          const zoneLabel = ours
+            ? `${data?.space?.name || label}${data?.space?.href ? " — rental space" : ""}`
             : tenantLabel
               ? `${label} — ${tenantLabel}`
               : `Suite ${label} — available`;
@@ -151,11 +151,13 @@ function FloorPlan({ floor, zones, active, setActive, phone }) {
                   style={{ width: "100%", height: 110, objectFit: "cover", marginBottom: 10 }}
                 />
               ) : null}
-              <span className="bm-card-suite mono">Rental space</span>
+              <span className="bm-card-suite mono">{card.data.space.href ? "Rental space" : "Shop"}</span>
               <h4 className="bm-card-name">{card.data.space.name}</h4>
               {card.data.space.capacity ? <span className="bm-card-cat mono">{card.data.space.capacity}</span> : null}
               {card.data.space.blurb ? <p className="bm-card-blurb">{card.data.space.blurb}</p> : null}
-              <a className="bm-card-link" href={card.data.space.href}>Book this space <span className="arrow">→</span></a>
+              {card.data.space.href ? (
+                <a className="bm-card-link" href={card.data.space.href}>Book this space <span className="arrow">→</span></a>
+              ) : null}
             </>
           ) : card.data.tenants?.length === 1 ? (
             (() => {

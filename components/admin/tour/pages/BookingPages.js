@@ -31,7 +31,7 @@ function sampleBookings(key) {
         {
           id: 1,
           event_title: "Saturday Improv Night",
-          space: "main",
+          space: "loft",
           date: day(12),
           start_time: "18:00",
           hours: 4,
@@ -78,7 +78,7 @@ function sampleBookings(key) {
       {
         id: 2,
         event_title: "Wedding shower",
-        space: "main",
+        space: "loft",
         date: day(24),
         start_time: "11:00",
         hours: 5,
@@ -284,7 +284,7 @@ const LISTINGS = {
     title: "Saturday Improv Night",
     description:
       "Two hours of short-form improv from the Cache Valley Players, built on your suggestions. Doors at 6:30, show at 7. Family friendly.",
-    space: "main",
+    space: "loft",
     date: 12,
     time: "18:00",
     public_time: "18:30",

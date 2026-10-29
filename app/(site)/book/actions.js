@@ -3,7 +3,7 @@
 import { isSlotAvailable, isStartTooSoon, createBookingRequest, createBookingSeries, getSeries, getBooking } from "@/lib/bookings.js";
 import { isClosedForBooking } from "@/lib/closures.js";
 import { getSetting } from "@/lib/db.js";
-import { SPACE_BY_ID, EVENT_TYPES, GUEST_RANGES } from "@/lib/constants.js";
+import { isBookable, EVENT_TYPES, GUEST_RANGES } from "@/lib/constants.js";
 import { spaceRules } from "@/lib/spaces.js";
 import { emailOwnerNewRequest, emailClientReceived, emailOwnerNewSeriesRequest, emailClientSeriesReceived } from "@/lib/email.js";
 import { logActivity, logEmail } from "@/lib/activity.js";
@@ -22,7 +22,7 @@ export async function submitBooking(payload) {
   const errors = [];
 
   const space = payload.space;
-  if (!space || !SPACE_BY_ID[space]) errors.push("Please choose a space.");
+  if (!space || !isBookable(space)) errors.push("Please choose a space.");
 
   const date = payload.date;
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) errors.push("Please choose a date.");
@@ -147,7 +147,7 @@ export async function submitBookingSeries(payload) {
   const errors = [];
 
   const space = payload.space;
-  if (!space || !SPACE_BY_ID[space]) errors.push("Please choose a space.");
+  if (!space || !isBookable(space)) errors.push("Please choose a space.");
 
   const start_time = payload.start_time;
   if (!start_time || !/^\d{2}:\d{2}$/.test(start_time)) errors.push("Please choose a start time.");

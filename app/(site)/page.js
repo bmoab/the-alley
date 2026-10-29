@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getContent } from "@/lib/db.js";
 import { listPublicDirectoryWithSuites, listExhibitorsByPhase, listGallery, listUpcomingLiveEvents, listSpacePhotos } from "@/lib/catalog.js";
-import { SPACES } from "@/lib/constants.js";
+import { BOOKABLE_SPACES } from "@/lib/constants.js";
 import { spaceRules } from "@/lib/spaces.js";
 import { parseCrop, cropBackgroundStyle } from "@/lib/crop.js";
 import Hero from "@/components/home/Hero.js";
@@ -30,8 +30,8 @@ export default async function HomePage() {
   const rotate = parseJson(c.home_hero_rotate, ["MUSIC", "ART", "EVENTS", "COMMUNITY"]);
 
   // Rate and capacity are per-space (see lib/spaces.js) — the Conference Room
-  // rents cheaper than the Main Floor and the Loft.
-  const rooms = SPACES.map((s) => {
+  // rents cheaper than the Loft.
+  const rooms = BOOKABLE_SPACES.map((s) => {
     const rules = spaceRules(s.id);
     const lead = listSpacePhotos(s.id)[0];
     return {

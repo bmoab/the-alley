@@ -181,8 +181,8 @@ export default function BusinessListingPage({ params, searchParams }) {
               <li>a late opening, a sale, or a guest artist in for the day</li>
             </ul>
             <p className="mt-3 text-sm text-ink-soft">
-              <strong className="text-ink">Need a room to yourself?</strong> The Loft,
-              the Main Floor and the Conference Room are booked separately — send a{" "}
+              <strong className="text-ink">Need a room to yourself?</strong> The Loft
+              and the Conference Room are booked separately — send a{" "}
               <Link href="/book" className="font-semibold text-ink underline">
                 booking request
               </Link>{" "}

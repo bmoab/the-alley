@@ -10,6 +10,7 @@ import {
   ensureVendorToken,
   rotateVendorToken,
   saveTerms,
+  setVendorTerms,
   setVendorCategory,
   linkSquareItems,
   saveItemSetup,
@@ -53,6 +54,8 @@ export async function addVendor(formData) {
       phone: formData.get("phone"),
       // A share other than the usual is an owner/admin call.
       default_split: manager ? formData.get("default_split") : undefined,
+      // Their own terms, if they were changed from the general ones as they were added.
+      terms: manager && formData.get("terms") != null ? formData.get("terms") : undefined,
       payout_method: formData.get("payout_method"),
       notes: formData.get("notes"),
     });
@@ -67,7 +70,13 @@ export async function addVendor(formData) {
 export async function updateTerms(formData) {
   await requireStaffManager();
   try {
-    saveTerms({ text: formData.get("terms"), days: formData.get("days"), split: formData.get("split"), by: (await getActor()).actorName });
+    saveTerms({
+      text: formData.get("terms"),
+      days: formData.get("days"),
+      split: formData.get("split"),
+      everyone: formData.get("everyone") === "on",
+      by: (await getActor()).actorName,
+    });
   } catch (err) {
     redirect(`/admin/vendors?toast=${encodeURIComponent(err.message)}&toastType=error#terms`);
   }
@@ -82,7 +91,7 @@ export async function updateTerms(formData) {
     `/admin/vendors?toast=${encodeURIComponent(
       asked
         ? `Saved. ${asked} maker${asked === 1 ? "" : "s"} and artist${asked === 1 ? "" : "s"} will be asked to agree to the new version on their page.`
-        : "Saved."
+        : "Saved. New makers get these terms; everyone who's agreed keeps theirs."
     )}&toastType=success`
   );
 }
@@ -110,6 +119,27 @@ export async function saveMaker(formData) {
     phone: formData.get("phone"),
     notes: formData.get("notes"),
   });
+}
+
+/** Their own consignment terms, or back to the general ones: owner/admin only. */
+export async function saveVendorTerms(formData) {
+  await requireStaffManager();
+  const id = Number(formData.get("id"));
+  const v = getVendor(id);
+  if (!v) return { error: "That maker is gone — reload the page." };
+  try {
+    const changed = setVendorTerms(id, {
+      text: formData.get("terms"),
+      general: formData.get("general") === "on",
+      by: `${(await getActor()).actorName} (The Alley)`,
+    });
+    if (!changed) return { ok: true };
+  } catch (err) {
+    return { error: err.message };
+  }
+  logActivity({ eventType: "vendor_updated", description: `Changed ${v.name}'s consignment terms`, ...(await getActor()) });
+  refresh(id);
+  return { ok: true };
 }
 
 /** Their share, the email their account matches on and where their money goes: owner/admin only. */

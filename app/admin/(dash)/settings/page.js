@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSettings, setSetting, getContentValue, setContent } from "@/lib/db.js";
-import { formatTime, SPACES } from "@/lib/constants.js";
+import { formatTime, BOOKABLE_SPACES } from "@/lib/constants.js";
 import { spaceSettingKey, spaceCapacityKey, spaceOverride, globalRule } from "@/lib/spaces.js";
 import { logActivity } from "@/lib/activity.js";
 import { getActor, requireAdmin } from "@/lib/auth.js";
@@ -16,6 +16,7 @@ import {
   runTenantEventsAnnouncement,
   previewAccountsAnnouncement,
   runAccountsAnnouncement,
+  announcementsSent,
   ANNOUNCE_BATCH,
 } from "@/lib/announce.js";
 import { requireBookingManager } from "@/lib/auth.js";
@@ -112,7 +113,7 @@ async function save(formData) {
   }
   // Per-space overrides. An empty box is stored as "" — spaceRules() reads that
   // as "inherit", so clearing a field puts the space back on the default.
-  for (const sp of SPACES) {
+  for (const sp of BOOKABLE_SPACES) {
     for (const f of SPACE_FIELDS) {
       const name = spaceSettingKey(sp.id, f.key);
       setSetting(name, (formData.get(name) ?? "").toString().trim());
@@ -285,6 +286,8 @@ export default async function SettingsPage() {
   const announce = previewAnnouncement();
   const tenantAnnounce = previewTenantAnnouncement();
   const accountsAnnounce = previewAccountsAnnouncement();
+  // Announcements that have gone out aren't offered again.
+  const sent = announcementsSent();
 
   return (
     <div>
@@ -356,7 +359,7 @@ export default async function SettingsPage() {
             left empty; an empty box always uses the value shown in grey.
           </p>
           <div className="mt-4 space-y-6">
-            {SPACES.map((sp) => (
+            {BOOKABLE_SPACES.map((sp) => (
               <div key={sp.id} className="rounded-lg border border-line bg-paper-dim p-4">
                 <h3 className="text-sm font-semibold text-ink">{sp.name}</h3>
                 <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -525,146 +528,156 @@ export default async function SettingsPage() {
       {/* Its own forms, deliberately OUTSIDE the settings form above — nesting
           forms is invalid, and "Save changes" must never be able to email
           anybody. */}
-      <div id="accounts-announce" className="mt-5">
-        <Card pad="md">
-          <h2 className="text-lg font-semibold text-ink">Tell everyone about accounts</h2>
-          <p className="mt-1 text-sm text-ink-muted">
-            &ldquo;Your new Alley account — everything in one place,&rdquo; with screenshots. Tenants get a version about their
-            business page and bills (staff costs &ldquo;if applicable&rdquo;); everyone else gets one about bookings, listings and
-            consignment, with nothing about staff costs. Each address is emailed once, whichever version it gets, and a copy
-            lands in their account&apos;s Activity.
-          </p>
-          <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
-            <AccountsAudience
-              audience="tenants"
-              data={accountsAnnounce.tenants}
-              title="Tenants"
-              blurb="Current businesses in the directory, at their contact email."
-            />
-            <AccountsAudience
-              audience="others"
-              data={accountsAnnounce.others}
-              title="Everyone else"
-              blurb="Past renters, event hosts, gallery artists and makers who aren't tenants. Each email only mentions what that person actually has with us."
-            />
-          </div>
-        </Card>
-      </div>
-
-      <form action={sendPortalAnnouncement} className="mt-5">
-        <Card pad="md">
-          <h2 className="text-lg font-semibold text-ink">Tell past clients about their dashboard</h2>
-          <p className="mt-1 text-sm text-ink-muted">
-            Everyone who has booked with you gets a private link to their own page —
-            every booking they&apos;ve made, what&apos;s paid, what isn&apos;t, and a
-            button to pay anything outstanding. This emails them once to explain it,
-            and invites them to book again. Nobody is emailed twice.
-          </p>
-
-          {announce.total === 0 ? (
-            <p className="mt-4 rounded-xl border border-verde-deep/30 bg-verde/30 px-4 py-3 text-sm text-ink">
-              Everyone&apos;s been told — there&apos;s nobody left to email. New clients
-              get their link automatically in their booking emails.
+      {sent.accounts.tenants && sent.accounts.others ? null : (
+        <div id="accounts-announce" className="mt-5">
+          <Card pad="md">
+            <h2 className="text-lg font-semibold text-ink">Tell everyone about accounts</h2>
+            <p className="mt-1 text-sm text-ink-muted">
+              &ldquo;Your new Alley account — everything in one place,&rdquo; with screenshots. Tenants get a version about their
+              business page and bills (staff costs &ldquo;if applicable&rdquo;); everyone else gets one about bookings, listings and
+              consignment, with nothing about staff costs. Each address is emailed once, whichever version it gets, and a copy
+              lands in their account&apos;s Activity.
             </p>
-          ) : (
-            <>
-              <div className="mt-4 rounded-xl border border-line bg-paper-dim px-4 py-3 text-sm">
-                <p className="font-semibold text-ink">
-                  {announce.total} {announce.total === 1 ? "person" : "people"} to email
-                  {announce.total > ANNOUNCE_BATCH
-                    ? ` · ${ANNOUNCE_BATCH} per press, so it\u2019ll take ${Math.ceil(announce.total / ANNOUNCE_BATCH)} presses`
-                    : ""}
-                </p>
-                <ul className="mt-2 space-y-0.5 text-ink-muted">
-                  {announce.sample.map((r) => (
-                    <li key={r.email}>
-                      {r.name || "(no name)"} · {r.email}
-                      <span className="text-ink-muted/70">
-                        {" "}
-                        · {r.bookings} booking{r.bookings === 1 ? "" : "s"}
-                      </span>
-                    </li>
-                  ))}
-                  {announce.total > announce.sample.length ? (
-                    <li className="text-ink-muted/70">
-                      …and {announce.total - announce.sample.length} more
-                    </li>
-                  ) : null}
-                </ul>
-              </div>
-              <div className="mt-4">
-                <ConfirmButton
-                  label={`Email ${Math.min(announce.total, ANNOUNCE_BATCH)} ${
-                    Math.min(announce.total, ANNOUNCE_BATCH) === 1 ? "client" : "clients"
-                  }`}
-                  confirmLabel="Send it"
-                  pendingLabel="Sending…"
-                  question={`This sends a real email to ${Math.min(
-                    announce.total,
-                    ANNOUNCE_BATCH
-                  )} past ${
-                    Math.min(announce.total, ANNOUNCE_BATCH) === 1 ? "client" : "clients"
-                  } right now. It can't be unsent. Each one gets their own private link and is never emailed about this again.`}
+            <div className={`mt-4 grid grid-cols-1 gap-3 ${sent.accounts.tenants || sent.accounts.others ? "" : "lg:grid-cols-2"}`}>
+              {sent.accounts.tenants ? null : (
+                <AccountsAudience
+                  audience="tenants"
+                  data={accountsAnnounce.tenants}
+                  title="Tenants"
+                  blurb="Current businesses in the directory, at their contact email."
                 />
-              </div>
-            </>
-          )}
-        </Card>
-      </form>
+              )}
+              {sent.accounts.others ? null : (
+                <AccountsAudience
+                  audience="others"
+                  data={accountsAnnounce.others}
+                  title="Everyone else"
+                  blurb="Past renters, event hosts, gallery artists and makers who aren't tenants. Each email only mentions what that person actually has with us."
+                />
+              )}
+            </div>
+          </Card>
+        </div>
+      )}
 
-      <form action={sendTenantEventsAnnouncement} className="mt-5">
-        <Card pad="md">
-          <h2 className="text-lg font-semibold text-ink">Tell tenants they can post events</h2>
-          <p className="mt-1 text-sm text-ink-muted">
-            Businesses in the directory can now add their own events to the public
-            calendar from their listing link — a book signing, a regular evening, a
-            late opening. Their page spells out that it&apos;s a listing, not a booking,
-            and doesn&apos;t reserve any space. This tells them once. Nobody is emailed twice.
-          </p>
-
-          {tenantAnnounce.total === 0 ? (
-            <p className="mt-4 rounded-xl border border-verde-deep/30 bg-verde/30 px-4 py-3 text-sm text-ink">
-              Every tenant with an email on file has been told. Add a new tenant and
-              they&apos;ll show up here.
+      {sent.portal ? null : (
+        <form action={sendPortalAnnouncement} className="mt-5">
+          <Card pad="md">
+            <h2 className="text-lg font-semibold text-ink">Tell past clients about their dashboard</h2>
+            <p className="mt-1 text-sm text-ink-muted">
+              Everyone who has booked with you gets a private link to their own page —
+              every booking they&apos;ve made, what&apos;s paid, what isn&apos;t, and a
+              button to pay anything outstanding. This emails them once to explain it,
+              and invites them to book again. Nobody is emailed twice.
             </p>
-          ) : (
-            <>
-              <div className="mt-4 rounded-xl border border-line bg-paper-dim px-4 py-3 text-sm">
-                <p className="font-semibold text-ink">
-                  {tenantAnnounce.total} {tenantAnnounce.total === 1 ? "tenant" : "tenants"} to email
-                </p>
-                <ul className="mt-2 space-y-0.5 text-ink-muted">
-                  {tenantAnnounce.sample.map((t) => (
-                    <li key={t.email}>
-                      {t.name} · {t.email}
-                    </li>
-                  ))}
-                  {tenantAnnounce.total > tenantAnnounce.sample.length ? (
-                    <li className="text-ink-muted/70">
-                      …and {tenantAnnounce.total - tenantAnnounce.sample.length} more
-                    </li>
-                  ) : null}
-                </ul>
-              </div>
-              <div className="mt-4">
-                <ConfirmButton
-                  label={`Email ${Math.min(tenantAnnounce.total, ANNOUNCE_BATCH)} ${
-                    Math.min(tenantAnnounce.total, ANNOUNCE_BATCH) === 1 ? "tenant" : "tenants"
-                  }`}
-                  confirmLabel="Send it"
-                  pendingLabel="Sending…"
-                  question={`This sends a real email to ${Math.min(
-                    tenantAnnounce.total,
-                    ANNOUNCE_BATCH
-                  )} ${
-                    Math.min(tenantAnnounce.total, ANNOUNCE_BATCH) === 1 ? "tenant" : "tenants"
-                  } right now. It can't be unsent, and each one is never emailed about this again.`}
-                />
-              </div>
-            </>
-          )}
-        </Card>
-      </form>
+
+            {announce.total === 0 ? (
+              <p className="mt-4 rounded-xl border border-verde-deep/30 bg-verde/30 px-4 py-3 text-sm text-ink">
+                Everyone&apos;s been told — there&apos;s nobody left to email. New clients
+                get their link automatically in their booking emails.
+              </p>
+            ) : (
+              <>
+                <div className="mt-4 rounded-xl border border-line bg-paper-dim px-4 py-3 text-sm">
+                  <p className="font-semibold text-ink">
+                    {announce.total} {announce.total === 1 ? "person" : "people"} to email
+                    {announce.total > ANNOUNCE_BATCH
+                      ? ` · ${ANNOUNCE_BATCH} per press, so it\u2019ll take ${Math.ceil(announce.total / ANNOUNCE_BATCH)} presses`
+                      : ""}
+                  </p>
+                  <ul className="mt-2 space-y-0.5 text-ink-muted">
+                    {announce.sample.map((r) => (
+                      <li key={r.email}>
+                        {r.name || "(no name)"} · {r.email}
+                        <span className="text-ink-muted/70">
+                          {" "}
+                          · {r.bookings} booking{r.bookings === 1 ? "" : "s"}
+                        </span>
+                      </li>
+                    ))}
+                    {announce.total > announce.sample.length ? (
+                      <li className="text-ink-muted/70">
+                        …and {announce.total - announce.sample.length} more
+                      </li>
+                    ) : null}
+                  </ul>
+                </div>
+                <div className="mt-4">
+                  <ConfirmButton
+                    label={`Email ${Math.min(announce.total, ANNOUNCE_BATCH)} ${
+                      Math.min(announce.total, ANNOUNCE_BATCH) === 1 ? "client" : "clients"
+                    }`}
+                    confirmLabel="Send it"
+                    pendingLabel="Sending…"
+                    question={`This sends a real email to ${Math.min(
+                      announce.total,
+                      ANNOUNCE_BATCH
+                    )} past ${
+                      Math.min(announce.total, ANNOUNCE_BATCH) === 1 ? "client" : "clients"
+                    } right now. It can't be unsent. Each one gets their own private link and is never emailed about this again.`}
+                  />
+                </div>
+              </>
+            )}
+          </Card>
+        </form>
+      )}
+
+      {sent.tenantEvents ? null : (
+        <form action={sendTenantEventsAnnouncement} className="mt-5">
+          <Card pad="md">
+            <h2 className="text-lg font-semibold text-ink">Tell tenants they can post events</h2>
+            <p className="mt-1 text-sm text-ink-muted">
+              Businesses in the directory can now add their own events to the public
+              calendar from their listing link — a book signing, a regular evening, a
+              late opening. Their page spells out that it&apos;s a listing, not a booking,
+              and doesn&apos;t reserve any space. This tells them once. Nobody is emailed twice.
+            </p>
+
+            {tenantAnnounce.total === 0 ? (
+              <p className="mt-4 rounded-xl border border-verde-deep/30 bg-verde/30 px-4 py-3 text-sm text-ink">
+                Every tenant with an email on file has been told. Add a new tenant and
+                they&apos;ll show up here.
+              </p>
+            ) : (
+              <>
+                <div className="mt-4 rounded-xl border border-line bg-paper-dim px-4 py-3 text-sm">
+                  <p className="font-semibold text-ink">
+                    {tenantAnnounce.total} {tenantAnnounce.total === 1 ? "tenant" : "tenants"} to email
+                  </p>
+                  <ul className="mt-2 space-y-0.5 text-ink-muted">
+                    {tenantAnnounce.sample.map((t) => (
+                      <li key={t.email}>
+                        {t.name} · {t.email}
+                      </li>
+                    ))}
+                    {tenantAnnounce.total > tenantAnnounce.sample.length ? (
+                      <li className="text-ink-muted/70">
+                        …and {tenantAnnounce.total - tenantAnnounce.sample.length} more
+                      </li>
+                    ) : null}
+                  </ul>
+                </div>
+                <div className="mt-4">
+                  <ConfirmButton
+                    label={`Email ${Math.min(tenantAnnounce.total, ANNOUNCE_BATCH)} ${
+                      Math.min(tenantAnnounce.total, ANNOUNCE_BATCH) === 1 ? "tenant" : "tenants"
+                    }`}
+                    confirmLabel="Send it"
+                    pendingLabel="Sending…"
+                    question={`This sends a real email to ${Math.min(
+                      tenantAnnounce.total,
+                      ANNOUNCE_BATCH
+                    )} ${
+                      Math.min(tenantAnnounce.total, ANNOUNCE_BATCH) === 1 ? "tenant" : "tenants"
+                    } right now. It can't be unsent, and each one is never emailed about this again.`}
+                  />
+                </div>
+              </>
+            )}
+          </Card>
+        </form>
+      )}
     </div>
   );
 }

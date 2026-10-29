@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { SPACES } from "@/lib/constants.js";
+import { BOOKABLE_SPACES } from "@/lib/constants.js";
 import { spaceRules } from "@/lib/spaces.js";
 import { getSettings, getContent, getContentValue } from "@/lib/db.js";
 import { listSpacePhotos, spacePhotosKey } from "@/lib/catalog.js";
@@ -60,7 +60,7 @@ export default function SpacesPage() {
         </div>
 
         <div style={{ marginTop: "clamp(44px,5vw,76px)" }}>
-          {SPACES.map((r, i) => {
+          {BOOKABLE_SPACES.map((r, i) => {
             const rules = spaceRules(r.id);
             // Location · capacity (if set) · this space's own rate & minimum.
             const meta = [
