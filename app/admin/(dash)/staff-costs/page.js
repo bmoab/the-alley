@@ -8,13 +8,14 @@ import { isSquareConfigured } from "@/lib/square.js";
 import { emailTenantStaffShare } from "@/lib/email.js";
 import {
   MONTH_RE,
+  PAID_OTHER_WAYS,
   buildMonth,
   cancelShare,
   currentMonth,
   freshMonth,
   getMonth,
   listMonths,
-  monthBounds,
+  markSharePaid,
   monthIsOver,
   monthLabel,
   previousMonth,
@@ -23,6 +24,7 @@ import {
   saveSetup,
   sendMonth,
   shareCandidates,
+  squareFeeOn,
   staffCostSettings,
 } from "@/lib/staff-costs.js";
 import { formatMoney, shiftDate, venueToday } from "@/lib/constants.js";
@@ -114,6 +116,21 @@ async function cancel(formData) {
   back(month, "Cancelled in Square. Send again to bill a fresh invoice.", "neutral");
 }
 
+async function markPaid(formData) {
+  "use server";
+  await requireStaffManager();
+  const month = monthOf(formData);
+  const { actorName } = await getActor();
+  const method = String(formData.get("method") || "");
+  let r;
+  try {
+    r = await markSharePaid(Number(formData.get("share")), { method, by: actorName });
+  } catch (err) {
+    back(month, err.message, "error");
+  }
+  back(month, r.viaSquare ? "They'd already paid it through Square — marked paid." : `Marked paid by ${method || "another way"}. Their Square invoice is cancelled, so it no longer shows as owed.`);
+}
+
 async function checkPayments(formData) {
   "use server";
   await requireStaffManager();
@@ -143,6 +160,10 @@ async function setup(formData) {
       billingEmails,
       taxPct: formData.get("tax_pct"),
       monthlyFees: formData.get("monthly_fees"),
+      firstPayday: formData.get("first_payday"),
+      feePct: formData.get("fee_pct"),
+      feeFixed: formData.get("fee_fixed"),
+      payOther: formData.get("pay_other"),
     });
     setSetting("staff_cost_notify", parseList(notify).join(", "));
     // An unsent month picks up the new payers and figures right away.
@@ -182,16 +203,16 @@ function weekLabel(start) {
 }
 
 /**
- * The month's hours by Sunday–Saturday week, so each column can be checked
- * against Square's Timecards screen for that week. Weeks that cross into the
- * next or last month only count this month's days here.
+ * The hours behind the month's paychecks, by Sunday–Saturday week, so each
+ * column can be checked against Square's Timecards screen for that week.
  */
-function WeekByWeek({ month, people, over }) {
-  const { start, end } = monthBounds(month);
-  const lastWeek = over ? weekStart(end) : weekStart(venueToday() < end ? venueToday() : end);
+function WeekByWeek({ paychecks, people, over }) {
+  const start = paychecks[0].start;
+  const end = paychecks[paychecks.length - 1].end;
+  const lastWeek = weekStart(venueToday() < end ? venueToday() : end);
   const weeks = [];
   for (let w = weekStart(start); w <= lastWeek; w = shiftDate(w, { days: 7 })) weeks.push(w);
-  const partial = (w) => w < start || shiftDate(w, { days: 6 }) > end;
+  const paidOn = (w) => paychecks.find((c) => w >= c.start && w <= c.end)?.payday;
   const total = (w) => people.reduce((sum, p) => sum + (p.weeks[w]?.hours || 0), 0);
   const totalWages = (w) => people.reduce((sum, p) => sum + (p.weeks[w]?.wages || 0), 0);
   const hrs = (n) => Math.round(n * 100) / 100;
@@ -211,7 +232,7 @@ function WeekByWeek({ month, people, over }) {
               {weeks.map((w) => (
                 <th key={w} className="whitespace-nowrap py-1 pr-3 text-right font-medium">
                   {weekLabel(w)}
-                  {partial(w) ? <span className="block font-normal">{monthLabel(month).split(" ")[0]} days only</span> : null}
+                  {paidOn(w) ? <span className="block font-normal">paid {shortDay(paidOn(w))}</span> : null}
                 </th>
               ))}
               <th className="py-1 text-right font-medium">{over ? "Month" : "So far"}</th>
@@ -301,7 +322,7 @@ export default async function StaffCostsPage({ searchParams }) {
       <PageHeader
         eyebrow="Shop"
         title="Shared staff cost"
-        subtitle="The tenants and the shop split what the staff cost each month, evenly. It follows Square as the month goes: hours from the timecards, at each person's pay rate on their job in Square. On the 1st the site emails you last month's total; nothing goes to a tenant until you press Send. Each tenant then gets a Square invoice, due with rent."
+        subtitle="The tenants and the shop split what the staff cost each month, evenly — counting only the payroll paid that month: the paychecks dated in it. Hours come from Square's timecards, at each person's pay rate on their job in Square. On the 1st the site emails you last month's total; nothing goes to a tenant until you press Send. Each tenant then gets a Square invoice with Square's card fee added, or can skip the fee by paying another way and you mark it paid."
       />
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -352,6 +373,22 @@ export default async function StaffCostsPage({ searchParams }) {
               ) : null}
             </div>
 
+            {m.detail.paychecks ? (
+              <p className="mt-2 text-sm text-ink-soft">
+                {m.detail.paychecks.length
+                  ? <>Payroll paid in {monthLabel(month).split(" ")[0]}:{" "}
+                      {m.detail.paychecks.map((c, i) => (
+                        <span key={c.payday}>
+                          {i ? "; " : ""}
+                          <strong className="text-ink">{shortDay(c.payday)}</strong> for work {weekLabel(c.start).split("–")[0]}–{shortDay(c.end)}
+                          {c.hours ? ` (${c.hours} hrs, ${formatMoney(c.wages)})` : ""}
+                        </span>
+                      ))}
+                      .</>
+                  : `No paydays in ${monthLabel(month)}.`}
+              </p>
+            ) : null}
+
             {m.detail.people?.length ? (
               <div className="mt-3 overflow-x-auto">
                 <table className="w-full text-sm">
@@ -378,7 +415,7 @@ export default async function StaffCostsPage({ searchParams }) {
                 </table>
               </div>
             ) : (
-              <p className="mt-2 text-sm text-ink-muted">No timecards in Square for this month.</p>
+              <p className="mt-2 text-sm text-ink-muted">No timecards in Square for these paychecks.</p>
             )}
 
             {m.detail.warnings?.length ? (
@@ -421,8 +458,8 @@ export default async function StaffCostsPage({ searchParams }) {
                   <input id="note" name="note" defaultValue={m.note || ""} className="field" />
                 </div>
                 <p className="text-xs text-ink-muted">
-                  For the exact figure, use the total employer cost on Square Payroll&apos;s payroll report for the month
-                  (wages + employer taxes + fees). Blank uses the estimate above.
+                  For the exact figure, add up the total employer cost of the pay runs above on Square Payroll&apos;s payroll
+                  report (wages + employer taxes + fees). Blank uses the estimate above.
                 </p>
                 <Button type="submit" variant="ghost">Save</Button>
               </form>
@@ -441,6 +478,7 @@ export default async function StaffCostsPage({ searchParams }) {
             <ul className="mt-3 divide-y divide-line/60">
               {m.shares.map((s) => {
                 const [tone, label] = s.directory_id == null ? ["sage", "The shop's share"] : STATUS[s.status] || STATUS.draft;
+                const fee = s.status === "sent" ? s.square_fee : s.directory_id != null && s.status !== "paid" ? squareFeeOn(s.amount, settings) : 0;
                 return (
                   <li key={s.id} className="py-2.5">
                     <div className="flex items-baseline justify-between gap-3">
@@ -450,7 +488,8 @@ export default async function StaffCostsPage({ searchParams }) {
                       </span>
                       <span className="shrink-0 text-right">
                         <span className="block font-semibold tabular-nums text-ink">{formatMoney(s.amount)}</span>
-                        <Badge tone={tone}>{label}</Badge>
+                        {fee ? <span className="block text-xs text-ink-muted">+{formatMoney(fee)} if paid through Square</span> : null}
+                        <Badge tone={tone}>{s.status === "paid" && s.paid_method ? `Paid · ${s.paid_method}` : label}</Badge>
                       </span>
                     </div>
                     {s.error ? <p className="mt-1 text-xs text-rust">{s.error}</p> : null}
@@ -467,6 +506,25 @@ export default async function StaffCostsPage({ searchParams }) {
                           <button type="submit" className="text-ink-muted underline hover:text-rust">Cancel this bill</button>
                         </form>
                       </div>
+                    ) : null}
+                    {s.directory_id != null && s.status !== "paid" && over ? (
+                      <form action={markPaid} className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
+                        <input type="hidden" name="month" value={month} />
+                        <input type="hidden" name="share" value={s.id} />
+                        <span className="text-ink-muted">Paid another way?</span>
+                        <select name="method" defaultValue="Venmo" className="field !h-7 !w-auto !py-0 text-xs" aria-label={`How ${s.name} paid`}>
+                          {PAID_OTHER_WAYS.map((w) => (
+                            <option key={w}>{w}</option>
+                          ))}
+                        </select>
+                        <ConfirmButton
+                          label="Mark paid"
+                          variant="ghost"
+                          question={`Mark ${s.name}'s ${formatMoney(s.amount)} paid?${s.status === "sent" ? " Their Square invoice gets cancelled so it no longer shows as owed." : ""}`}
+                          confirmLabel="Yes, mark paid"
+                          pendingLabel="Marking…"
+                        />
+                      </form>
                     ) : null}
                   </li>
                 );
@@ -500,8 +558,8 @@ export default async function StaffCostsPage({ searchParams }) {
         </div>
       )}
 
-      {m?.detail.people?.length && m.detail.people.every((p) => p.weeks) ? (
-        <WeekByWeek month={month} people={m.detail.people} over={over} />
+      {m?.detail.paychecks?.length && m.detail.people?.length && m.detail.people.every((p) => p.weeks) ? (
+        <WeekByWeek paychecks={m.detail.paychecks} people={m.detail.people} over={over} />
       ) : null}
 
       <details className="card mt-4 p-5">
@@ -552,6 +610,30 @@ export default async function StaffCostsPage({ searchParams }) {
               <label className="label" htmlFor="notify">Send the monthly draft to</label>
               <input id="notify" name="notify" defaultValue={notifySetting} placeholder={notifyList("staff_cost_notify").join(", ")} className="field" />
               <p className="mt-1 text-xs text-ink-muted">The bookkeeper. Separate several with commas.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="min-w-0">
+              <label className="label" htmlFor="first_payday">First payday</label>
+              <input id="first_payday" name="first_payday" type="date" defaultValue={settings.firstPayday} className="field" />
+              <p className="mt-1 text-xs text-ink-muted">
+                Payday is every two weeks from this date. Each paycheck covers the two Sunday–Saturday weeks ending the
+                Saturday before. A month counts the paychecks dated in it.
+              </p>
+            </div>
+            <div className="min-w-0">
+              <label className="label" htmlFor="fee_pct">Square card fee added to bills</label>
+              <div className="flex items-center gap-2">
+                <input id="fee_pct" name="fee_pct" inputMode="decimal" defaultValue={settings.feePct} className="field" aria-label="Percent" />
+                <span className="text-sm text-ink-muted">%&nbsp;+&nbsp;$</span>
+                <input name="fee_fixed" inputMode="decimal" defaultValue={settings.feeFixed} className="field" aria-label="Per payment, in dollars" />
+              </div>
+              <p className="mt-1 text-xs text-ink-muted">Square&apos;s online card rate (3.3% + 30¢ on the Free plan). Set both to 0 to stop adding it.</p>
+            </div>
+            <div className="min-w-0">
+              <label className="label" htmlFor="pay_other">Pay without the fee by</label>
+              <input id="pay_other" name="pay_other" defaultValue={settings.payOther} placeholder="Venmo @name or Zelle 435-…" className="field" />
+              <p className="mt-1 text-xs text-ink-muted">Shown on their bill and email. Mark it paid here when it comes in.</p>
             </div>
           </div>
           <Button type="submit">Save</Button>

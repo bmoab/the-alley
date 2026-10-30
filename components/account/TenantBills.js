@@ -5,8 +5,9 @@ import { venueDayOf, formatDateShort, formatMoney } from "@/lib/constants.js";
 /**
  * A tenant's bills with The Alley, in one card: monthly rent (with its pay
  * link, when the owner has set one) and their share of the staff cost — the
- * unpaid ones with a Pay button, then the last few paid. Nothing at all when
- * there's nothing to show.
+ * unpaid ones with a Pay button (Square's card fee added) and the fee-free way
+ * to pay instead, then the last few paid. Nothing at all when there's nothing
+ * to show.
  */
 export default function TenantBills({ directoryId, name, wide = true }) {
   return <TenantBillsCard bills={tenantBills(directoryId)} name={name} wide={wide} />;
@@ -50,9 +51,11 @@ export function TenantBillsCard({ bills: b, name, wide = true }) {
             <div className="ac-row">
               <span className="ac-row-main">
                 <span className="ac-row-title" style={{ whiteSpace: "normal" }}>{r.label}</span>
-                <span className="ac-row-sub">
+                <span className="ac-row-sub" style={{ whiteSpace: "normal" }}>
                   {formatMoney(r.amount)}
                   {r.sent_at ? ` · sent ${formatDateShort(venueDayOf(r.sent_at))}` : ""}
+                  {b.payOther ? ` · no fee by ${b.payOther}` : ""}
+                  {r.payment_link && r.square_fee ? ` · ${formatMoney(Number(r.amount) + Number(r.square_fee))} through Square (card fee included)` : ""}
                 </span>
               </span>
               {r.payment_link ? (
@@ -70,7 +73,10 @@ export function TenantBillsCard({ bills: b, name, wide = true }) {
             <div className="ac-row">
               <span className="ac-row-main">
                 <span className="ac-row-title" style={{ fontWeight: 400 }}>{r.label}</span>
-                <span className="ac-row-sub">{formatMoney(r.amount)}</span>
+                <span className="ac-row-sub">
+                  {formatMoney(r.amount)}
+                  {r.paid_method ? ` · by ${r.paid_method}` : ""}
+                </span>
               </span>
               <span className="ac-pill ac-pill--live">Paid</span>
             </div>
