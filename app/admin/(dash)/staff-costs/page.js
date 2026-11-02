@@ -491,6 +491,13 @@ export default async function StaffCostsPage({ searchParams }) {
                 </>
               ) : null}
               <Line label="Staff cost for the month" value={m.total} strong />
+              {!over && m.detail.projection ? (
+                <Line
+                  label="Estimate for the whole month"
+                  value={Math.max(m.detail.projection.total, m.total)}
+                  hint={`Hours so far, plus the last four weeks' pace (${formatMoney(m.detail.projection.perDay)} a day in wages) for the ${m.detail.projection.daysLeft} work days left. Tenants see their share of this on their account.`}
+                />
+              ) : null}
             </div>
 
             {!m.locked ? (

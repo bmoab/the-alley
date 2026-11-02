@@ -1,6 +1,6 @@
 import { requireAccount, whatsMine } from "@/lib/accounts.js";
 import { accountActivity } from "@/lib/account-activity.js";
-import { tenantBills } from "@/lib/staff-costs.js";
+import { tenantBills, tenantStaffCost, freshMonth, currentMonth } from "@/lib/staff-costs.js";
 import { sharesStaffCost, upcomingStaffSchedule } from "@/lib/staff-schedule.js";
 import { makerOverview, needsTerms } from "@/lib/inventory.js";
 import AccountDashboard from "@/components/account/AccountDashboard.js";
@@ -32,7 +32,11 @@ export default async function AccountHome() {
     })
   );
   const bills = Object.fromEntries(mine.businesses.map((b) => [b.id, tenantBills(b.id)]));
-  const schedule = mine.businesses.some((b) => sharesStaffCost(b.id)) ? await upcomingStaffSchedule() : null;
+  const sharing = mine.businesses.some((b) => sharesStaffCost(b.id));
+  const schedule = sharing ? await upcomingStaffSchedule() : null;
+  // This month's running figures: rebuilt nightly, and here if a few hours old.
+  if (sharing) await freshMonth(currentMonth(), { maxAgeMin: 180 }).catch(() => null);
+  const staffCost = Object.fromEntries(mine.businesses.map((b) => [b.id, tenantStaffCost(b.id)]));
   return (
     <AccountDashboard
       account={account}
@@ -41,6 +45,7 @@ export default async function AccountHome() {
       makerStats={makerStats}
       bills={bills}
       schedule={schedule}
+      staffCost={staffCost}
     />
   );
 }

@@ -3,6 +3,7 @@ import { CalendarDays, ChevronDown, ChevronRight, History, Megaphone, Package, P
 import { TenantBillsCard } from "./TenantBills.js";
 import CalendarSubscribe from "./CalendarSubscribe.js";
 import { StaffScheduleCard } from "./StaffSchedule.js";
+import TenantStaffCostCard from "./TenantStaffCost.js";
 import { tourHref } from "@/lib/account-tour.js";
 import { formatDate, formatDateShort, formatMoney, venueNow, venueToday, calendarFeedUrl } from "@/lib/constants.js";
 
@@ -61,7 +62,7 @@ const FEATURES = [
     key: "businesses",
     icon: Store,
     title: "Your business in the building",
-    body: "Tenants get a page in our directory, can post the events they run in their own space, and see their rent and shared bills here with a Pay button. Tenants who share the shop's staff also see who's working this week and next.",
+    body: "Tenants get a page in our directory, can post the events they run in their own space, and see their rent and shared bills here with a Pay button. Tenants who share the shop's staff also see who's working this week and next, the hours behind their share, and a running estimate of this month's.",
     cta: ["See the directory", "/directory"],
   },
   {
@@ -152,10 +153,11 @@ function Tile({ href, icon: Icon, eyebrow, title, children, go = "Open", wide = 
  *   makerStats  { [vendorId]: { onShelf, soFarThisMonth, due, waiting, termsChanged } }
  *   bills       { [directoryId]: tenantBills(id) }
  *   schedule    upcomingStaffSchedule() — only for tenants who share the staff
+ *   staffCost   { [directoryId]: tenantStaffCost(id) }
  *   recent      the newest few Activity rows (lib/account-activity.js)
  *   demo        the account tour's mode key: links open the tour's sample pages
  */
-export default function AccountDashboard({ account, mine, recent = [], makerStats = {}, bills = {}, schedule = null, demo = null }) {
+export default function AccountDashboard({ account, mine, recent = [], makerStats = {}, bills = {}, schedule = null, staffCost = {}, demo = null }) {
   const go = (href, kind, id) => (demo ? tourHref(demo, kind, id) : href);
   const first = account.name ? account.name.trim().split(/\s+/)[0] : "";
   const nothing =
@@ -264,6 +266,9 @@ export default function AccountDashboard({ account, mine, recent = [], makerStat
               bills={bills[b.id]}
               name={mine.businesses.length > 1 ? b.business_name : ""}
             />
+          ))}
+          {mine.businesses.map((b) => (
+            <TenantStaffCostCard key={`stc${b.id}`} data={staffCost[b.id]} name={mine.businesses.length > 1 ? b.business_name : ""} />
           ))}
           {schedule ? <StaffScheduleCard ok={schedule.ok} weeks={schedule.weeks} /> : null}
           {tiles.map((render, i) => render(tiles.length % 2 === 1 && i === tiles.length - 1))}

@@ -38,6 +38,7 @@ function Dashboard({ m }) {
       makerStats={m.makerStats}
       bills={m.bills}
       schedule={m.schedule}
+      staffCost={m.staffCost}
       demo={m.key}
     />
   );
