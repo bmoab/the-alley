@@ -5,13 +5,14 @@ import { getActor, requireStaffManager } from "@/lib/auth.js";
 import { getSetting, setSetting } from "@/lib/db.js";
 import { parseList, notifyList } from "@/lib/notify.js";
 import { isSquareConfigured } from "@/lib/square.js";
-import { emailTenantStaffShare } from "@/lib/email.js";
+import { emailTenantStaffShare, tenantStaffShareEmail } from "@/lib/email.js";
 import {
   MONTH_RE,
   PAID_OTHER_WAYS,
   buildMonth,
   cancelShare,
   currentMonth,
+  emailContext,
   freshMonth,
   getMonth,
   listMonths,
@@ -22,9 +23,11 @@ import {
   refreshPayments,
   saveMonthEdits,
   saveSetup,
+  saveTenantNote,
   sendMonth,
   shareCandidates,
   squareFeeOn,
+  squareJobs,
   staffCostSettings,
 } from "@/lib/staff-costs.js";
 import { formatMoney, shiftDate, venueToday } from "@/lib/constants.js";
@@ -84,6 +87,18 @@ async function saveEdits(formData) {
     back(month, err.message, "error");
   }
   back(month, "Saved — shares updated.");
+}
+
+async function saveNote(formData) {
+  "use server";
+  await requireStaffManager();
+  const month = monthOf(formData);
+  try {
+    saveTenantNote(month, formData.get("tenant_note"));
+  } catch (err) {
+    back(month, err.message, "error");
+  }
+  back(month, String(formData.get("tenant_note") || "").trim() ? "Note saved — it's in the preview below." : "Note removed.");
 }
 
 async function send(formData) {
@@ -164,6 +179,13 @@ async function setup(formData) {
       feePct: formData.get("fee_pct"),
       feeFixed: formData.get("fee_fixed"),
       payOther: formData.get("pay_other"),
+      // Jobs left unticked aren't split; a job no longer listed keeps its setting.
+      unsharedJobs: formData.getAll("job").length
+        ? [
+            ...formData.getAll("job").filter((id) => !formData.getAll("shared_job").includes(id)),
+            ...staffCostSettings().unsharedJobs.filter((id) => !formData.getAll("job").includes(id)),
+          ]
+        : undefined,
     });
     setSetting("staff_cost_notify", parseList(notify).join(", "));
     // An unsent month picks up the new payers and figures right away.
@@ -312,10 +334,28 @@ export default async function StaffCostsPage({ searchParams }) {
   months.sort((a, b) => b.month.localeCompare(a.month));
   const candidates = shareCandidates();
   const settings = staffCostSettings();
+  let jobs = [];
+  try {
+    jobs = isSquareConfigured() ? await squareJobs() : [];
+  } catch {
+    jobs = [];
+  }
   const notifySetting = getSetting("staff_cost_notify", "");
   const toBill = m ? m.shares.filter((s) => s.directory_id != null && ["draft", "failed", "cancelled"].includes(s.status)) : [];
   const outstanding = m ? m.shares.filter((s) => s.status === "sent") : [];
   const estimate = m ? m.wages + m.taxes + m.fees + m.adjustment : 0;
+  // The email exactly as the first tenant still to bill would get it (the Pay button's link is made at Send).
+  const previewShare = m ? toBill[0] || m.shares.find((s) => s.directory_id != null) : null;
+  const preview = previewShare
+    ? tenantStaffShareEmail(
+        {
+          ...previewShare,
+          payment_link: previewShare.payment_link || "#",
+          square_fee: previewShare.status === "sent" ? previewShare.square_fee : squareFeeOn(previewShare.amount, settings),
+        },
+        emailContext(m)
+      )
+    : null;
 
   return (
     <div>
@@ -417,6 +457,19 @@ export default async function StaffCostsPage({ searchParams }) {
             ) : (
               <p className="mt-2 text-sm text-ink-muted">No timecards in Square for these paychecks.</p>
             )}
+
+            {m.detail.notShared?.length ? (
+              <p className="mt-2 text-xs text-ink-muted">
+                <span className="font-medium text-ink-soft">Paid by the shop alone, not split:</span>{" "}
+                {m.detail.notShared.map((x, i) => (
+                  <span key={`${x.id}-${x.job}`}>
+                    {i ? "; " : ""}
+                    {x.name} · {x.job} · {x.hours} hrs{x.missingRate ? "" : ` (${formatMoney(x.wages)})`}
+                  </span>
+                ))}
+                .
+              </p>
+            ) : null}
 
             {m.detail.warnings?.length ? (
               <ul className="mt-3 space-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
@@ -537,7 +590,7 @@ export default async function StaffCostsPage({ searchParams }) {
                   <input type="hidden" name="month" value={month} />
                   <ConfirmButton
                     label={`Send ${toBill.length} bill${toBill.length === 1 ? "" : "s"}`}
-                    question={`Bill ${toBill.map((s) => `${s.name} ${formatMoney(s.amount)}`).join(", ")}? Each gets a Square invoice due today and an email with the link.`}
+                    question={`Bill ${toBill.map((s) => `${s.name} ${formatMoney(s.amount)}`).join(", ")}? Each gets a Square invoice due today and the email previewed below${m.tenant_note ? ", with your note" : ""}.`}
                     confirmLabel="Yes, send them"
                     pendingLabel="Sending…"
                   />
@@ -557,6 +610,45 @@ export default async function StaffCostsPage({ searchParams }) {
           </Card>
         </div>
       )}
+
+      {m && preview ? (
+        <Card className="mt-4">
+          <h2 className="font-semibold text-ink">The email the tenants get</h2>
+          <p className="mt-0.5 text-xs text-ink-muted">
+            Pressing Send emails each tenant this, with their own amount and their own Square pay link. Square doesn&apos;t
+            send anything itself. Add a note and it shows near the top{m.locked ? " — only bills not yet sent pick it up" : ""}.
+          </p>
+          <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1.4fr]">
+            <form action={saveNote} className="space-y-2">
+              <input type="hidden" name="month" value={month} />
+              <label className="label" htmlFor="tenant_note">Note to the tenants (optional)</label>
+              <textarea
+                id="tenant_note"
+                name="tenant_note"
+                rows={5}
+                maxLength={2000}
+                defaultValue={m.tenant_note || ""}
+                placeholder="e.g. A heads-up about anything different this month."
+                className="field !h-auto py-2"
+              />
+              <p className="text-xs text-ink-muted">Every tenant gets the same note. Leave it blank for none.</p>
+              <Button type="submit" variant="ghost">Save note</Button>
+            </form>
+            <div className="min-w-0">
+              <p className="text-xs text-ink-muted">
+                Preview for <span className="font-semibold text-ink">{previewShare.name}</span> · To {preview.to || "no email yet"}
+              </p>
+              <p className="mt-1 text-sm font-semibold text-ink">{preview.subject}</p>
+              <iframe
+                title="Email preview"
+                srcDoc={preview.html}
+                sandbox=""
+                className="mt-2 h-[30rem] w-full rounded-xl border border-line bg-paper"
+              />
+            </div>
+          </div>
+        </Card>
+      ) : null}
 
       {m?.detail.paychecks?.length && m.detail.people?.length && m.detail.people.every((p) => p.weeks) ? (
         <WeekByWeek paychecks={m.detail.paychecks} people={m.detail.people} over={over} />
@@ -595,6 +687,30 @@ export default async function StaffCostsPage({ searchParams }) {
               ))}
             </ul>
           </div>
+          {jobs.length ? (
+            <div>
+              <p className="label">Jobs split with tenants</p>
+              <p className="mb-2 text-xs text-ink-muted">
+                From Square (Staff → Jobs). Hours clocked under an unticked job — back-office work, say — are paid by the
+                shop alone and left off the tenants&apos; bills. They still count toward that person&apos;s 40 hours for
+                overtime. Someone with two jobs picks which one when they clock in.
+              </p>
+              <ul className="grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
+                {jobs.map((j) => (
+                  <li key={j.id}>
+                    <input type="hidden" name="job" value={j.id} />
+                    <label className="flex min-w-0 items-center gap-2 text-sm text-ink">
+                      <input type="checkbox" name="shared_job" value={j.id} defaultChecked={!settings.unsharedJobs.includes(j.id)} />
+                      <span className="truncate">
+                        {j.title}
+                        {j.holders.length ? <span className="ml-1 text-xs text-ink-muted">· {j.holders.join(", ")}</span> : null}
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="min-w-0">
               <label className="label" htmlFor="tax_pct">Employer payroll taxes (%)</label>
