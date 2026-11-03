@@ -178,7 +178,8 @@ async function setup(formData) {
       firstPayday: formData.get("first_payday"),
       feePct: formData.get("fee_pct"),
       feeFixed: formData.get("fee_fixed"),
-      payOther: formData.get("pay_other"),
+      venmo: formData.get("venmo"),
+      zelle: formData.get("zelle"),
       // Jobs left unticked aren't split; a job no longer listed keeps its setting.
       unsharedJobs: formData.getAll("job").length
         ? [
@@ -751,12 +752,18 @@ export default async function StaffCostsPage({ searchParams }) {
                 <span className="text-sm text-ink-muted">%&nbsp;+&nbsp;$</span>
                 <input name="fee_fixed" inputMode="decimal" defaultValue={settings.feeFixed} className="field" aria-label="Per payment, in dollars" />
               </div>
-              <p className="mt-1 text-xs text-ink-muted">Square&apos;s online card rate (3.3% + 30¢ on the Free plan). Set both to 0 to stop adding it.</p>
+              <p className="mt-1 text-xs text-ink-muted">Square&apos;s online card rate (2.9% + 30¢ on your plan). Set both to 0 to stop adding it.</p>
             </div>
             <div className="min-w-0">
-              <label className="label" htmlFor="pay_other">Pay without the fee by</label>
-              <input id="pay_other" name="pay_other" defaultValue={settings.payOther} placeholder="Venmo @name or Zelle 435-…" className="field" />
-              <p className="mt-1 text-xs text-ink-muted">Shown on their bill and email. Mark it paid here when it comes in.</p>
+              <p className="label">Pay without the fee by</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <input name="venmo" defaultValue={settings.venmo} placeholder="Venmo @name" aria-label="Venmo" className="field" />
+                <input name="zelle" defaultValue={settings.zelle} placeholder="Zelle phone or email" aria-label="Zelle" className="field" />
+              </div>
+              <p className="mt-1 text-xs text-ink-muted">
+                {settings.payOther ? <>Their bill and email say: send it by <strong>{settings.payOther}</strong>. </> : "Shown on their bill and email. "}
+                Mark it paid here when it comes in.
+              </p>
             </div>
           </div>
           <Button type="submit">Save</Button>

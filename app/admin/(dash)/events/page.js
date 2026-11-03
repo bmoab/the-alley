@@ -22,6 +22,7 @@ import {
   formatTime,
   formatMoney,
   upperFirst,
+  venueToday,
 } from "@/lib/constants.js";
 import { eventTimeLabel } from "@/lib/event-time.js";
 import AdminCalendar from "@/components/AdminCalendar.js";
@@ -150,7 +151,7 @@ export default async function EventsPage({ searchParams }) {
 
   const sp = searchParams || {};
   const status = (sp.status || DEFAULT_STATUS).toString();
-  const sort = sp.sort === "date_desc" ? "date_desc" : "date_asc";
+  const sortParam = ["date_asc", "date_desc"].includes(sp.sort) ? sp.sort : "";
   const q = (sp.q || "").toString().trim();
   const space = (sp.space || "").toString();
   const show = ["booked", "listings"].includes(sp.show) ? sp.show : "";
@@ -168,14 +169,19 @@ export default async function EventsPage({ searchParams }) {
   // A day picked on the calendar wins over the date range.
   const range = day ? { from: day, to: day } : resolveDateRange(preset, { from: customFrom, to: customTo });
   const archived = status === "archived";
+  // Looking ahead (Upcoming, Next 7 days…) reads soonest first; any view that
+  // reaches into the past — Archived, Cancelled, All time, Last month — reads
+  // newest first, so the dates you just dealt with sit at the top.
+  const defaultSort = range.from && range.from >= venueToday() ? "date_asc" : "date_desc";
+  const sort = sortParam || defaultSort;
 
   // URL for this view with some params changed ("" removes one).
-  const current = { status, sort, q, space, show, pub, day, preset: explicitPreset, from: customFrom, to: customTo };
+  const current = { status, sort: sortParam, q, space, show, pub, day, preset: explicitPreset, from: customFrom, to: customTo };
   const qs = (next = {}) => {
     const m = { ...current, ...next };
     const p = new URLSearchParams();
     if (m.status && m.status !== DEFAULT_STATUS) p.set("status", m.status);
-    if (m.sort && m.sort !== "date_asc") p.set("sort", m.sort);
+    if (m.sort) p.set("sort", m.sort);
     for (const k of ["q", "space", "show", "pub", "day", "preset"]) if (m[k]) p.set(k, m[k]);
     if (m.preset === "custom") {
       if (m.from) p.set("from", m.from);
@@ -249,7 +255,7 @@ export default async function EventsPage({ searchParams }) {
   const otherSort = sort === "date_asc" ? "date_desc" : "date_asc";
   const presetLabel = DATE_PRESETS.find((p) => p.key === preset)?.label || "Upcoming";
   const isFiltered = q || space || show || pub || day || (explicitPreset && explicitPreset !== defaultPreset);
-  const filterValues = { status, sort, q, space, show, pub, day, preset, from: customFrom, to: customTo };
+  const filterValues = { status, sort: sortParam, q, space, show, pub, day, preset, from: customFrom, to: customTo };
   const closures = listClosures();
 
   return (
@@ -381,7 +387,7 @@ export default async function EventsPage({ searchParams }) {
       {/* Search + what + public + space + dates */}
       <form method="get" className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-6 lg:items-end">
         {status !== DEFAULT_STATUS ? <input type="hidden" name="status" value={status} /> : null}
-        {sort !== "date_asc" ? <input type="hidden" name="sort" value={sort} /> : null}
+        {sortParam ? <input type="hidden" name="sort" value={sortParam} /> : null}
         <div className="col-span-2">
           <label className="label" htmlFor="q">Search</label>
           <input id="q" name="q" defaultValue={q} className="field" placeholder="Event, client, host or email" />
