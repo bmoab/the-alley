@@ -2,7 +2,21 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth.js";
-import { salesSummary, syncSquareSales, consignorShare, round2, unmatchedRefunds } from "@/lib/inventory.js";
+import {
+  salesSummary,
+  syncSquareSales,
+  consignorShare,
+  round2,
+  unmatchedRefunds,
+  uncreditedSales,
+  guessVendor,
+  creditSales,
+  linkVariationsToVendor,
+  listVendors,
+} from "@/lib/inventory.js";
+import { describeVariations } from "@/lib/square-retail.js";
+import { getActor } from "@/lib/auth.js";
+import Select from "@/components/admin/ui/Select.js";
 import { isSquareConfigured } from "@/lib/square.js";
 import { getSetting } from "@/lib/db.js";
 import { venueDayOf, formatDateShort, formatMoney, shiftDate, venueToday, upperFirst } from "@/lib/constants.js";
@@ -29,6 +43,71 @@ async function syncNow(formData) {
   }
   revalidatePath("/admin/sales");
   redirect(`/admin/sales?${qs}${qs ? "&" : ""}toast=${encodeURIComponent(msg)}&toastType=${type}`);
+}
+
+/** Credit each group of uncredited sales to the maker picked for it (blank = leave it The Alley's). */
+async function creditAction(formData) {
+  "use server";
+  await requireAdmin();
+  const { actorName } = await getActor();
+  const qs = (formData.get("qs") || "").toString();
+  let lines = 0;
+  let linked = 0;
+  const makers = new Set();
+  let msg;
+  let type = "success";
+  try {
+    for (const key of formData.getAll("group")) {
+      const vendorId = Number(formData.get(`v_${key}`)) || null;
+      if (!vendorId) continue;
+      const ids = String(formData.get(`ids_${key}`) || "").split(",");
+      const n = creditSales(ids, vendorId, { by: actorName });
+      if (n) makers.add(vendorId);
+      lines += n;
+      const variation = formData.get(`future_${key}`);
+      if (variation) linked += await linkVariationsToVendor(vendorId, [String(variation)]);
+    }
+    msg = lines
+      ? `Credited ${lines} sale${lines === 1 ? "" : "s"} to ${makers.size} maker${makers.size === 1 ? "" : "s"}.${linked ? ` ${linked} item${linked === 1 ? " is" : "s are"} now theirs for future sales too.` : ""}`
+      : "Nothing picked — pick a maker next to a sale first.";
+    if (!lines) type = "neutral";
+  } catch (err) {
+    msg = err.message;
+    type = "error";
+  }
+  revalidatePath("/admin/sales");
+  redirect(`/admin/sales?${qs}${qs ? "&" : ""}toast=${encodeURIComponent(msg)}&toastType=${type}#credit`);
+}
+
+async function uncreditAction(formData) {
+  "use server";
+  await requireAdmin();
+  const qs = (formData.get("qs") || "").toString();
+  const n = creditSales(String(formData.get("ids") || "").split(","), null);
+  revalidatePath("/admin/sales");
+  const msg = n ? "Taken back — it counts as The Alley's again." : "That one's already been paid out, so it can't be taken back.";
+  redirect(`/admin/sales?${qs}${qs ? "&" : ""}toast=${encodeURIComponent(msg)}&toastType=${n ? "success" : "error"}#credit`);
+}
+
+/**
+ * Uncredited sales in groups: every sale of the same Square item together (one
+ * pick credits them all), each custom amount on its own.
+ */
+function groupUncredited(open, vendors) {
+  const groups = new Map();
+  for (const l of open) {
+    const key = l.catalog_object_id ? `c${l.catalog_object_id.replace(/[^A-Za-z0-9]/g, "")}` : `l${l.id}`;
+    const g = groups.get(key) || { key, name: l.catalog_object_id ? l.name : "Custom amount", catalogId: l.catalog_object_id, lines: [] };
+    g.lines.push(l);
+    groups.set(key, g);
+  }
+  return [...groups.values()].map((g) => ({
+    ...g,
+    net: round2(g.lines.reduce((t, l) => t + Number(l.net), 0)),
+    first: g.lines[g.lines.length - 1].sold_at,
+    last: g.lines[0].sold_at,
+    suggest: g.catalogId ? guessVendor(g.name, vendors) : null,
+  }));
 }
 
 /** Calendar ranges for the preset chips. Quarters are calendar quarters (Utah's filing periods). */
@@ -87,6 +166,19 @@ export default async function SalesPage({ searchParams }) {
   const giftCards = s.lines.filter((l) => l.kind === "giftcard");
   const loose = unmatchedRefunds(from, to);
   const qs = presetKey ? `p=${presetKey}` : `from=${from}&to=${to}`;
+  const makers = listVendors({ includeInactive: true }).filter((v) => !/^test$/i.test(v.name));
+  const unc = uncreditedSales(from, to);
+  const groups = groupUncredited(unc.open, makers);
+  // Which of those items are still in Square (so their future sales can be theirs too).
+  // null = couldn't ask Square (not connected here, or it failed) — then don't claim anything's gone.
+  let inSquare = null;
+  if (isSquareConfigured()) {
+    try {
+      inSquare = await describeVariations(groups.filter((g) => g.catalogId).map((g) => g.catalogId));
+    } catch {
+      inSquare = null;
+    }
+  }
 
   return (
     <div>
@@ -198,6 +290,10 @@ export default async function SalesPage({ searchParams }) {
         </Card>
       ) : null}
 
+      {groups.length || unc.credited.length ? (
+        <CreditCard groups={groups} credited={unc.credited} makers={makers} inSquare={inSquare} qs={qs} />
+      ) : null}
+
       <Card pad="md" className="mt-6">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-base font-semibold text-ink">Every line</h2>
@@ -233,9 +329,12 @@ export default async function SalesPage({ searchParams }) {
                       {l.kind !== "retail" ? (
                         ({ staffshare: "Tenant's staff share", utilityshare: "Utility share", rent: "Rent" })[l.kind] || upperFirst(l.kind)
                       ) : l.vendor_id ? (
-                        <Link href={`/admin/vendors/${l.vendor_id}`} className="hover:underline">
-                          {l.vendor_name}
-                        </Link>
+                        <>
+                          <Link href={`/admin/vendors/${l.vendor_id}`} className="hover:underline">
+                            {l.vendor_name}
+                          </Link>
+                          {!l.item_id ? <span className="block text-xs text-ink-muted">credited by hand</span> : null}
+                        </>
                       ) : l.catalog_object_id ? (
                         "The Alley"
                       ) : (
@@ -258,5 +357,122 @@ export default async function SalesPage({ searchParams }) {
         )}
       </Card>
     </div>
+  );
+}
+
+/**
+ * Sales the register didn't tie to a maker, to credit by hand: a custom amount,
+ * or an item rung up before it was linked here (or since deleted from Square).
+ */
+// The Alley's own stock is named "The Alley- …" / "Alley- …" in Square.
+const OWN = /^\s*(the\s+)?alley\b/i;
+
+function CreditCard({ groups, credited, makers, inSquare, qs }) {
+  const total = round2(groups.reduce((t, g) => t + g.net, 0));
+  const likely = groups.filter((g) => !OWN.test(g.name));
+  const own = groups.filter((g) => OWN.test(g.name));
+  const row = (g) => {
+    const live = g.catalogId && inSquare?.[g.catalogId];
+    const gone = g.catalogId && inSquare && !inSquare[g.catalogId];
+    const options = g.suggest ? [g.suggest, ...makers.filter((m) => m.id !== g.suggest.id)] : makers;
+    return (
+      <li key={g.key} className="grid grid-cols-1 gap-2 py-2.5 sm:grid-cols-[1fr_auto] sm:items-center">
+        <input type="hidden" name="group" value={g.key} />
+        <input type="hidden" name={`ids_${g.key}`} value={g.lines.map((l) => l.id).join(",")} />
+        <div className="min-w-0 text-sm">
+          <p className="font-medium text-ink">
+            {g.name}
+            {g.lines.some((l) => l.is_return) ? <span className="ml-1 text-xs text-rust">(includes a return)</span> : null}
+          </p>
+          <p className="text-xs text-ink-muted">
+            {g.lines.length > 1 ? `${g.lines.length} sales · ` : ""}
+            {fmtDay(g.first.slice(0, 10))}
+            {g.lines.length > 1 && g.first.slice(0, 10) !== g.last.slice(0, 10) ? ` – ${fmtDay(g.last.slice(0, 10))}` : ""} ·{" "}
+            <span className="font-semibold text-ink">{formatMoney(g.net)}</span>
+            {g.suggest ? <span className="text-verde-deep"> · looks like {g.suggest.name}</span> : null}
+            {gone ? " · no longer in Square" : ""}
+          </p>
+        </div>
+        <div className="flex flex-col gap-1 sm:w-64">
+          <Select name={`v_${g.key}`} defaultValue="" aria-label={`Whose was ${g.name}?`}>
+            <option value="">The Alley&apos;s — leave it</option>
+            {options.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+                {g.suggest?.id === m.id ? " (looks like it)" : ""}
+              </option>
+            ))}
+          </Select>
+          {live ? (
+            <label className="flex items-center gap-1.5 text-xs text-ink-soft">
+              <input type="checkbox" name={`future_${g.key}`} value={g.catalogId} defaultChecked />
+              Future sales of this item too
+            </label>
+          ) : null}
+        </div>
+      </li>
+    );
+  };
+  return (
+    <Card pad="md" className="mt-6" id="credit">
+      <h2 className="text-base font-semibold text-ink">
+        Not credited to a maker{" "}
+        {groups.length ? <span className="font-normal text-ink-muted">· {formatMoney(total)} in these dates</span> : null}
+      </h2>
+      <p className="mt-1 text-sm text-ink-soft">
+        These were rung up as a custom amount, or as an item this site doesn&apos;t know as a maker&apos;s, so they count as The
+        Alley&apos;s own. If one was a maker&apos;s, pick them: the sale moves to their side, at their split, and shows in what
+        they&apos;re owed. Leave The Alley&apos;s own stock blank. Don&apos;t credit anything you&apos;ve already paid them for by hand.
+      </p>
+
+      {groups.length ? (
+        <form action={creditAction} className="mt-3">
+          <input type="hidden" name="qs" value={qs} />
+          {likely.length ? <ul className="divide-y divide-line">{likely.map(row)}</ul> : null}
+          {own.length ? (
+            <details className="mt-2 rounded-lg border border-line px-3 py-1">
+              <summary className="cursor-pointer py-1.5 text-sm text-ink-soft">
+                The Alley&apos;s own items ({own.length}) · {formatMoney(round2(own.reduce((t, g) => t + g.net, 0)))} — open only if one
+                was really a maker&apos;s
+              </summary>
+              <ul className="divide-y divide-line">{own.map(row)}</ul>
+            </details>
+          ) : null}
+          <div className="mt-3">
+            <Button type="submit">Credit the ones I picked</Button>
+          </div>
+        </form>
+      ) : (
+        <p className="mt-3 text-sm text-ink-muted">Nothing uncredited in these dates.</p>
+      )}
+
+      {credited.length ? (
+        <div className="mt-5">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Credited by hand, not paid out yet</h3>
+          <ul className="mt-1 divide-y divide-line text-sm">
+            {credited.map((l) => (
+              <li key={l.id} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
+                <span className="min-w-0 text-ink">
+                  {fmtDay(l.sold_at.slice(0, 10))} · {l.name}
+                  {l.is_return ? <span className="ml-1 text-xs text-rust">(return)</span> : null} ·{" "}
+                  <span className="font-semibold">{formatMoney(l.net)}</span> →{" "}
+                  <Link href={`/admin/vendors/${l.assigned_vendor_id}`} className="font-medium text-verde-deep hover:underline">
+                    {l.assigned_name}
+                  </Link>
+                  {l.assigned_by ? <span className="text-xs text-ink-muted"> · by {l.assigned_by}</span> : null}
+                </span>
+                <form action={uncreditAction}>
+                  <input type="hidden" name="qs" value={qs} />
+                  <input type="hidden" name="ids" value={l.id} />
+                  <button type="submit" className="text-xs font-semibold text-rust hover:underline">
+                    Take back
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </Card>
   );
 }
