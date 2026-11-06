@@ -16,10 +16,17 @@ export const dynamic = "force-dynamic";
 
 const PATH = "/admin/vendors/remind";
 
-/** Who this page is about: one maker (?id=), or everyone with something to do. */
-function recipients(id) {
+/**
+ * Who this page is about: one maker (?id=), or everyone with something to do.
+ * ?link=1 (one maker only) emails them their private link even when there's
+ * nothing to remind them of, opening with what their page is for.
+ */
+function recipients(id, intro = false) {
   const list = id ? [getVendor(id)].filter(Boolean) : listVendors();
-  return list.map((v) => ({ v, ctx: reminderFor(v) ? reminderContext(v) : null })).filter((r) => r.ctx);
+  const one = intro && id;
+  return list
+    .map((v) => ({ v, ctx: one ? (v.is_active ? reminderContext(v, { intro: true }) : null) : reminderFor(v) ? reminderContext(v) : null }))
+    .filter((r) => r.ctx);
 }
 
 const LABEL = { first: "Agree to the terms", updated: "Agree to the updated terms", share: "Agree to their new share" };
@@ -29,9 +36,10 @@ async function send(formData) {
   await requireAdmin();
   const actor = await getActor();
   const id = Number(formData.get("id")) || null;
+  const intro = formData.get("link") === "1";
   const ids = formData.getAll("vendor").map(Number);
   // Only the people shown on the page, and only if they still need it.
-  const list = recipients(id).filter((r) => ids.includes(r.v.id));
+  const list = recipients(id, intro).filter((r) => ids.includes(r.v.id));
   let sent = 0;
   let failed = 0;
   for (const { v, ctx } of list) {
@@ -42,10 +50,21 @@ async function send(formData) {
     }
     sent++;
     noteReminder(v.id, ctx, actor.actorName);
-    logActivity({ eventType: "maker_reminded", description: `Reminded ${v.name} (${v.email})`, recipientEmail: v.email, ...actor });
+    logActivity({
+      eventType: "maker_reminded",
+      description: intro ? `Emailed ${v.name} their private link (${v.email})` : `Reminded ${v.name} (${v.email})`,
+      recipientEmail: v.email,
+      ...actor,
+    });
   }
   revalidatePath("/admin/vendors");
-  const msg = failed ? `Sent ${sent}; ${failed} didn't go through — try those again.` : `Reminder sent to ${sent} ${sent === 1 ? "person" : "people"}.`;
+  const msg = failed
+    ? sent
+      ? `Sent ${sent}; ${failed} didn't go through — try those again.`
+      : "That email didn't go through — try again in a minute."
+    : intro
+      ? `Emailed ${list[0]?.v.email || "them"} their link.`
+      : `Reminder sent to ${sent} ${sent === 1 ? "person" : "people"}.`;
   redirect(id ? `/admin/vendors/${id}?toast=${encodeURIComponent(msg)}&toastType=${failed ? "error" : "success"}#record` : `/admin/vendors?toast=${encodeURIComponent(msg)}&toastType=${failed ? "error" : "success"}`);
 }
 
@@ -56,7 +75,8 @@ async function send(formData) {
 export default async function RemindPage({ searchParams }) {
   await requireAdmin();
   const id = Number(searchParams?.id) || null;
-  const list = recipients(id);
+  const intro = !!id && searchParams?.link === "1";
+  const list = recipients(id, intro);
   const pick = list.find((r) => r.v.id === Number(searchParams?.show)) || list[0];
   const preview = pick ? makerReminderEmail(pick.ctx.vendor, pick.ctx) : null;
   const noEmail = id ? null : listVendors().filter((v) => !v.email).length;
@@ -65,13 +85,21 @@ export default async function RemindPage({ searchParams }) {
     <div className="max-w-4xl">
       <PageHeader
         eyebrow="Makers"
-        title={id && list[0] ? `Remind ${list[0].v.name}` : "Remind makers and artists"}
-        subtitle="An email asking them to agree to the terms and/or make their account, with a button to their own page. A copy goes in their account's Activity. Nothing is sent until you press Send."
+        title={intro && list[0] ? `Email ${list[0].v.name} their link` : id && list[0] ? `Remind ${list[0].v.name}` : "Remind makers and artists"}
+        subtitle={
+          intro
+            ? "An email with a button to their own page, saying what it's for. If they still need to agree to the terms or make an account, it asks them to as well. A copy goes in their account's Activity. Nothing is sent until you press Send."
+            : "An email asking them to agree to the terms and/or make their account, with a button to their own page. A copy goes in their account's Activity. Nothing is sent until you press Send."
+        }
       />
 
       {!list.length ? (
         <Card>
-          <p className="text-sm text-ink">Nobody needs a reminder: everyone with an email has an account and has agreed to the current terms.</p>
+          <p className="text-sm text-ink">
+            {intro
+              ? "They need an email on file and to be active before their link can be emailed. Add an email on their page, or text them the link."
+              : "Nobody needs a reminder: everyone with an email has an account and has agreed to the current terms."}
+          </p>
           <p className="mt-3 text-sm">
             <Link href={id ? `/admin/vendors/${id}` : "/admin/vendors"} className="font-semibold text-verde-deep hover:underline">
               Back
@@ -88,13 +116,14 @@ export default async function RemindPage({ searchParams }) {
               {list.map(({ v, ctx }) => (
                 <li key={v.id} className="py-2.5">
                   <Link
-                    href={`${PATH}?${new URLSearchParams({ ...(id ? { id } : {}), show: v.id })}`}
+                    href={`${PATH}?${new URLSearchParams({ ...(id ? { id } : {}), ...(intro ? { link: "1" } : {}), show: v.id })}`}
                     className={`font-semibold hover:underline ${pick?.v.id === v.id ? "text-verde-deep" : "text-ink"}`}
                   >
                     {v.name}
                   </Link>
                   <span className="block text-xs text-ink-muted">{v.email}</span>
                   <span className="mt-1 flex flex-wrap gap-1">
+                    {intro ? <Badge tone="sage">Their private link</Badge> : null}
                     {ctx.agree ? <Badge tone="warning">{LABEL[ctx.agree]}</Badge> : null}
                     {ctx.account ? <Badge tone="neutral">Make an account</Badge> : null}
                     {ctx.artist ? <Badge tone="sky">Artist</Badge> : null}
@@ -110,6 +139,7 @@ export default async function RemindPage({ searchParams }) {
             ) : null}
             <form action={send} className="mt-4">
               {id ? <input type="hidden" name="id" value={id} /> : null}
+              {intro ? <input type="hidden" name="link" value="1" /> : null}
               {list.map(({ v }) => (
                 <input key={v.id} type="hidden" name="vendor" value={v.id} />
               ))}
@@ -118,7 +148,11 @@ export default async function RemindPage({ searchParams }) {
                 variant="accent"
                 confirmLabel="Yes, send"
                 pendingLabel="Sending…"
-                question={`Emails ${list.length === 1 ? list[0].v.email : `${list.length} people`} now. Each one only mentions what that person still needs to do.`}
+                question={
+                  intro
+                    ? `Emails ${list[0].v.email} their private link now.`
+                    : `Emails ${list.length === 1 ? list[0].v.email : `${list.length} people`} now. Each one only mentions what that person still needs to do.`
+                }
               />
             </form>
           </Card>

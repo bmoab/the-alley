@@ -369,6 +369,7 @@ export default async function VendorPage({ params }) {
             <Heading icon={KeyRound}>Their private link</Heading>
             <p className="mt-2 text-sm text-ink-soft">
               {vendor.name} uses this to list what they&apos;re bringing in and see their sales and payouts. No password needed.
+              {!vendor.phone && !vendor.email ? " Add their phone (under Maker) or email (under Money) to text or email it to them." : ""}
             </p>
             {link ? (
               <>
@@ -383,6 +384,11 @@ export default async function VendorPage({ params }) {
                       icon={MessageSquareText}
                     >
                       Text it to them
+                    </Button>
+                  ) : null}
+                  {vendor.email && vendor.is_active ? (
+                    <Button href={`/admin/vendors/remind?id=${vendor.id}&link=1`} variant="subtle" size="sm" icon={Mail}>
+                      Email it to them
                     </Button>
                   ) : null}
                   <span className="text-xs text-ink-muted">Anyone with this link sees their sales — send it only to them.</span>
