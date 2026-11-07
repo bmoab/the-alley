@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
+import { useRouter } from "next/navigation";
 import Select from "@/components/admin/ui/Select.js";
 
 /**
@@ -17,7 +18,7 @@ import Select from "@/components/admin/ui/Select.js";
 let rowKey = 0;
 const blankRow = (r = {}) => ({ key: ++rowKey, itemId: "", name: "", qty: "", price: "", split: "", ...r });
 
-function Submit() {
+function Submit({ label = "Receive stock", pendingLabel = "Saving and sending to Square…" }) {
   const { pending } = useFormStatus();
   return (
     <button
@@ -25,7 +26,7 @@ function Submit() {
       disabled={pending}
       className="h-11 rounded-xl bg-ink px-5 text-sm font-semibold text-paper hover:bg-ink-soft disabled:opacity-50"
     >
-      {pending ? "Saving and sending to Square…" : "Receive stock"}
+      {pending ? pendingLabel : label}
     </button>
   );
 }
@@ -40,6 +41,8 @@ export default function ReceiveStockForm({
   dropoff = null,
 }) {
   const [state, formAction] = useFormState(receiveAction, null);
+  const router = useRouter();
+  const [checking, setChecking] = useState(false);
   const [vendorId, setVendorId] = useState(String(dropoff?.vendor_id || initialVendorId || ""));
   const [rows, setRows] = useState(() =>
     dropoff
@@ -58,6 +61,9 @@ export default function ReceiveStockForm({
   );
   const vendor = vendors.find((v) => String(v.id) === vendorId) || null;
   const isNewVendor = vendorId === "new";
+  // Their stock can't come in until they've agreed to their current terms.
+  const blocked = !!vendor?.terms;
+  const showSheet = !!vendorId && !isNewVendor && !blocked;
   const items = useMemo(() => (vendor ? itemsByVendor[vendor.id] || [] : []), [vendor, itemsByVendor]);
   const splitHint = vendor?.default_split ?? defaultSplit;
 
@@ -141,14 +147,67 @@ export default function ReceiveStockForm({
             </div>
           </div>
         ) : null}
-        {vendor ? (
+        {vendor && !blocked ? (
           <p className="mt-2 text-xs text-ink-muted">
             {vendor.name} gets {splitHint}% of each sale unless an item says otherwise.
           </p>
         ) : null}
+        {isNewVendor ? (
+          <div className="mt-4">
+            <p className="mb-3 text-sm text-ink-soft">
+              Add them first. They agree to the consignment terms on their own page, then you count in what they brought.
+            </p>
+            {state?.error ? (
+              <p className="mb-3 rounded-lg border border-rust/30 bg-rust/10 px-3 py-2 text-sm text-rust">{state.error}</p>
+            ) : null}
+            <Submit label="Add them" pendingLabel="Adding…" />
+          </div>
+        ) : null}
+        {blocked ? (
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm font-semibold text-ink">
+              {vendor.terms === "first"
+                ? `${vendor.name} hasn't agreed to the consignment terms yet.`
+                : vendor.terms === "share"
+                  ? `${vendor.name}'s share has changed since they agreed, so they need to agree again.`
+                  : `The terms have changed since ${vendor.name} agreed, so they need to agree again.`}
+            </p>
+            <p className="mt-1 text-sm text-ink-soft">
+              Their stock can&apos;t be counted in until they do. If they&apos;re here, open their page on this screen and hand it
+              over: they read the terms, type their name and tap I agree.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <a
+                href={vendor.agreeLink}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-10 items-center rounded-xl bg-ink px-4 text-sm font-semibold text-paper hover:bg-ink-soft"
+              >
+                Open their page to agree
+              </a>
+              <button
+                type="button"
+                onClick={() => {
+                  setChecking(true);
+                  router.refresh();
+                  setTimeout(() => setChecking(false), 1500);
+                }}
+                className="inline-flex h-10 items-center rounded-xl border border-line bg-paper px-4 text-sm font-semibold text-ink hover:bg-paper-dim"
+              >
+                {checking ? "Checking…" : "They've agreed, carry on"}
+              </button>
+              <a
+                href={`/admin/vendors/${vendor.id}#access`}
+                className="inline-flex h-10 items-center rounded-xl px-3 text-sm font-semibold text-verde-deep hover:underline"
+              >
+                Or text or email them their link
+              </a>
+            </div>
+          </div>
+        ) : null}
       </div>
 
-      {vendorId ? (
+      {showSheet ? (
         <div className="card p-5">
           <h2 className="text-base font-semibold text-ink">What came in</h2>
           <div className="mt-3 space-y-3">
@@ -226,7 +285,7 @@ export default function ReceiveStockForm({
         </div>
       ) : null}
 
-      {vendorId ? (
+      {showSheet ? (
         <div className="card p-5">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>

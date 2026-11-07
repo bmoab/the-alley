@@ -9,7 +9,9 @@ import {
   pushIntakeToSquare,
   defaultSplit,
   getDropoff,
+  termsAsk,
 } from "@/lib/inventory.js";
+import { makerLink } from "@/lib/vendor-record.js";
 import { logActivity } from "@/lib/activity.js";
 import { venueToday } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
@@ -27,20 +29,27 @@ async function receive(_prev, formData) {
   "use server";
   await requireAdmin();
   const actor = await getActor();
-  let intakeId;
-  let vendorName;
-  try {
-    let vendorId = (formData.get("vendor_id") || "").toString();
-    if (vendorId === "new") {
-      const v = createVendor({
+  // Someone new is added first, then agrees to the terms; their stock is counted in after.
+  if ((formData.get("vendor_id") || "").toString() === "new") {
+    let v;
+    try {
+      v = createVendor({
         name: formData.get("new_vendor_name"),
         email: formData.get("new_vendor_email"),
         phone: formData.get("new_vendor_phone"),
         default_split: formData.get("new_vendor_split"),
       });
-      logActivity({ eventType: "vendor_added", description: `Added maker ${v.name}`, ...actor });
-      vendorId = v.id;
+    } catch (err) {
+      return { error: err.message || "Couldn't add them." };
     }
+    logActivity({ eventType: "vendor_added", description: `Added maker ${v.name}`, ...actor });
+    revalidatePath("/admin/vendors");
+    redirect(`/admin/inventory/receive?vendor=${v.id}&toast=${encodeURIComponent(`Added ${v.name}. Next, they agree to the terms.`)}&toastType=success`);
+  }
+  let intakeId;
+  let vendorName;
+  try {
+    const vendorId = (formData.get("vendor_id") || "").toString();
     let lines = [];
     try {
       lines = JSON.parse((formData.get("lines") || "[]").toString());
@@ -103,7 +112,20 @@ export default async function ReceivePage({ searchParams }) {
         subtitle="When a maker drops things off. This replaces the paper sheet — it puts everything into Square, taxed and with a barcode number, ready to ring up. (Things The Alley buys outright go straight into Square instead.)"
       />
       <ReceiveStockForm
-        vendors={vendors.map((v) => ({ id: v.id, name: v.name, kind: v.kind, default_split: v.default_split }))}
+        // A fresh form when the maker in the address changes (e.g. just added).
+        key={`${searchParams?.vendor || ""}-${dropoff?.id || ""}`}
+        vendors={vendors.map((v) => {
+          const terms = termsAsk(v);
+          return {
+            id: v.id,
+            name: v.name,
+            kind: v.kind,
+            default_split: v.default_split,
+            terms,
+            // Their own page, open at the terms, so they can agree on the shop's screen.
+            agreeLink: terms ? makerLink(v, { terms: true }) : null,
+          };
+        })}
         itemsByVendor={itemsByVendor}
         defaultSplit={defaultSplit()}
         today={venueToday()}
