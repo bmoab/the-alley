@@ -77,7 +77,7 @@ export default async function ExhibitorsAdminPage() {
           return (
             <section key={s.key} className="mb-10">
               <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-muted">{s.title}</h2>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3 2xl:grid-cols-4">
                 {list.map((ex) => (
                   <ExhibitorCard key={ex.id} ex={ex} />
                 ))}
@@ -106,23 +106,23 @@ function ExhibitorCard({ ex }) {
         ex.status.key === "past" ? "opacity-75 hover:opacity-100" : ""
       }`}
     >
-      <div className="relative aspect-[3/2] overflow-hidden bg-verde/50">
+      <div className="relative aspect-[4/3] overflow-hidden bg-verde/50 sm:aspect-[3/2]">
         {photo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={photo} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
         ) : (
-          <span className="flex h-full w-full items-center justify-center text-3xl font-semibold tracking-wide text-verde-deep">
+          <span className="flex h-full w-full items-center justify-center text-xl font-semibold tracking-wide text-verde-deep sm:text-3xl">
             {initials(ex.name)}
           </span>
         )}
         {ex.status.key !== "current" ? (
-          <span className="absolute left-3 top-3">
+          <span className="absolute left-2 top-2 sm:left-3 sm:top-3">
             <Badge tone={ex.status.tone}>{ex.status.label}</Badge>
           </span>
         ) : null}
       </div>
-      <div className="p-4">
-        <p className="truncate text-base font-semibold text-ink">{ex.name}</p>
+      <div className="p-3 sm:p-4">
+        <p className="truncate text-sm font-semibold text-ink sm:text-base">{ex.name}</p>
         <p className="mt-0.5 truncate text-xs text-ink-muted">{ex.discipline || "No discipline yet"}</p>
         <div className="mt-3 flex flex-wrap gap-1.5">
           {endsOn ? (

@@ -373,9 +373,9 @@ export default async function StaffCostsPage({ searchParams }) {
             {x.total != null ? <span className="font-normal opacity-70">· {formatMoney(x.total)}</span> : null}
           </Button>
         ))}
-        <form className="flex items-center gap-1">
-          <input name="month" type="month" defaultValue={month} className="field !h-8 !w-auto !py-0 text-xs" aria-label="Another month" />
-          <Button type="submit" size="sm" variant="ghost">Go</Button>
+        <form className="flex w-full items-center gap-2 sm:w-auto">
+          <input name="month" type="month" defaultValue={month} className="field min-w-0 flex-1 text-sm sm:w-44 sm:flex-none" aria-label="Another month" />
+          <Button type="submit" variant="ghost" className="!h-11 shrink-0">Go</Button>
         </form>
       </div>
 

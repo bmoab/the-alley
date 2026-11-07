@@ -40,11 +40,11 @@ async function rentUndo(formData) {
   back(month, "Rent unmarked.", "neutral");
 }
 
-function Stat({ label, value, sub, tone }) {
+function Stat({ label, value, sub, tone, className = "" }) {
   return (
-    <Card pad="md" className="min-w-0">
+    <Card pad="md" className={`min-w-0 ${className}`}>
       <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted">{label}</p>
-      <p className={`mt-1 text-3xl font-semibold tabular-nums ${tone === "bad" ? "text-rust" : tone === "good" ? "text-verde-deep" : "text-ink"}`}>
+      <p className={`mt-1 text-2xl font-semibold tabular-nums sm:text-3xl ${tone === "bad" ? "text-rust" : tone === "good" ? "text-verde-deep" : "text-ink"}`}>
         {value}
       </p>
       <div className="mt-1 min-h-[1rem]">{sub}</div>
@@ -125,10 +125,11 @@ export default async function MoneyPage({ searchParams }) {
       </div>
 
       {/* The three numbers */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Stat label="Money in" value={formatMoney(o.totalIn)} sub={<Delta now={o.totalIn} before={o.last.totalIn} good="up" />} />
         <Stat label="Money out" value={formatMoney(o.totalOut)} sub={<Delta now={o.totalOut} before={o.last.totalOut} good="down" />} />
         <Stat
+          className="col-span-2 sm:col-span-1"
           label={o.net >= 0 ? "Left over" : "Short"}
           value={formatMoney(Math.abs(o.net))}
           tone={o.net >= 0 ? "good" : "bad"}

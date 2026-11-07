@@ -24,7 +24,8 @@ const VARIANTS = {
 };
 
 const SIZES = {
-  sm: "h-8 px-3 text-xs gap-1.5 rounded-lg",
+  // A touch taller on a phone, so it's easy to tap.
+  sm: "h-9 sm:h-8 px-3 text-[13px] sm:text-xs gap-1.5 rounded-lg",
   md: "h-10 px-4 text-sm gap-2 rounded-xl",
   icon: "h-9 w-9 justify-center rounded-lg",
 };

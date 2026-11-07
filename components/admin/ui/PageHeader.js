@@ -1,4 +1,5 @@
 import { cx } from "./cx.js";
+import ClampText from "./ClampText.js";
 
 /**
  * Standard admin page header: sage eyebrow + title + subtitle, with an
@@ -25,7 +26,7 @@ export default function PageHeader({
           {title}
         </h1>
         {subtitle ? (
-          <p className="mt-1 max-w-prose text-sm text-ink-muted">{subtitle}</p>
+          <ClampText className="mt-1 max-w-prose text-sm text-ink-muted">{subtitle}</ClampText>
         ) : null}
       </div>
       {actions ? (

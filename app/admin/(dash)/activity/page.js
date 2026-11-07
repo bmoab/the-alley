@@ -66,7 +66,7 @@ export default async function ActivityFeedPage({ searchParams }) {
         </Card>
       ) : (
         <Card pad="sm">
-          <DataTable columns={["When", "Event", "Booking", "By"]} minWidth={760}>
+          <DataTable columns={["When", "Event", "Booking", "By"]} minWidth={760} stack>
             {rows.map((r) => {
               const tag = r.delivery_status ? DELIVERY_COLOR[r.delivery_status] || DELIVERY_COLOR.unknown : null;
               const clientName = r.booking_client_name;
@@ -107,10 +107,11 @@ export default async function ActivityFeedPage({ searchParams }) {
                         ) : null}
                       </Link>
                     ) : (
-                      <span className="text-xs text-ink-muted">—</span>
+                      <span className="text-xs text-ink-muted max-sm:hidden">—</span>
                     )}
                   </Td>
-                  <Td className="whitespace-nowrap text-sm text-ink-soft">
+                  <Td className="whitespace-nowrap text-sm text-ink-soft max-sm:text-xs">
+                    <span className="sm:hidden">By </span>
                     {!r.actor_name || r.actor_name === "system" ? "System" : r.actor_name}
                   </Td>
                 </Tr>

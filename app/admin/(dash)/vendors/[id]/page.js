@@ -155,10 +155,10 @@ function Heading({ icon: Icon, children }) {
   );
 }
 
-function Stat({ value, label, tone }) {
+function Stat({ value, label, tone, className = "" }) {
   return (
-    <div className={tone === "due" ? "card border-verde-deep/40 bg-verde/30 p-4" : "card p-4"}>
-      <p className="text-2xl font-semibold tabular-nums text-ink">{value}</p>
+    <div className={`${tone === "due" ? "card border-verde-deep/40 bg-verde/30" : "card"} p-3.5 sm:p-4 ${className}`}>
+      <p className="text-xl font-semibold tabular-nums text-ink sm:text-2xl">{value}</p>
       <p className="mt-0.5 text-xs text-ink-muted">{label}</p>
     </div>
   );
@@ -258,8 +258,8 @@ export default async function VendorPage({ params }) {
       <PageHeader eyebrow="Makers" title={vendor.name} />
 
       {/* Who they are */}
-      <section className="card mb-6 flex flex-col gap-5 p-5 sm:flex-row sm:items-center">
-        <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl bg-verde/60 text-2xl font-semibold text-verde-deep">
+      <section className="card mb-6 flex items-start gap-4 p-5 sm:items-center sm:gap-5">
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-verde/60 text-lg font-semibold text-verde-deep sm:h-24 sm:w-24 sm:text-2xl">
           {initials(vendor.name)}
         </span>
         <div className="min-w-0 flex-1">
@@ -347,10 +347,11 @@ export default async function VendorPage({ params }) {
         ) : null}
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Stat value={items.reduce((t, i) => t + i.qty_on_hand, 0)} label="On the shelf now" />
         <Stat value={soldUnits} label={`Sold · ${formatMoney(soldNet)} after discounts`} />
         <Stat
+          className="col-span-2 sm:col-span-1"
           value={formatMoney(dueNow)}
           tone={dueNow ? "due" : null}
           label={`Due now, for sales through ${formatDateShort(cutoff)}${

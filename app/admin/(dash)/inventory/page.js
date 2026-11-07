@@ -124,10 +124,10 @@ export default async function InventoryPage({ searchParams }) {
         </p>
       )}
 
-      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <StatCard label="Items on hand" value={units} hint={`${items.length} product${items.length === 1 ? "" : "s"}`} />
-        <StatCard label="Shelf value" value={formatMoney(shelfValue)} hint="at full price" />
-        <StatCard label="Drop-offs waiting" value={waiting} hint="listed by makers, not brought in yet" />
+        <StatCard label="Drop-offs waiting" value={waiting} hint="listed by makers, not brought in yet" className="sm:order-last" />
+        <StatCard label="Shelf value" value={formatMoney(shelfValue)} hint="at full price" className="col-span-2 sm:col-span-1" />
       </div>
 
       <form className="mb-4 flex flex-wrap gap-2">

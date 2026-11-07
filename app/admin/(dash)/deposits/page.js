@@ -95,7 +95,7 @@ export default async function DepositsPage() {
                       {b.client_email}
                     </a>
                   </div>
-                  <div className="text-right">
+                  <div className="sm:text-right">
                     <div className="text-2xl font-semibold text-ink">{formatMoney(b.deposit)}</div>
                     <div className="text-xs uppercase tracking-wider text-ink-muted">deposit</div>
                   </div>

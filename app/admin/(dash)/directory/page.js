@@ -69,7 +69,7 @@ export default async function DirectoryAdminPage() {
 
       {/* Businesses */}
       {tenants.length ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3 2xl:grid-cols-4">
           {tenants.map((t) => {
             const theirs = suitesForTenant(t.id).map((s) => s.name || s.zone);
             const status = tenantStatus(t, today);
@@ -81,23 +81,23 @@ export default async function DirectoryAdminPage() {
                 href={`/admin/directory/${t.id}`}
                 className="group card overflow-hidden p-0 transition duration-200 hover:-translate-y-0.5 hover:border-verde-deep/40 hover:shadow-card-hover"
               >
-                <div className="relative aspect-[2/1] overflow-hidden bg-verde/50">
+                <div className="relative aspect-[4/3] overflow-hidden bg-verde/50 sm:aspect-[2/1]">
                   {photo ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={photo} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
                   ) : (
-                    <span className="flex h-full w-full items-center justify-center text-3xl font-semibold tracking-wide text-verde-deep">
+                    <span className="flex h-full w-full items-center justify-center text-xl font-semibold tracking-wide text-verde-deep sm:text-3xl">
                       {initials(t.business_name)}
                     </span>
                   )}
                   {status.key !== "live" ? (
-                    <span className="absolute left-3 top-3">
+                    <span className="absolute left-2 top-2 sm:left-3 sm:top-3">
                       <Badge tone={status.tone}>{status.label}</Badge>
                     </span>
                   ) : null}
                 </div>
-                <div className="p-4">
-                  <p className="truncate text-base font-semibold text-ink">{t.business_name}</p>
+                <div className="p-3 sm:p-4">
+                  <p className="truncate text-sm font-semibold text-ink sm:text-base">{t.business_name}</p>
                   <p className="mt-0.5 truncate text-xs text-ink-muted">{t.category || "No category yet"}</p>
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {theirs.length ? (

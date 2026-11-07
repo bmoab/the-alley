@@ -10,11 +10,13 @@ import { cx } from "./cx.js";
  *     {rows.map(r => <Tr key={r.id}>...<Td>...</Td></Tr>)}
  *   </DataTable>
  */
-export function DataTable({ columns, minWidth = 640, className, children }) {
+export function DataTable({ columns, minWidth = 640, stack = false, className, children }) {
+  // stack: on a phone each row becomes a short block (cells one under another)
+  // instead of a table you scroll sideways. See .dt-stack in globals.css.
   return (
     <div className="-mx-1 overflow-x-auto px-1">
       <table
-        className={cx("w-full border-collapse text-sm", className)}
+        className={cx("w-full border-collapse text-sm", stack && "dt-stack", className)}
         style={{ minWidth }}
       >
         {columns ? (

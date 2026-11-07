@@ -369,13 +369,15 @@ export default async function EventsPage({ searchParams }) {
       ) : null}
 
       {/* Status filter */}
-      <div className="mb-4 flex flex-wrap gap-1 rounded-2xl border border-line bg-paper p-1">
+      {/* One swipeable row on a phone; wraps on a wider screen. */}
+      <div className="no-scrollbar -mx-5 mb-4 flex gap-1 overflow-x-auto px-5 sm:mx-0 sm:px-1 sm:flex-wrap sm:rounded-2xl sm:border sm:border-line sm:bg-paper sm:p-1">
         {FILTERS.map((f) => (
           <Link
             key={f.key}
             href={qs({ status: f.key })}
             className={cx(
-              "rounded-full px-3.5 py-1.5 text-sm font-semibold transition",
+              "shrink-0 whitespace-nowrap rounded-full px-3.5 py-2 text-sm font-semibold transition sm:py-1.5",
+              status !== f.key && "border border-line bg-paper sm:border-0 sm:bg-transparent",
               status === f.key ? "bg-ink text-paper" : "text-ink-soft hover:bg-paper-dim hover:text-ink"
             )}
           >

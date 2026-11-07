@@ -188,10 +188,10 @@ export default async function BillsPage({ searchParams }) {
             const late = !b.paid_on && b.amount > 0 && b.due_date && b.due_date < today;
             return (
               <li key={b.id} className="px-2 py-3">
-                <form action={save} className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1.6fr_0.9fr_1.4fr_1.2fr_auto]">
+                <form action={save} className="grid grid-cols-2 items-end gap-2 sm:grid-cols-[1.6fr_0.9fr_1.4fr_1.2fr_auto]">
                   <input type="hidden" name="month" value={month} />
                   <input type="hidden" name="id" value={b.id} />
-                  <div className="min-w-0">
+                  <div className="col-span-2 min-w-0 sm:col-span-1">
                     <p className="font-semibold text-ink">{b.name}</p>
                     <p className="text-xs text-ink-muted">
                       {CATEGORIES[b.category] || b.category}
@@ -200,21 +200,24 @@ export default async function BillsPage({ searchParams }) {
                     </p>
                     {late ? <Badge tone="danger">past due</Badge> : null}
                   </div>
-                  <div className="min-w-0">
+                  <div className="order-1 min-w-0 sm:order-none">
                     <label className="label text-xs">Amount</label>
                     <input name="amount" inputMode="decimal" defaultValue={b.amount ?? ""} placeholder={b.typical_amount ? String(b.typical_amount) : "0.00"} className="field" />
                   </div>
-                  <div className="min-w-0">
+                  {/* On a phone: amount and paid date side by side, then the note. */}
+                  <div className="order-3 col-span-2 min-w-0 sm:order-none sm:col-span-1">
                     <label className="label text-xs">Note</label>
                     <input name="note" defaultValue={b.note || ""} placeholder="account #, confirmation…" className="field" />
                   </div>
-                  <div className="min-w-0">
+                  <div className="order-2 min-w-0 sm:order-none">
                     <label className="flex items-center gap-2 text-sm text-ink-soft">
                       <input type="checkbox" name="paid" defaultChecked={!!b.paid_on} /> Paid on
                     </label>
                     <input name="paid_on" type="date" defaultValue={b.paid_on || today} className="field mt-1" />
                   </div>
-                  <Button type="submit" variant="ghost" size="sm">Save</Button>
+                  <Button type="submit" variant="ghost" size="sm" className="order-4 col-span-2 justify-center sm:order-none sm:col-span-1">
+                    Save
+                  </Button>
                 </form>
               </li>
             );

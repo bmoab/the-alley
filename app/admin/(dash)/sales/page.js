@@ -9,6 +9,7 @@ import {
   round2,
   unmatchedRefunds,
   uncreditedSales,
+  markAlleys,
   guessVendor,
   creditSales,
   linkVariationsToVendor,
@@ -51,32 +52,52 @@ async function creditAction(formData) {
   await requireAdmin();
   const { actorName } = await getActor();
   const qs = (formData.get("qs") || "").toString();
+  // "Everything else is The Alley's": any row still on "Not sure yet" counts as The Alley's too.
+  const rest = formData.get("rest") === "1";
   let lines = 0;
   let linked = 0;
+  let alleys = 0;
   const makers = new Set();
   let msg;
   let type = "success";
   try {
     for (const key of formData.getAll("group")) {
-      const vendorId = Number(formData.get(`v_${key}`)) || null;
-      if (!vendorId) continue;
+      const pick = String(formData.get(`v_${key}`) || "");
       const ids = String(formData.get(`ids_${key}`) || "").split(",");
+      if (pick === "alley" || (rest && !pick)) {
+        alleys += markAlleys(ids, { by: actorName });
+        continue;
+      }
+      const vendorId = Number(pick) || null;
+      if (!vendorId) continue;
       const n = creditSales(ids, vendorId, { by: actorName });
       if (n) makers.add(vendorId);
       lines += n;
       const variation = formData.get(`future_${key}`);
       if (variation) linked += await linkVariationsToVendor(vendorId, [String(variation)]);
     }
-    msg = lines
-      ? `Credited ${lines} sale${lines === 1 ? "" : "s"} to ${makers.size} maker${makers.size === 1 ? "" : "s"}.${linked ? ` ${linked} item${linked === 1 ? " is" : "s are"} now theirs for future sales too.` : ""}`
-      : "Nothing picked — pick a maker next to a sale first.";
-    if (!lines) type = "neutral";
+    const parts = [];
+    if (lines) parts.push(`Credited ${lines} sale${lines === 1 ? "" : "s"} to ${makers.size} maker${makers.size === 1 ? "" : "s"}.`);
+    if (linked) parts.push(`${linked} item${linked === 1 ? " is" : "s are"} now theirs for future sales too.`);
+    if (alleys) parts.push(`${alleys} sale${alleys === 1 ? "" : "s"} marked as The Alley's.`);
+    msg = parts.length ? parts.join(" ") : "Nothing picked. Choose The Alley's or a maker next to a sale first.";
+    if (!parts.length) type = "neutral";
   } catch (err) {
     msg = err.message;
     type = "error";
   }
   revalidatePath("/admin/sales");
   redirect(`/admin/sales?${qs}${qs ? "&" : ""}toast=${encodeURIComponent(msg)}&toastType=${type}#credit`);
+}
+
+async function unmarkAction(formData) {
+  "use server";
+  await requireAdmin();
+  const qs = (formData.get("qs") || "").toString();
+  const n = markAlleys(String(formData.get("ids") || "").split(","), { by: null });
+  revalidatePath("/admin/sales");
+  const msg = n ? "Back on the list to sort." : "That one can't be changed now.";
+  redirect(`/admin/sales?${qs}${qs ? "&" : ""}toast=${encodeURIComponent(msg)}&toastType=${n ? "success" : "error"}#credit`);
 }
 
 async function uncreditAction(formData) {
@@ -193,11 +214,11 @@ export default async function SalesPage({ searchParams }) {
             {r.label}
           </Button>
         ))}
-        <form className="flex flex-wrap items-center gap-1">
-          <input name="from" type="date" defaultValue={from} className="field !h-8 !w-auto !py-0 text-xs" />
-          <span className="text-xs text-ink-muted">to</span>
-          <input name="to" type="date" defaultValue={to} className="field !h-8 !w-auto !py-0 text-xs" />
-          <Button type="submit" variant="ghost" size="sm">Go</Button>
+        <form className="flex w-full items-center gap-2 sm:w-auto">
+          <input name="from" type="date" defaultValue={from} aria-label="From" className="field min-w-0 flex-1 text-sm sm:w-40 sm:flex-none" />
+          <span className="shrink-0 text-xs text-ink-muted">to</span>
+          <input name="to" type="date" defaultValue={to} aria-label="To" className="field min-w-0 flex-1 text-sm sm:w-40 sm:flex-none" />
+          <Button type="submit" variant="ghost" className="!h-11 shrink-0">Go</Button>
         </form>
       </div>
       <div className="mb-6 flex flex-wrap items-center gap-3 text-xs text-ink-muted">
@@ -290,8 +311,8 @@ export default async function SalesPage({ searchParams }) {
         </Card>
       ) : null}
 
-      {groups.length || unc.credited.length ? (
-        <CreditCard groups={groups} credited={unc.credited} makers={makers} inSquare={inSquare} qs={qs} />
+      {groups.length || unc.credited.length || unc.alleys.length ? (
+        <CreditCard groups={groups} credited={unc.credited} alleys={unc.alleys} makers={makers} inSquare={inSquare} qs={qs} />
       ) : null}
 
       <Card pad="md" className="mt-6">
@@ -304,7 +325,27 @@ export default async function SalesPage({ searchParams }) {
           </span>
         </div>
         {s.lines.length ? (
-          <div className="-mx-1 mt-2 overflow-x-auto px-1">
+          <ul className="mt-2 divide-y divide-line/60 text-sm sm:hidden">
+            {s.lines.map((l) => (
+              <li key={l.id} className="py-2.5">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="min-w-0 text-ink">
+                    {l.name}
+                    {l.is_return ? <span className="ml-1 text-xs text-rust">(return)</span> : null}
+                  </span>
+                  <span className="shrink-0 font-semibold tabular-nums text-ink">{formatMoney(l.net)}</span>
+                </div>
+                <div className="mt-0.5 text-xs text-ink-muted">
+                  {fmtDay(l.sold_at.slice(0, 10))} · <Whose l={l} inline />
+                  {Number(l.qty) !== 1 ? ` · ${l.qty} of them` : ""} · tax {formatMoney(l.tax)}
+                  {l.ownership === "consignment" ? ` · maker's share ${formatMoney(consignorShare(l))}` : ""}
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {s.lines.length ? (
+          <div className="-mx-1 mt-2 hidden overflow-x-auto px-1 sm:block">
             <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-xs uppercase tracking-wider text-ink-muted">
@@ -326,20 +367,7 @@ export default async function SalesPage({ searchParams }) {
                       {l.is_return ? <span className="ml-1 text-xs text-rust">(return)</span> : null}
                     </td>
                     <td className="py-1.5 pr-2 text-ink-soft">
-                      {l.kind !== "retail" ? (
-                        ({ staffshare: "Tenant's staff share", utilityshare: "Utility share", rent: "Rent" })[l.kind] || upperFirst(l.kind)
-                      ) : l.vendor_id ? (
-                        <>
-                          <Link href={`/admin/vendors/${l.vendor_id}`} className="hover:underline">
-                            {l.vendor_name}
-                          </Link>
-                          {!l.item_id ? <span className="block text-xs text-ink-muted">credited by hand</span> : null}
-                        </>
-                      ) : l.catalog_object_id ? (
-                        "The Alley"
-                      ) : (
-                        "custom amount"
-                      )}
+                      <Whose l={l} />
                     </td>
                     <td className="py-1.5 pr-2 text-right tabular-nums">{l.qty}</td>
                     <td className="py-1.5 pr-2 text-right tabular-nums">{formatMoney(l.net)}</td>
@@ -360,6 +388,22 @@ export default async function SalesPage({ searchParams }) {
   );
 }
 
+/** Whose a sale line is: a maker (linked), The Alley, or what kind of payment. */
+function Whose({ l, inline = false }) {
+  if (l.kind !== "retail") return ({ staffshare: "Tenant's staff share", utilityshare: "Utility share", rent: "Rent" })[l.kind] || upperFirst(l.kind);
+  if (l.vendor_id) {
+    return (
+      <>
+        <Link href={`/admin/vendors/${l.vendor_id}`} className="hover:underline">
+          {l.vendor_name}
+        </Link>
+        {!l.item_id ? <span className={inline ? "" : "block text-xs text-ink-muted"}>{inline ? " (credited by hand)" : "credited by hand"}</span> : null}
+      </>
+    );
+  }
+  return l.catalog_object_id ? "The Alley" : "custom amount";
+}
+
 /**
  * Sales the register didn't tie to a maker, to credit by hand: a custom amount,
  * or an item rung up before it was linked here (or since deleted from Square).
@@ -367,7 +411,7 @@ export default async function SalesPage({ searchParams }) {
 // The Alley's own stock is named "The Alley- …" / "Alley- …" in Square.
 const OWN = /^\s*(the\s+)?alley\b/i;
 
-function CreditCard({ groups, credited, makers, inSquare, qs }) {
+function CreditCard({ groups, credited, alleys, makers, inSquare, qs }) {
   const total = round2(groups.reduce((t, g) => t + g.net, 0));
   const likely = groups.filter((g) => !OWN.test(g.name));
   const own = groups.filter((g) => OWN.test(g.name));
@@ -394,8 +438,9 @@ function CreditCard({ groups, credited, makers, inSquare, qs }) {
           </p>
         </div>
         <div className="flex flex-col gap-1 sm:w-64">
-          <Select name={`v_${g.key}`} defaultValue="" aria-label={`Whose was ${g.name}?`}>
-            <option value="">The Alley&apos;s — leave it</option>
+          <Select name={`v_${g.key}`} defaultValue={OWN.test(g.name) ? "alley" : ""} aria-label={`Whose was ${g.name}?`}>
+            <option value="">Not sure yet</option>
+            <option value="alley">The Alley&apos;s</option>
             {options.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.name}
@@ -420,9 +465,10 @@ function CreditCard({ groups, credited, makers, inSquare, qs }) {
         {groups.length ? <span className="font-normal text-ink-muted">· {formatMoney(total)} in these dates</span> : null}
       </h2>
       <p className="mt-1 text-sm text-ink-soft">
-        These were rung up as a custom amount, or as an item this site doesn&apos;t know as a maker&apos;s, so they count as The
-        Alley&apos;s own. If one was a maker&apos;s, pick them: the sale moves to their side, at their split, and shows in what
-        they&apos;re owed. Leave The Alley&apos;s own stock blank. Don&apos;t credit anything you&apos;ve already paid them for by hand.
+        These were rung up as a custom amount, or as an item this site doesn&apos;t know as a maker&apos;s. Until you sort them they
+        count as The Alley&apos;s. If one was a maker&apos;s, pick them: the sale moves to their side, at their split, and shows in
+        what they&apos;re owed. If it&apos;s The Alley&apos;s, pick The Alley&apos;s and it leaves this list. Don&apos;t credit anything
+        you&apos;ve already paid a maker for by hand.
       </p>
 
       {groups.length ? (
@@ -438,13 +484,42 @@ function CreditCard({ groups, credited, makers, inSquare, qs }) {
               <ul className="divide-y divide-line">{own.map(row)}</ul>
             </details>
           ) : null}
-          <div className="mt-3">
-            <Button type="submit">Credit the ones I picked</Button>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <Button type="submit">Save</Button>
+            <Button type="submit" name="rest" value="1" variant="ghost">
+              Save, and everything on &ldquo;Not sure yet&rdquo; is The Alley&apos;s
+            </Button>
           </div>
         </form>
       ) : (
-        <p className="mt-3 text-sm text-ink-muted">Nothing uncredited in these dates.</p>
+        <p className="mt-3 text-sm text-ink-muted">All sorted for these dates.</p>
       )}
+
+      {alleys.length ? (
+        <details className="mt-5">
+          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-ink-muted">
+            Marked as The Alley&apos;s ({alleys.length}) · {formatMoney(round2(alleys.reduce((t, l) => t + Number(l.net), 0)))}
+          </summary>
+          <ul className="mt-1 divide-y divide-line text-sm">
+            {alleys.map((l) => (
+              <li key={l.id} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
+                <span className="min-w-0 text-ink">
+                  {fmtDay(l.sold_at.slice(0, 10))} · {l.catalog_object_id ? l.name : "Custom amount"} ·{" "}
+                  <span className="font-semibold">{formatMoney(l.net)}</span>
+                  {l.alley_confirmed_by ? <span className="text-xs text-ink-muted"> · by {l.alley_confirmed_by}</span> : null}
+                </span>
+                <form action={unmarkAction}>
+                  <input type="hidden" name="qs" value={qs} />
+                  <input type="hidden" name="ids" value={l.id} />
+                  <button type="submit" className="text-xs font-semibold text-rust hover:underline">
+                    Undo
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
 
       {credited.length ? (
         <div className="mt-5">

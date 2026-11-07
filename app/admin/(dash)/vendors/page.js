@@ -171,12 +171,13 @@ export default async function VendorsPage() {
       ) : null}
 
       <details id="terms" className="card mt-12 p-5" open={draft}>
-        <summary className="flex cursor-pointer items-center gap-2 font-semibold text-ink">
-          Share and consignment terms <span className="font-normal text-ink-muted">· {defaultSplit()}% to makers and artists</span>
+        <summary className="flex cursor-pointer flex-wrap items-center gap-x-2 gap-y-1 font-semibold text-ink">
+          <span>Share and consignment terms</span>
+          <span className="font-normal text-ink-muted">· {defaultSplit()}% to makers and artists</span>
           {draft ? <Badge tone="warning">Draft — please review</Badge> : null}
         </summary>
         <p className="mt-2 max-w-prose text-sm text-ink-soft">
-          Every maker and artist agrees to these (typing their name) before they can list a drop-off. {"{split}"} becomes their
+          Every maker and artist agrees to these (typing their name) before they can list a drop-off or have stock counted in. {"{split}"} becomes their
           share and {"{days}"} the days below. Someone with their own share (on their page, under Money) keeps it.
         </p>
         <p className="mt-2 max-w-prose text-sm text-ink-soft">

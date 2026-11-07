@@ -19,7 +19,7 @@ export function TrendChart({ data, current, href = (m) => `?month=${m}` }) {
   const y = (v) => H - (Math.max(0, v) / max) * H;
   return (
     <div className="overflow-x-auto">
-      <div className="grid min-w-[560px] gap-1.5" style={{ gridTemplateColumns: `repeat(${data.length}, minmax(0, 1fr))` }}>
+      <div className="grid gap-0.5 sm:min-w-[560px] sm:gap-1.5" style={{ gridTemplateColumns: `repeat(${data.length}, minmax(0, 1fr))` }}>
         {data.map((d) => {
           const on = d.month === current;
           return (
@@ -29,14 +29,14 @@ export function TrendChart({ data, current, href = (m) => `?month=${m}` }) {
               title={`${d.month}: in ${formatMoney(d.in)} · out ${formatMoney(d.out)} · ${d.net >= 0 ? "left over" : "short"} ${formatMoney(Math.abs(d.net))}`}
               className={`group flex flex-col items-center rounded-lg px-0.5 pb-1 pt-2 transition-colors ${on ? "bg-verde/50" : "hover:bg-paper-dim"}`}
             >
-              <span className={`mb-1 text-[10px] font-semibold tabular-nums ${d.net >= 0 ? "text-verde-deep" : "text-rust"}`}>
+              <span className={`mb-1 text-[8.5px] font-semibold tabular-nums sm:text-[10px] ${d.net >= 0 ? "text-verde-deep" : "text-rust"}`}>
                 {d.in || d.out ? compact(d.net) : "—"}
               </span>
               <svg viewBox={`0 0 24 ${H}`} className="h-[150px] w-full" preserveAspectRatio="none" aria-hidden="true">
                 <rect x="2" width="9" y={y(d.in)} height={H - y(d.in)} rx="1.5" fill="#8a9472" />
                 <rect x="13" width="9" y={y(d.out)} height={H - y(d.out)} rx="1.5" fill="#c8c6bd" />
               </svg>
-              <span className={`mt-1 text-[11px] ${on ? "font-semibold text-ink" : "text-ink-muted"}`}>{short(d.month)}</span>
+              <span className={`mt-1 text-[10px] sm:text-[11px] ${on ? "font-semibold text-ink" : "text-ink-muted"}`}>{short(d.month)}</span>
             </Link>
           );
         })}

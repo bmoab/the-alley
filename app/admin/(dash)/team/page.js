@@ -191,28 +191,29 @@ export default async function TeamPage() {
 
       {/* User list */}
       <Card pad="sm">
-        <DataTable columns={["Name", "Email", "Role", "Status", "Last login", "Actions"]} minWidth={820}>
+        <DataTable columns={["Name", "Email", "Role", "Status", "Last login", "Actions"]} minWidth={820} stack>
           {users.map((u) => {
             const lastOwner = u.role === "owner" && u.is_active && isLastActiveOwner(u.id);
             return (
               <Tr key={u.id} className={u.is_active ? "" : "opacity-55"}>
                 <Td className="font-medium text-ink">{u.name || "—"}</Td>
                 <Td className="text-ink-soft">{u.email}</Td>
-                <Td>
+                <Td className="max-sm:!mr-1.5 max-sm:!mt-1 max-sm:!inline-block max-sm:!w-auto">
                   <Badge tone={u.role === "owner" ? "sage" : u.role === "admin" ? "sky" : "neutral"}>{u.role}</Badge>
                 </Td>
-                <Td>
+                <Td className="max-sm:!mr-1.5 max-sm:!inline-block max-sm:!w-auto">
                   {u.is_active && isPendingInvite(u) ? (
                     <Badge tone="warning">invited</Badge>
                   ) : (
                     <Badge tone={u.is_active ? "success" : "danger"}>{u.is_active ? "active" : "deactivated"}</Badge>
                   )}
                 </Td>
-                <Td className="whitespace-nowrap text-xs text-ink-muted">
+                <Td className="whitespace-nowrap text-xs text-ink-muted max-sm:!inline-block max-sm:!w-auto">
+                  <span className="sm:hidden">Last login </span>
                   {u.last_login_at ? formatDateShort(venueDayOf(u.last_login_at)) : "Never"}
                 </Td>
                 <Td>
-                  <div className="flex flex-wrap items-center justify-end gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5 max-sm:mt-2 sm:justify-end">
                     {/* Change role */}
                     <form action={changeRole} className="flex items-center gap-1">
                       <input type="hidden" name="id" value={u.id} />

@@ -175,7 +175,7 @@ export default function RequestCard({
     const seriesRental = (Number(rate) || 0) * (Number(hours) || 0) * series.length;
     const seriesTotal = seriesRental + (Number(deposit) || 0);
     return (
-      <div className="card animate-fade-in-up p-6">
+      <div className="card animate-fade-in-up p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-verde-deep">
@@ -207,7 +207,7 @@ export default function RequestCard({
               View activity →
             </Link>
           </div>
-          <div className="text-right text-sm">
+          <div className="min-w-0 text-sm sm:text-right">
             <a href={`mailto:${holder.client_email}`} className="block font-medium text-verde-deep hover:underline">
               {holder.client_email}
             </a>
@@ -295,7 +295,7 @@ export default function RequestCard({
     ) : null;
 
   return (
-    <div className="card animate-fade-in-up p-6">
+    <div className="card animate-fade-in-up p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-verde-deep">
@@ -324,7 +324,7 @@ export default function RequestCard({
             View activity →
           </Link>
         </div>
-        <div className="text-right text-sm">
+        <div className="min-w-0 text-sm sm:text-right">
           <a href={`mailto:${booking.client_email}`} className="block font-medium text-verde-deep hover:underline">
             {booking.client_email}
           </a>

@@ -80,13 +80,13 @@ export default async function ExhibitorPage({ params }) {
       <PageHeader eyebrow="Exhibitors" title={ex.name} />
 
       {/* Who they are */}
-      <section className="card mb-6 flex flex-col gap-5 p-5 sm:flex-row sm:items-center">
-        <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-verde/60">
+      <section className="card mb-6 flex items-start gap-4 p-5 sm:items-center sm:gap-5">
+        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-verde/60 sm:h-24 sm:w-24">
           {photo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={photo} alt="" className="h-full w-full object-cover" />
           ) : (
-            <span className="flex h-full w-full items-center justify-center text-2xl font-semibold text-verde-deep">{initials(ex.name)}</span>
+            <span className="flex h-full w-full items-center justify-center text-lg font-semibold text-verde-deep sm:text-2xl">{initials(ex.name)}</span>
           )}
         </div>
         <div className="min-w-0 flex-1">

@@ -103,13 +103,35 @@ h1, h2, h3, .font-display {
   @supports (-webkit-touch-callout: none) {
     input.field[type="date"],
     input.field[type="time"],
+    input.field[type="month"],
     input.field[type="datetime-local"] {
       -webkit-appearance: none;
       appearance: none;
       display: block;
+      height: 2.75rem;
       min-height: 2.75rem;
+      /* iOS draws the date at the top of a tall box; centre it like other fields. */
+      padding-top: 0;
+      padding-bottom: 0;
+      line-height: 2.625rem;
       text-align: left;
     }
+    input.field[type="date"]::-webkit-date-and-time-value,
+    input.field[type="time"]::-webkit-date-and-time-value,
+    input.field[type="month"]::-webkit-date-and-time-value,
+    input.field[type="datetime-local"]::-webkit-date-and-time-value {
+      text-align: left;
+      margin: 0;
+      line-height: 2.625rem;
+    }
+  }
+  /* A row that scrolls sideways on a phone without a visible scrollbar. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 
   .card {
@@ -204,5 +226,30 @@ input[type="datetime-local"] {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+  }
+}
+
+/* DataTable stack: on a phone, each row is a block with its cells stacked,
+   instead of a wide table scrolled sideways. */
+@media (max-width: 639px) {
+  table.dt-stack {
+    min-width: 0 !important;
+  }
+  table.dt-stack thead {
+    display: none;
+  }
+  table.dt-stack,
+  table.dt-stack tbody,
+  table.dt-stack tr,
+  table.dt-stack td {
+    display: block;
+    width: 100%;
+  }
+  table.dt-stack tr {
+    padding: 0.75rem 0.25rem;
+  }
+  table.dt-stack td {
+    padding: 0.125rem 0 !important;
+    white-space: normal !important;
   }
 }
