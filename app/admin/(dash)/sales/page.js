@@ -270,7 +270,7 @@ export default async function SalesPage({ searchParams }) {
           <div className="mt-3 rounded-lg bg-paper-dim p-3 text-xs text-ink-muted">
             <p>
               <strong className="text-ink-soft">Not on the return:</strong> room rentals ({formatMoney(s.rental.net)}),
-              refundable deposits ({formatMoney(s.deposit.net)})
+              refundable deposits ({formatMoney(s.deposit.net)} after any refunded)
               {giftCards.length ? <> and gift cards sold ({formatMoney(round2(giftCards.reduce((t, l) => t + Number(l.net), 0)))} — taxed when they&apos;re spent)</> : null}.
             </p>
             <p className="mt-1">

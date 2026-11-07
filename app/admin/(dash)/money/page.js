@@ -140,7 +140,8 @@ export default async function MoneyPage({ searchParams }) {
         Not counted as ours: <strong className="text-ink-soft">{formatMoney(o.salesTax)}</strong> sales tax collected (set aside for the state)
         {o.depositsTaken ? (
           <>
-            {" "}and <strong className="text-ink-soft">{formatMoney(o.depositsTaken)}</strong> in refundable deposits
+            {" "}and <strong className="text-ink-soft">{formatMoney(Math.abs(o.depositsTaken))}</strong>{" "}
+            {o.depositsTaken > 0 ? "in refundable deposits (after refunds)" : "more in deposits refunded than taken"}
           </>
         ) : null}
         .{unenteredBills ? <> · <Link href={billsHref} className="font-semibold text-rust underline">{unenteredBills} of this month&apos;s bills still need an amount</Link></> : null}
