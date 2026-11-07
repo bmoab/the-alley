@@ -9,7 +9,7 @@ import {
   billsFor,
   cancelShareBill,
   listAccounts,
-  markShareBillPaid,
+  markShareBillPaidBy,
   monthLabel,
   saveAccount,
   saveBill,
@@ -18,6 +18,7 @@ import {
   thisMonth,
 } from "@/lib/money.js";
 import { emailShareBill } from "@/lib/email.js";
+import { PAID_OTHER_WAYS, squareFeeOn, staffCostSettings } from "@/lib/staff-costs.js";
 import { venueDayOf, formatDateShort, formatMoney, shiftDate, venueToday } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
@@ -82,8 +83,13 @@ async function sharePaid(formData) {
   "use server";
   await requireStaffManager();
   const month = monthOf(formData);
-  markShareBillPaid(formData.get("id"));
-  back(month, "Marked paid.");
+  let r;
+  try {
+    r = await markShareBillPaidBy(formData.get("id"), { method: String(formData.get("method") || "") });
+  } catch (err) {
+    back(month, err.message, "error");
+  }
+  back(month, r?.viaSquare ? "They'd already paid through Square — marked paid." : "Marked paid.");
 }
 
 async function saveSetup(formData) {
@@ -158,6 +164,8 @@ export default async function BillsPage({ searchParams }) {
   const month = MONTH_RE.test(searchParams?.month || "") ? searchParams.month : thisMonth();
   const bills = billsFor(month);
   const shares = sharesFor(month);
+  const fees = staffCostSettings();
+  const payOther = fees.payOther;
   const accounts = listAccounts();
   const prev = shiftDate(`${month}-01`, { months: -1 }).slice(0, 7);
   const next = shiftDate(`${month}-01`, { months: 1 }).slice(0, 7);
@@ -254,22 +262,37 @@ export default async function BillsPage({ searchParams }) {
                   {p.bill?.error ? <p className="mt-2 text-xs text-rust">{p.bill.error}</p> : null}
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     {st === "paid" ? (
-                      <Badge tone="success">paid {p.bill.paid_at ? formatDateShort(venueDayOf(p.bill.paid_at)) : ""}</Badge>
+                      <Badge tone="success">
+                        paid {p.bill.paid_at ? formatDateShort(venueDayOf(p.bill.paid_at)) : ""}
+                        {p.bill.paid_method ? ` · ${p.bill.paid_method}` : ""}
+                      </Badge>
                     ) : st === "sent" ? (
                       <>
                         <Badge tone="warning">sent — unpaid</Badge>
                         {p.bill.payment_link ? (
                           <a href={p.bill.payment_link} target="_blank" rel="noreferrer" className="text-sm font-semibold text-verde-deep underline">Their invoice</a>
                         ) : null}
-                        <form action={sharePaid}>
-                          <input type="hidden" name="month" value={month} />
-                          <input type="hidden" name="id" value={p.bill.id} />
-                          <Button type="submit" size="sm" variant="subtle">Mark paid</Button>
-                        </form>
                         <form action={cancelShare}>
                           <input type="hidden" name="month" value={month} />
                           <input type="hidden" name="id" value={p.bill.id} />
                           <button className="text-xs text-ink-muted underline hover:text-rust">Cancel bill</button>
+                        </form>
+                        <form action={sharePaid} className="flex w-full flex-wrap items-center gap-2 text-xs">
+                          <input type="hidden" name="month" value={month} />
+                          <input type="hidden" name="id" value={p.bill.id} />
+                          <span className="text-ink-muted">Paid another way?</span>
+                          <select name="method" defaultValue="Venmo" className="field !h-8 !w-auto !py-0 text-xs" aria-label={`How ${p.name} paid`}>
+                            {PAID_OTHER_WAYS.map((w) => (
+                              <option key={w}>{w}</option>
+                            ))}
+                          </select>
+                          <ConfirmButton
+                            label="Mark paid"
+                            variant="ghost"
+                            question={`Mark ${p.name}'s ${formatMoney(p.bill.amount)} paid? Their Square invoice gets cancelled so it no longer shows as owed.`}
+                            confirmLabel="Yes, mark paid"
+                            pendingLabel="Marking…"
+                          />
                         </form>
                       </>
                     ) : (
@@ -278,7 +301,9 @@ export default async function BillsPage({ searchParams }) {
                         <input type="hidden" name="name" value={p.name} />
                         <ConfirmButton
                           label={`Send ${p.name} the bill`}
-                          question={`Email ${p.name} a Square invoice for ${formatMoney(p.amount)} — their share of ${monthLabel(month)}'s bills — due in 14 days?`}
+                          question={`Email ${p.name} their share of ${monthLabel(month)}'s bills, ${formatMoney(p.amount)}, due in 14 days? ${
+                            payOther ? `The email says they can send it by ${payOther} with no fee, or ` : "They can "
+                          }pay by card through Square for ${formatMoney(p.amount + squareFeeOn(p.amount, fees))} (Square's card fee added).`}
                           confirmLabel="Yes, send it"
                           pendingLabel="Sending…"
                           disabled={!p.email || !(p.amount > 0)}
