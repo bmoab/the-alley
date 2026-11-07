@@ -317,8 +317,8 @@ export default async function TenantPage({ params }) {
             </div>
             <div>
               <label className="label" htmlFor="biz-rent-link">Pay link</label>
-              <input id="biz-rent-link" name="rent_link" type="url" defaultValue={t.rent_link || ""} placeholder="https://square.link/…" className="field" />
-              <p className="mt-1 text-xs text-ink-muted">A Square payment link or their recurring invoice. Shows as “Pay rent” on their account.</p>
+              <input id="biz-rent-link" name="rent_link" type="url" defaultValue={t.rent_link || ""} placeholder="https://…" className="field" />
+              <p className="mt-1 text-xs text-ink-muted">Their TurboTenant link (where they pay rent). Shows as “Pay rent” on their account. Rent is paid in TurboTenant, so tick it paid on the Money page each month.</p>
             </div>
           </EditCard>
 
