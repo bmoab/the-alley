@@ -50,6 +50,7 @@ import {
   suggestedGroups,
 } from "@/lib/inventory.js";
 import { getAccountByEmail } from "@/lib/accounts.js";
+import { ensureExhibitorToken } from "@/lib/catalog.js";
 import { isSquareConfigured } from "@/lib/square.js";
 import { listMakerCategories, pickMakerCategory, CONSIGNMENT_CATEGORY } from "@/lib/square-retail.js";
 import { makerPayoutStatement } from "@/lib/email.js";
@@ -176,7 +177,10 @@ export default async function VendorPage({ params }) {
   const account = vendor.email ? getAccountByEmail(vendor.email) : null;
   const hasAccount = !!account?.email_verified_at;
   const appUrl = process.env.APP_URL || "";
-  const link = vendor.portal_token ? `${appUrl}/maker/${vendor.portal_token}` : null;
+  const artist = artistForVendor(vendor);
+  // A gallery artist has one link: their exhibitor link, with Sales & payouts on a second tab.
+  const artistToken = artist ? ensureExhibitorToken(artist.id) : null;
+  const link = artistToken ? `${appUrl}/exhibitor/${artistToken}?tab=sales` : vendor.portal_token ? `${appUrl}/maker/${vendor.portal_token}` : null;
   const waitingDropoffs = listDropoffs({ vendorId: vendor.id, status: "submitted" });
   const textBody = `Hi! Here's your page for The Alley — list what you're bringing in, and see your sales and payouts: ${
     link || `${appUrl}/account/sign-up`
@@ -196,7 +200,6 @@ export default async function VendorPage({ params }) {
   const reminders = reminderHistory("maker", vendor.id).filter((h) => h.ends_on === agreementEnds);
   const reminderDue = dueKind && !reminders.some((h) => h.kind === dueKind) ? dueKind : null;
   const share = splitFor(null, vendor);
-  const artist = artistForVendor(vendor);
   // Their costs are theirs alone: never sent to the admin's browser.
   const raw = makerInsights(vendor.id);
   const insights = { ...raw, items: raw.items.map(({ cost, ...i }) => ({ ...i, cost: null })) };
@@ -368,7 +371,9 @@ export default async function VendorPage({ params }) {
           <section id="access" className="card p-5">
             <Heading icon={KeyRound}>Their private link</Heading>
             <p className="mt-2 text-sm text-ink-soft">
-              {vendor.name} uses this to list what they&apos;re bringing in and see their sales and payouts. No password needed.
+              {artist
+                ? `${vendor.name} is a gallery artist, so this is the same link as their gallery page: their page, with Sales & payouts (listing art, sales, payouts and the terms) on a second tab. No password needed.`
+                : `${vendor.name} uses this to list what they're bringing in and see their sales and payouts. No password needed.`}
               {!vendor.phone && !vendor.email ? " Add their phone (under Maker) or email (under Money) to text or email it to them." : ""}
             </p>
             {link ? (
@@ -386,14 +391,20 @@ export default async function VendorPage({ params }) {
                       Text it to them
                     </Button>
                   ) : null}
-                  {vendor.email && vendor.is_active ? (
+                  {artist ? (
+                    artist.contact_email ? (
+                      <Button href={`/admin/exhibitors/${artist.id}/email`} variant="subtle" size="sm" icon={Mail}>
+                        Email it to them
+                      </Button>
+                    ) : null
+                  ) : vendor.email && vendor.is_active ? (
                     <Button href={`/admin/vendors/remind?id=${vendor.id}&link=1`} variant="subtle" size="sm" icon={Mail}>
                       Email it to them
                     </Button>
                   ) : null}
                   <span className="text-xs text-ink-muted">Anyone with this link sees their sales — send it only to them.</span>
                 </div>
-                {manager ? (
+                {manager && !artist ? (
                   <form action={newLink} className="mt-4">
                     <input type="hidden" name="id" value={vendor.id} />
                     <ConfirmButton

@@ -15,7 +15,7 @@ import Toggle from "@/components/admin/ui/Toggle.js";
 import Select from "@/components/admin/ui/Select.js";
 import ConfirmButton from "@/components/admin/ui/ConfirmButton.js";
 import { requireAdmin } from "@/lib/auth.js";
-import { saveArtist, saveOnView, saveShop, startSelling, makeLink, emailLink, removeExhibitor } from "../actions.js";
+import { saveArtist, saveOnView, saveShop, startSelling, makeLink, removeExhibitor } from "../actions.js";
 import { exhibitorStatus, exhibitorPhoto, agreementState, initials } from "../shared.js";
 
 const APP_URL = process.env.APP_URL || "";
@@ -147,12 +147,18 @@ export default async function ExhibitorPage({ params }) {
             {link ? (
               <>
                 <CopyField url={link} className="mt-3" />
-                <form action={emailLink} className="mt-3">
-                  <input type="hidden" name="id" value={id} />
-                  <Button type="submit" variant="subtle" size="sm" icon={Mail} disabled={!ex.contact_email}>
-                    {ex.contact_email ? `Email it to ${ex.contact_email}` : "Add their email to send it"}
-                  </Button>
-                </form>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  {ex.contact_email ? (
+                    <Button href={`/admin/exhibitors/${id}/email`} variant="subtle" size="sm" icon={Mail}>
+                      Email it to them
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-ink-muted">Add their email under Artist to email it to them.</span>
+                  )}
+                  <span className="text-xs text-ink-muted">
+                    {selling ? "Their one link: their page, plus Sales & payouts and the terms to agree to." : "Send it only to them."}
+                  </span>
+                </div>
               </>
             ) : (
               <form action={makeLink} className="mt-3">

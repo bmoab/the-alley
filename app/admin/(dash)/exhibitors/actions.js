@@ -3,7 +3,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createExhibitor, updateExhibitor, deleteExhibitor, getExhibitor, ensureExhibitorToken } from "@/lib/catalog.js";
 import { setAgreementEnds, linkExhibitorToMaker, makerForExhibitor } from "@/lib/agreement-reminders.js";
-import { emailExhibitorInvite } from "@/lib/email.js";
 import { requireAdmin, getActor } from "@/lib/auth.js";
 import { startSellingArtist } from "@/lib/inventory.js";
 import { logActivity } from "@/lib/activity.js";
@@ -114,29 +113,6 @@ export async function makeLink(formData) {
   ensureExhibitorToken(id);
   refresh(id);
   redirect(`/admin/exhibitors/${id}`);
-}
-
-export async function emailLink(formData) {
-  await requireAdmin();
-  const id = Number(formData.get("id"));
-  const token = ensureExhibitorToken(id);
-  const ex = getExhibitor(id);
-  if (!ex?.contact_email) {
-    redirect(`/admin/exhibitors/${id}?toast=${encodeURIComponent("Add their email first (Artist → Edit).")}&toastType=error`);
-  }
-  let ok = true;
-  try {
-    const res = await emailExhibitorInvite(ex, token);
-    if (res?.ok === false) ok = false;
-  } catch (err) {
-    console.error("[exhibitors] invite email error:", err.message);
-    ok = false;
-  }
-  redirect(
-    `/admin/exhibitors/${id}?toast=${encodeURIComponent(
-      ok ? `Link emailed to ${ex.contact_email}.` : "The email didn't send. Copy the link and text it instead."
-    )}&toastType=${ok ? "success" : "error"}`
-  );
 }
 
 export async function removeExhibitor(formData) {

@@ -9,6 +9,7 @@ import {
 } from "@/lib/catalog.js";
 import Link from "next/link";
 import { makerForExhibitor } from "@/lib/agreement-reminders.js";
+import { termsAsk } from "@/lib/inventory.js";
 import ExhibitorEditForm from "@/components/ExhibitorEditForm.js";
 import MakerHome from "@/components/maker/MakerHome.js";
 import AccountNudge from "@/components/account/AccountNudge.js";
@@ -95,6 +96,17 @@ export default function ExhibitorTokenPage({ params, searchParams }) {
         Your spot on The Alley&apos;s Exhibitors page: your bio, a profile photo and photos of your work. Changes go live on
         our website right away.
       </PortalHead>
+      {sells && termsAsk(vendor) ? (
+        <p className="ac-note" style={{ marginTop: 20 }}>
+          <span>
+            <strong>Before we can sell your art:</strong> please read our consignment terms and agree to them on the{" "}
+            <Link href={`/exhibitor/${params.token}?tab=sales#terms`} style={{ fontWeight: 600, textDecoration: "underline" }}>
+              Sales &amp; payouts tab
+            </Link>
+            .
+          </span>
+        </p>
+      ) : null}
       <AccountNudge email={exhibitor.contact_email} />
 
       <div style={{ marginTop: 36 }}>

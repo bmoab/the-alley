@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { getVendorByToken } from "@/lib/inventory.js";
+import { redirect } from "next/navigation";
+import { getVendorByToken, artistForVendor } from "@/lib/inventory.js";
+import { ensureExhibitorToken } from "@/lib/catalog.js";
 import MakerHome from "@/components/maker/MakerHome.js";
 import PortalFrame, { PortalMissing } from "@/components/account/PortalFrame.js";
 
@@ -10,6 +12,9 @@ export const dynamic = "force-dynamic";
 /** A maker's private link — the same page their account shows, no sign-in needed. */
 export default function MakerLinkPage({ params }) {
   const vendor = getVendorByToken(params.token);
+  // A gallery artist has one link — their exhibitor link — so an older maker link lands there.
+  const artist = vendor ? artistForVendor(vendor) : null;
+  if (artist) redirect(`/exhibitor/${ensureExhibitorToken(artist.id)}?tab=sales`);
   return (
     <PortalFrame label="Consignment" toaster>
       {vendor ? (
