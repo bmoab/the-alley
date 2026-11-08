@@ -9,6 +9,7 @@ import Card from "@/components/admin/ui/Card.js";
 import Button from "@/components/admin/ui/Button.js";
 import Badge from "@/components/admin/ui/Badge.js";
 import { Bars, Delta, TrendChart } from "@/components/admin/money/Charts.js";
+import { listBankAccounts, unsortedCount } from "@/lib/bank.js";
 
 export const metadata = { title: "Money" };
 export const dynamic = "force-dynamic";
@@ -80,6 +81,9 @@ export default async function MoneyPage({ searchParams }) {
   const { start, end } = { start: `${month}-01`, end: shiftDate(`${next}-01`, { days: -1 }) };
   const salesHref = `/admin/sales?from=${start}&to=${end}`;
   const billsHref = `${PATH}/bills?month=${month}`;
+  const bankHref = `${PATH}/bank?month=${month}`;
+  const bankAccounts = listBankAccounts();
+  const toSort = unsortedCount();
   const unenteredBills = o.bills.filter((b) => b.amount == null).length;
   const rentUnpaid = o.rent.filter((r) => !r.payment);
 
@@ -90,6 +94,7 @@ export default async function MoneyPage({ searchParams }) {
     { label: "Tenants' rent", amount: o.income.rent, href: "#rent" },
     { label: "Tenants' share of staff", amount: o.income.staffShares, href: `/admin/staff-costs?month=${month}` },
     { label: "Utility shares", amount: o.income.coPayers, href: billsHref, note: "Jay's third" },
+    ...(o.income.bank ? [{ label: "Other income", amount: o.income.bank, href: bankHref, note: "from the bank" }] : []),
   ];
   const costRows = [
     { label: "Makers' share of sales", amount: o.costs.makers, href: "/admin/vendors" },
@@ -100,6 +105,7 @@ export default async function MoneyPage({ searchParams }) {
     { label: "Property tax", amount: o.costs.tax, href: billsHref },
     { label: "Supplies & upkeep", amount: o.costs.supplies, href: billsHref },
     { label: "Other bills", amount: o.costs.other, href: billsHref },
+    ...(o.costs.bank ? [{ label: "Other spending", amount: o.costs.bank, href: bankHref, note: "from the bank" }] : []),
   ];
   const toUs = o.owing.toUs;
   const owedToUs = toUs.rent + toUs.staffBills + toUs.coPayers + toUs.bookings;
@@ -110,9 +116,14 @@ export default async function MoneyPage({ searchParams }) {
         title="Money"
         subtitle="The whole Alley at a glance — what came in, what went out, what's owed, and what's doing best. Tap anything for the detail."
         actions={
-          <Button href={billsHref} size="sm">
-            Bills{unenteredBills ? ` · ${unenteredBills} to enter` : ""}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button href={billsHref} size="sm">
+              Bills{unenteredBills ? ` · ${unenteredBills} to enter` : ""}
+            </Button>
+            <Button href={bankHref} size="sm" variant="ghost">
+              Bank{toSort ? ` · ${toSort} to sort` : ""}
+            </Button>
+          </div>
         }
       />
 
@@ -146,6 +157,21 @@ export default async function MoneyPage({ searchParams }) {
         ) : null}
         .{unenteredBills ? <> · <Link href={billsHref} className="font-semibold text-rust underline">{unenteredBills} of this month&apos;s bills still need an amount</Link></> : null}
       </p>
+
+      {bankAccounts.some((b) => b.balance != null) ? (
+        <p className="mt-1 text-xs text-ink-muted">
+          In the bank:{" "}
+          {bankAccounts
+            .filter((b) => b.balance != null)
+            .map((b, i) => (
+              <span key={b.id}>
+                {i ? " · " : ""}
+                {b.name} <strong className="text-ink-soft">{formatMoney(b.balance)}</strong> on {formatDateShort(b.balance_on)}
+              </span>
+            ))}{" "}
+          · <Link href={bankHref} className="underline">Bank</Link>
+        </p>
+      ) : null}
 
       {/* In / out */}
       <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
