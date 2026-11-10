@@ -4,6 +4,7 @@ import { TenantBillsCard } from "./TenantBills.js";
 import CalendarSubscribe from "./CalendarSubscribe.js";
 import { StaffScheduleCard } from "./StaffSchedule.js";
 import TenantStaffCostCard from "./TenantStaffCost.js";
+import ReservationsCard from "./Reservations.js";
 import { tourHref } from "@/lib/account-tour.js";
 import { formatDate, formatDateShort, formatMoney, venueNow, venueToday, calendarFeedUrl } from "@/lib/constants.js";
 
@@ -154,10 +155,12 @@ function Tile({ href, icon: Icon, eyebrow, title, children, go = "Open", wide = 
  *   bills       { [directoryId]: tenantBills(id) }
  *   schedule    upcomingStaffSchedule() — only for tenants who share the staff
  *   staffCost   { [directoryId]: tenantStaffCost(id) }
+ *   reservations { rows, feedUrl } — Alley Reservations, only for a business
+ *               switched on to see every booking (the cleaner)
  *   recent      the newest few Activity rows (lib/account-activity.js)
  *   demo        the account tour's mode key: links open the tour's sample pages
  */
-export default function AccountDashboard({ account, mine, recent = [], makerStats = {}, bills = {}, schedule = null, staffCost = {}, demo = null }) {
+export default function AccountDashboard({ account, mine, recent = [], makerStats = {}, bills = {}, schedule = null, staffCost = {}, reservations = null, demo = null }) {
   const go = (href, kind, id) => (demo ? tourHref(demo, kind, id) : href);
   const first = account.name ? account.name.trim().split(/\s+/)[0] : "";
   const nothing =
@@ -260,6 +263,7 @@ export default function AccountDashboard({ account, mine, recent = [], makerStat
         </section>
       ) : (
         <div className="ac-grid">
+          {reservations ? <ReservationsCard rows={reservations.rows} feedUrl={reservations.feedUrl} /> : null}
           {mine.businesses.map((b) => (
             <TenantBillsCard
               key={`bills${b.id}`}

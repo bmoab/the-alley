@@ -14,6 +14,7 @@ import {
 import { emailTenantInvite } from "@/lib/email.js";
 import { requireAdmin } from "@/lib/auth.js";
 import { setTenantRent } from "@/lib/staff-costs.js";
+import { setSeesReservations } from "@/lib/reservations.js";
 
 /**
  * Directory actions. The section editors on a tenant's page each save only
@@ -70,6 +71,15 @@ export async function saveSuites(formData) {
   const id = Number(formData.get("id"));
   if (!getDirectoryEntry(id)) return { error: "That business is gone — reload the page." };
   setTenantSuites(id, formData.getAll("suite_ids"));
+  refresh(id);
+  return { ok: true };
+}
+
+export async function saveReservations(formData) {
+  await requireAdmin();
+  const id = Number(formData.get("id"));
+  if (!getDirectoryEntry(id)) return { error: "That business is gone — reload the page." };
+  setSeesReservations(id, formData.get("sees_reservations") != null);
   refresh(id);
   return { ok: true };
 }

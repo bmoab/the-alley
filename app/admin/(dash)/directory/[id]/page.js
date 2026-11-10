@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { Building2, CalendarRange, Eye, KeyRound, Mail, Receipt, Store, Users } from "lucide-react";
+import { Building2, CalendarCheck, CalendarRange, Eye, KeyRound, Mail, Receipt, Store, Users } from "lucide-react";
 import {
   getDirectoryEntry,
   listSuites,
@@ -26,6 +26,7 @@ import {
   saveVisibility,
   saveSuites,
   saveRent,
+  saveReservations,
   makeLink,
   emailLink,
   removeTenant,
@@ -125,6 +126,7 @@ export default async function TenantPage({ params }) {
               <span className="rounded-full bg-paper-warm px-2.5 py-0.5 text-xs text-ink-muted">No suite</span>
             )}
             {t.shares_staff_cost ? <Badge tone="sky">Shares staff</Badge> : null}
+            {t.sees_reservations ? <Badge tone="sky">Sees reservations</Badge> : null}
             {hasAccount ? <Badge tone="success">Has an account</Badge> : null}
           </div>
           <p className="mt-2 text-sm text-ink-soft">{t.category || <Empty>No category yet</Empty>}</p>
@@ -320,6 +322,34 @@ export default async function TenantPage({ params }) {
               <input id="biz-rent-link" name="rent_link" type="url" defaultValue={t.rent_link || ""} placeholder="https://…" className="field" />
               <p className="mt-1 text-xs text-ink-muted">Their TurboTenant link (where they pay rent). Shows as “Pay rent” on their account. Rent is paid in TurboTenant, so tick it paid on the Money page each month.</p>
             </div>
+          </EditCard>
+
+          <EditCard
+            title="Alley Reservations"
+            icon={<CalendarCheck className="h-4 w-4" aria-hidden="true" />}
+            action={saveReservations}
+            hidden={hidden}
+            view={
+              t.sees_reservations ? (
+                <div className="space-y-2">
+                  <Badge tone="success">On</Badge>
+                  <p className="text-sm text-ink-soft">
+                    {hasAccount ? "They see" : "Once they make an account with their email, they'll see"} every booking, public
+                    and private, on their account, and can put them on their phone&apos;s calendar.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-ink-muted">Off. Turn this on for whoever cleans, so they can see every booking.</p>
+              )
+            }
+          >
+            <Toggle
+              name="sees_reservations"
+              defaultChecked={!!t.sees_reservations}
+              label="Sees Alley Reservations"
+              hint="Every booking, public and private, on their account and phone calendar: date, room, times, guest count and alcohol. Never a renter's name, contact details or money."
+            />
+            <p className="text-xs text-ink-muted">Turning it off also stops their phone calendar from updating.</p>
           </EditCard>
 
           <section className="rounded-2xl border border-rust/20 p-5">

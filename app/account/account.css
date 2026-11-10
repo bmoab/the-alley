@@ -561,3 +561,18 @@ details[open] > summary .ac-act-chev { transform: rotate(180deg); color: var(--i
 .ac-hours .strong { font-weight: 600; }
 .ac-hours tr.sum td { border-bottom: 0; font-weight: 600; }
 .ac-hours th:last-child, .ac-hours td:last-child { padding-right: 0; }
+
+/* Alley Reservations (a business switched on to see every booking — the cleaner) */
+.ac-res { display: flex; flex-direction: column; gap: 4px; }
+.ac-res-day { border-top: 1px solid var(--line); padding-top: 12px; }
+.ac-res-day + .ac-res-day { margin-top: 8px; }
+.ac-res-date { margin: 0; font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-muted); }
+.ac-res-day.is-today .ac-res-date { color: var(--verde-deep); }
+.ac-res-row { display: flex; align-items: center; gap: 14px; padding: 10px 0; }
+.ac-res-row .ac-row-main { flex: 1; min-width: 0; }
+.ac-res-row .ac-row-title { white-space: normal; }
+.ac-res-pills { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+@media (max-width: 600px) {
+  .ac-res-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .ac-res-pills { justify-content: flex-start; }
+}
