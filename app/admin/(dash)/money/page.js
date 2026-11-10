@@ -10,6 +10,8 @@ import Button from "@/components/admin/ui/Button.js";
 import Badge from "@/components/admin/ui/Badge.js";
 import { Bars, Delta, TrendChart } from "@/components/admin/money/Charts.js";
 import { listBankAccounts, unsortedCount } from "@/lib/bank.js";
+import { importTurboTenantCharges } from "@/lib/rent-import.js";
+import PendingButton from "@/components/admin/ui/PendingButton.js";
 
 export const metadata = { title: "Money" };
 export const dynamic = "force-dynamic";
@@ -39,6 +41,29 @@ async function rentUndo(formData) {
   const month = monthOf(formData);
   unmarkRent(formData.get("directory_id"), month);
   back(month, "Rent unmarked.", "neutral");
+}
+
+async function rentUpload(formData) {
+  "use server";
+  await requireStaffManager();
+  let month = monthOf(formData);
+  const file = formData.get("file");
+  if (!file || typeof file === "string" || !file.size) back(month, "Choose the TurboTenant file first.", "error");
+  let r;
+  try {
+    r = importTurboTenantCharges(await file.text());
+  } catch (err) {
+    back(month, err.message, "error");
+  }
+  if (r.months.length) month = r.months[r.months.length - 1];
+  const total = r.marked.reduce((t, m) => t + m.amount, 0);
+  const parts = [];
+  if (r.marked.length) parts.push(`Rent ticked paid for ${r.marked.length} tenant${r.marked.length === 1 ? "" : "s"} (${formatMoney(total)}).`);
+  if (r.already) parts.push(`${r.already} already ticked.`);
+  if (r.other.length) parts.push(`Left out ${r.other.length} lease${r.other.length === 1 ? "" : "s"} that aren't The Alley's.`);
+  if (r.skipped.length) parts.push(`Not ticked: ${r.skipped.map((x) => `${x.lease} (${x.why})`).join("; ")}.`);
+  if (!parts.length) parts.push("Nothing for The Alley in that file.");
+  back(month, parts.join(" "), r.skipped.length && !r.marked.length ? "error" : "success");
 }
 
 function Stat({ label, value, sub, tone, className = "" }) {
@@ -392,9 +417,22 @@ export default async function MoneyPage({ searchParams }) {
             </ul>
           ) : (
             <p className="mt-2 text-sm text-ink-muted">
-              No rent set yet — add each tenant&apos;s monthly rent in <Link href="/admin/directory" className="underline">Directory</Link>.
+              No rent set yet. Upload TurboTenant&apos;s charges export below, or add each tenant&apos;s monthly rent in{" "}
+              <Link href="/admin/directory" className="underline">Directory</Link>.
             </p>
           )}
+          <details className="mt-3 border-t border-line/60 pt-3">
+            <summary className="cursor-pointer text-xs font-semibold text-ink-soft">Upload from TurboTenant</summary>
+            <p className="mt-2 text-xs text-ink-muted">
+              In TurboTenant, export the charges as a CSV and upload it here. Rent for The Alley&apos;s suites is ticked paid for
+              the month it was due; leases at other addresses are left out.
+            </p>
+            <form action={rentUpload} className="mt-2 flex flex-wrap items-center gap-2">
+              <input type="hidden" name="month" value={month} />
+              <input type="file" name="file" accept=".csv,text/csv" required className="min-w-0 max-w-full text-xs" />
+              <PendingButton label="Upload" pendingLabel="Reading…" size="sm" variant="accent" />
+            </form>
+          </details>
         </Card>
       </div>
     </div>
