@@ -6,9 +6,10 @@ import { normalizeEmail } from "@/lib/portal.js";
  * A line on each private-link page (bookings, host listing, business listing,
  * exhibitor page) saying the same things live in an account. The links keep
  * working either way — an account just gathers them, plus a copy of every
- * email we send, behind one sign-in.
+ * email we send, behind one sign-in. `hub`: on a private link that already
+ * opens the whole account home, so it only offers what signing in adds.
  */
-export default async function AccountNudge({ email }) {
+export default async function AccountNudge({ email, hub = false }) {
   const clean = normalizeEmail(email);
   if (!clean) return null;
   const account = await getAccount();
@@ -36,8 +37,10 @@ export default async function AccountNudge({ email }) {
         <Link href="/account/sign-in" style={{ fontWeight: 600, textDecoration: "underline" }}>
           sign in
         </Link>
-        ) to see this, your other bookings and listings, and a copy of every email we send you. This link keeps working
-        either way.
+        )
+        {hub
+          ? " to also keep a copy of every email we send you and a record of everything that happens. This link keeps working either way."
+          : " to see this, your other bookings and listings, and a copy of every email we send you. This link keeps working either way."}
       </span>
     </p>
   );

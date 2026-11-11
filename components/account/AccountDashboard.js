@@ -159,8 +159,10 @@ function Tile({ href, icon: Icon, eyebrow, title, children, go = "Open", wide = 
  *               switched on to see every booking (the cleaner)
  *   recent      the newest few Activity rows (lib/account-activity.js)
  *   demo        the account tour's mode key: links open the tour's sample pages
+ *   viaLink     opened from a private link, not signed in: no Latest activity
+ *               (that needs a sign-in); maker tiles carry their own `href`
  */
-export default function AccountDashboard({ account, mine, recent = [], makerStats = {}, bills = {}, schedule = null, staffCost = {}, reservations = null, demo = null }) {
+export default function AccountDashboard({ account, mine, recent = [], makerStats = {}, bills = {}, schedule = null, staffCost = {}, reservations = null, demo = null, viaLink = false }) {
   const go = (href, kind, id) => (demo ? tourHref(demo, kind, id) : href);
   const first = account.name ? account.name.trim().split(/\s+/)[0] : "";
   const nothing =
@@ -168,7 +170,7 @@ export default function AccountDashboard({ account, mine, recent = [], makerStat
 
   // A tenant's business always comes first, across the whole row.
   const businessTiles = mine.businesses.map((b) => (
-    <Tile key={`b${b.id}`} wide href={go(`/business-listing/${b.token}`, "business")} icon={Store} eyebrow="Your business" title={b.business_name} go="Edit">
+    <Tile key={`b${b.id}`} wide href={go(`/business-listing/${b.token}/edit`, "business")} icon={Store} eyebrow="Your business" title={b.business_name} go="Edit">
       <p className="ac-tile-body">Your directory listing, and the events you post on our calendar.</p>
     </Tile>
   ));
@@ -180,7 +182,7 @@ export default function AccountDashboard({ account, mine, recent = [], makerStat
       const o = makerStats[m.id] || { onShelf: 0, soFarThisMonth: 0, due: 0, waiting: false };
       const waiting = o.waiting;
       return (
-        <Tile key={`m${m.id}`} wide={wide} href={go(`/account/consign/${m.id}`, "consign", m.id)} icon={Package} eyebrow={m.artist ? "Art sales" : "Consignment"} title={m.name}>
+        <Tile key={`m${m.id}`} wide={wide} href={m.href || go(`/account/consign/${m.id}`, "consign", m.id)} icon={Package} eyebrow={m.artist ? "Art sales" : "Consignment"} title={m.name}>
           <div className="ac-figures">
             <div className="ac-figure">
               <b>{o.onShelf}</b>
@@ -316,38 +318,40 @@ export default function AccountDashboard({ account, mine, recent = [], makerStat
 
       <Explore mine={mine} />
 
-      <section className="ac-section ac-rise ac-rise-4">
-        <div className="ac-section-head">
-          <h2 className="ac-h2">Latest activity</h2>
-          <Link href={go("/account/activity", "activity")} className="ac-link">See it all</Link>
-        </div>
-        {recent.length ? (
-          <ul className="ac-rows">
-            {recent.map((r) => (
-              <li key={r.key}>
-                <Link
-                  href={r.emailId != null ? go(`/account/activity/email/${r.emailId}`, "email", r.emailId) : go(`/account/activity?type=${r.type}`, "activity")}
-                  className="ac-row"
-                >
-                  <span className="ac-row-main">
-                    <span className="ac-row-title">{r.title}</span>
-                  </span>
-                  {r.amount != null ? (
-                    <span className={`ac-act-amt ${r.flow === "in" ? "is-in" : ""}`}>
-                      {r.flow === "in" ? "+" : ""}
-                      {formatMoney(r.amount)}
+      {viaLink ? null : (
+        <section className="ac-section ac-rise ac-rise-4">
+          <div className="ac-section-head">
+            <h2 className="ac-h2">Latest activity</h2>
+            <Link href={go("/account/activity", "activity")} className="ac-link">See it all</Link>
+          </div>
+          {recent.length ? (
+            <ul className="ac-rows">
+              {recent.map((r) => (
+                <li key={r.key}>
+                  <Link
+                    href={r.emailId != null ? go(`/account/activity/email/${r.emailId}`, "email", r.emailId) : go(`/account/activity?type=${r.type}`, "activity")}
+                    className="ac-row"
+                  >
+                    <span className="ac-row-main">
+                      <span className="ac-row-title">{r.title}</span>
                     </span>
-                  ) : null}
-                  <span className="ac-mail-date">{formatDateShort(String(r.at).slice(0, 10))}</span>
-                  <ChevronRight className="ac-row-chev" width={18} height={18} aria-hidden="true" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="ac-small">Bookings, payments, sales and every email we send you will show up here.</p>
-        )}
-      </section>
+                    {r.amount != null ? (
+                      <span className={`ac-act-amt ${r.flow === "in" ? "is-in" : ""}`}>
+                        {r.flow === "in" ? "+" : ""}
+                        {formatMoney(r.amount)}
+                      </span>
+                    ) : null}
+                    <span className="ac-mail-date">{formatDateShort(String(r.at).slice(0, 10))}</span>
+                    <ChevronRight className="ac-row-chev" width={18} height={18} aria-hidden="true" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="ac-small">Bookings, payments, sales and every email we send you will show up here.</p>
+          )}
+        </section>
+      )}
     </>
   );
 }

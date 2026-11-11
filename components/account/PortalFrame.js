@@ -18,7 +18,7 @@ function initials(account) {
  * as their account. Signed in, the corner leads back to the account; signed
  * out, it offers to sign in.
  */
-export default async function PortalFrame({ label, children, toaster = false, className = "" }) {
+export default async function PortalFrame({ label, children, toaster = false, className = "", wide = false }) {
   const account = await getAccount();
   return (
     <div className={`ac brandpage ac-portal ${className}`}>
@@ -39,7 +39,7 @@ export default async function PortalFrame({ label, children, toaster = false, cl
           )}
         </div>
       </header>
-      <main className="ac-main ac-main--narrow">{children}</main>
+      <main className={`ac-main${wide ? "" : " ac-main--narrow"}`}>{children}</main>
       <JumpNav root=".ac-main" rail />
       {toaster ? (
         <Suspense fallback={null}>
