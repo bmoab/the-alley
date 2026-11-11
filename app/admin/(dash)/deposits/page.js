@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { listDepositsToRefund, resolveDeposit } from "@/lib/deposits.js";
 import { getActor, getCurrentUser, canManageBookings, requireBookingManager, requireAdmin } from "@/lib/auth.js";
-import { spaceName, formatDate, formatMoney } from "@/lib/constants.js";
+import { spaceName, formatDate, formatMoney, depositKept, depositBack } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Card from "@/components/admin/ui/Card.js";
 import Button from "@/components/admin/ui/Button.js";
@@ -113,7 +113,7 @@ export default async function DepositsPage() {
                         min="0"
                         max={b.deposit}
                         step="1"
-                        defaultValue={b.deposit}
+                        defaultValue={depositBack(b)}
                         className="field"
                       />
                     </div>
@@ -128,8 +128,9 @@ export default async function DepositsPage() {
                     </div>
                   </div>
                   <p className="mt-1.5 text-xs text-ink-muted">
-                    Refund up to {formatMoney(b.deposit)}. Lower it to keep part for damages; the rest is
-                    recorded as withheld. The client is emailed either way.
+                    {depositKept(b) > 0
+                      ? `${formatMoney(depositKept(b))} is kept for cleaning and incidentals, so this starts at ${formatMoney(depositBack(b))}. Lower it to keep more for damages; the rest is recorded as kept. The client is emailed either way.`
+                      : `Refund up to ${formatMoney(b.deposit)}. Lower it to keep part for damages; the rest is recorded as withheld. The client is emailed either way.`}
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button type="submit" variant="accent" size="sm">Resolve deposit</Button>

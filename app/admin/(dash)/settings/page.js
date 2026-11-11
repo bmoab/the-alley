@@ -42,8 +42,15 @@ const NUMBER_FIELDS = [
   },
   {
     key: "deposit",
-    label: "Refundable cleaning deposit ($)",
-    hint: "Added as a separate line on every invoice and refunded after the event.",
+    label: "Cleaning deposit ($)",
+    hint: "Added as a separate line on every invoice and refunded after the event, less the amount kept below.",
+    min: 0,
+    step: 5,
+  },
+  {
+    key: "deposit_kept",
+    label: "Kept from every deposit ($)",
+    hint: "Covers cleaning and incidentals, so it isn't refunded after the event or on a late cancellation. Someone who cancels before the cutoff still gets it all back (rental agreement). Applies to bookings requested from now on; 0 = the whole deposit can come back.",
     min: 0,
     step: 5,
   },
@@ -301,7 +308,7 @@ export default async function SettingsPage() {
           <h2 className="text-lg font-semibold text-ink">Pricing</h2>
           <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
             {NUMBER_FIELDS.filter((f) =>
-              ["standard_rate", "deposit"].includes(f.key)
+              ["standard_rate", "deposit", "deposit_kept"].includes(f.key)
             ).map((f) => (
               <NumberField key={f.key} field={f} value={s[f.key]} />
             ))}

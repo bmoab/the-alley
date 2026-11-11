@@ -134,7 +134,8 @@ function BookModal({ initialRoom, config, onClose }) {
   const [room, setRoom] = useState(initialRoom || null);
   // Everything priced or timed below is the CHOSEN space's, not the site's.
   const cfg = configFor(config, room);
-  const { rate, minHours, deposit, openHour, closeHour, minLeadHours = 0, cancellationCutoffHours = 72, seriesMaxOcc = 8 } = cfg;
+  const { rate, minHours, deposit, depositKept = 0, openHour, closeHour, minLeadHours = 0, cancellationCutoffHours = 72, seriesMaxOcc = 8 } = cfg;
+  const depositBack = deposit - Math.min(deposit, depositKept);
   const [form, setForm] = useState({
     date: "",
     start: "",
@@ -686,8 +687,8 @@ function BookModal({ initialRoom, config, onClose }) {
                     <input type="checkbox" checked={form.cutoff_ack} onChange={(e) => setForm((f) => ({ ...f, cutoff_ack: e.target.checked }))} style={{ marginTop: 3 }} />
                     <span>
                       I understand my event is within {cancellationCutoffHours} hours, so the rental fee is{" "}
-                      <strong style={{ color: "var(--ink)" }}>non-refundable</strong> if I cancel — only my ${deposit} cleaning
-                      deposit is refundable.
+                      <strong style={{ color: "var(--ink)" }}>non-refundable</strong> if I cancel —{" "}
+                      {depositBack < deposit ? `only $${depositBack} of my $${deposit} cleaning deposit comes back.` : `only my $${deposit} cleaning deposit is refundable.`}
                     </span>
                   </label>
                 ) : null}
@@ -704,7 +705,7 @@ function BookModal({ initialRoom, config, onClose }) {
                   <span>Rental (${rate} × {hours}h{form.is_recurring ? ` × ${includedDates.length}` : ""})</span>
                   <span>${rentalCost * (form.is_recurring ? includedDates.length : 1)}</span>
                 </div>
-                <div className="bk-est-row"><span>Refundable cleaning deposit{form.is_recurring ? " (one for the series)" : ""}</span><span>${deposit}</span></div>
+                <div className="bk-est-row"><span>{depositBack < deposit ? `Cleaning deposit ($${depositBack} back after your event)` : "Refundable cleaning deposit"}{form.is_recurring ? " (one for the series)" : ""}</span><span>${deposit}</span></div>
                 <div className="bk-est-row bk-est-total"><span>Estimated total</span><span>${rentalCost * (form.is_recurring ? includedDates.length : 1) + deposit}</span></div>
                 <p className="bk-est-note mono">
                   {form.is_recurring

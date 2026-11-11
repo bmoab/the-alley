@@ -7,6 +7,8 @@ import {
   formatDate,
   formatTime,
   formatMoney,
+  depositKept,
+  depositBack,
 } from "@/lib/constants.js";
 
 export const metadata = { title: "Complete your payment" };
@@ -70,7 +72,7 @@ export default function PayPage({ params, searchParams }) {
               ["Date", formatDate(booking.date)],
               ["Time", `${formatTime(booking.start_time)} · ${booking.hours}h`],
               ["Space rental", formatMoney(rental)],
-              ["Refundable deposit", formatMoney(booking.deposit)],
+              [depositKept(booking) > 0 ? `Cleaning deposit (${formatMoney(depositBack(booking))} back)` : "Refundable deposit", formatMoney(booking.deposit)],
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between gap-4 py-2">
                 <dt className="text-ink-muted">{k}</dt>

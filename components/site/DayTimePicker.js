@@ -156,7 +156,7 @@ export function SmartTime({
   minStartFrac = null,
   fixedHours = null,
 }) {
-  const { rate, deposit, minHours, openHour, closeHour, cleanupBuffer, maxHours } = config;
+  const { rate, deposit, depositKept = 0, minHours, openHour, closeHour, cleanupBuffer, maxHours } = config;
   const maxH = maxHours || 24; // configurable maximum booking length (hours)
   const list = bookings || [];
   const closed = closures || [];
@@ -305,7 +305,7 @@ export function SmartTime({
         <div className="bk-pricebar">
           <div>
             <strong>{fmtFrac(startVal)} – {fmtFrac(startVal + value.hours)} · {value.hours} hours</strong>
-            <span>${rate * value.hours} rental + ${deposit} refundable deposit</span>
+            <span>${rate * value.hours} rental + ${deposit} {depositKept > 0 ? "cleaning" : "refundable"} deposit</span>
           </div>
           <div className="bk-pricebar-total">
             <div className="amt">${total}</div>

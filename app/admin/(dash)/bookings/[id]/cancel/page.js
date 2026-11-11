@@ -6,7 +6,7 @@ import {
   cancellationQuote,
   cancelBooking,
 } from "@/lib/bookings.js";
-import { refundPayment } from "@/lib/square.js";
+import { refundAcrossInvoices, cancelOpenCharges } from "@/lib/booking-charges.js";
 import { emailClientCancelled } from "@/lib/email.js";
 import { getActor, getCurrentUser, canManageBookings, requireBookingManager } from "@/lib/auth.js";
 import { logActivity, logEmail } from "@/lib/activity.js";
@@ -41,14 +41,14 @@ async function confirmCancel(formData) {
   let noPaymentFound = false;
   if (quote.hasPayment && quote.refundAmount > 0) {
     try {
-      const res = await refundPayment(
+      const res = await refundAcrossInvoices(
         booking,
         quote.refundAmount,
         quote.refundType === "full"
           ? "Cancellation — full refund (rental + deposit)"
           : "Cancellation — deposit refund (rental forfeited)"
       );
-      if (res?.noPayment) noPaymentFound = true;
+      if (res?.noPayment && !res.refunded) noPaymentFound = true;
     } catch (err) {
       console.error(`[cancel] refund failed for #${id}:`, err.message);
       redirect(
@@ -57,6 +57,13 @@ async function confirmCancel(formData) {
           "&toastType=error"
       );
     }
+  }
+
+  // Any invoice still out for time added later is void now.
+  try {
+    await cancelOpenCharges(id);
+  } catch (err) {
+    console.error(`[cancel] couldn't void the added-time invoice for #${id}:`, err.message);
   }
 
   const refundAmount = noPaymentFound ? 0 : quote.refundAmount;
@@ -173,6 +180,7 @@ export default async function CancelBookingPage({ params }) {
             {within
               ? "Per the rental agreement, the rental fee is forfeited and only the cleaning deposit is refunded."
               : "Per the rental agreement, the full amount (rental + deposit) is refunded."}
+            {quote.kept > 0 ? ` ${formatMoney(quote.kept)} of the deposit is kept for cleaning and incidentals, since it's a late cancellation.` : ""}
           </p>
         </div>
 
@@ -180,6 +188,9 @@ export default async function CancelBookingPage({ params }) {
         <dl className="mt-5 space-y-1.5 text-sm">
           <Row label="Rental" value={formatMoney(quote.rental)} />
           <Row label="Cleaning deposit" value={formatMoney(quote.deposit)} />
+          {quote.kept > 0 && quote.hasPayment ? (
+            <Row label="Kept from the deposit" value={`– ${formatMoney(quote.kept)}`} danger />
+          ) : null}
           <Row label="Paid in full?" value={quote.hasPayment ? "Yes" : "No — nothing collected yet"} />
           {quote.rentalForfeited > 0 ? (
             <Row label="Forfeited (rental)" value={`– ${formatMoney(quote.rentalForfeited)}`} danger />

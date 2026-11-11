@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import { BOOKABLE_SPACES } from "@/lib/constants.js";
-import { spaceRules } from "@/lib/spaces.js";
+import { spaceRules, depositKeptFor } from "@/lib/spaces.js";
 import { getSettings, getContent, getContentValue } from "@/lib/db.js";
 import { listSpacePhotos, spacePhotosKey } from "@/lib/catalog.js";
 import PageHero from "@/components/site/PageHero.js";
@@ -28,12 +28,16 @@ export default function SpacesPage() {
   const c = getContent();
   // Rate + minimum are per-space (rendered on each row); the deposit is shared.
   const deposit = Number(s.deposit) || 150;
+  const refund = deposit - depositKeptFor(deposit);
 
-  // "{deposit}" in the editable body is replaced with the live deposit amount.
+  // "{deposit}" in the editable body is replaced with the live deposit amount,
+  // "{refund}" with how much of it comes back.
   const bookBody = getContentValue(
     "spaces_book_body",
-    "Every booking includes a refundable {deposit} cleaning deposit and a quick rental agreement. We'll review your request and email you within a day to confirm — no charge happens until then."
-  ).replaceAll("{deposit}", `$${deposit}`);
+    "Every booking includes a {deposit} cleaning deposit ({refund} of it comes back after your event) and a quick rental agreement. We'll review your request and email you within a day to confirm — no charge happens until then."
+  )
+    .replaceAll("{deposit}", `$${deposit}`)
+    .replaceAll("{refund}", `$${refund}`);
 
   return (
     <main className="ipage">
@@ -52,7 +56,7 @@ export default function SpacesPage() {
             row below rather than being stated once here. */}
         <div className="rate-banner reveal">
           <div className="rate-stats">
-            <div className="rate-stat"><div className="n">${deposit}</div><div className="k">Refundable deposit</div></div>
+            <div className="rate-stat"><div className="n">${deposit}</div><div className="k">{refund < deposit ? `Cleaning deposit · $${refund} back` : "Refundable deposit"}</div></div>
           </div>
           <a className="rulelink" href="/rental-agreement.pdf" target="_blank" rel="noreferrer">
             Rental agreement <Arrow />

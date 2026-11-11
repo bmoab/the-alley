@@ -17,6 +17,8 @@ import {
   formatDateShort,
   formatTime,
   formatMoney,
+  depositKept,
+  depositBack,
   venueToday,
 } from "@/lib/constants.js";
 import AccountNudge from "@/components/account/AccountNudge.js";
@@ -105,6 +107,16 @@ function PaymentLine({ b }) {
           Pay now <span className="ac-arrow" aria-hidden="true">→</span>
         </a>
       ) : null}
+      {rentalPaid && Number(b.extra_due) > 0 ? (
+        <>
+          <span className="text-sm text-ink-muted">Added time: {formatMoney(b.extra_due)} to pay</span>
+          {b.extra_link ? (
+            <a href={b.extra_link} target="_blank" rel="noreferrer" className="ac-btn ac-btn--auto" style={{ height: 40, padding: "0 18px", fontSize: 11 }}>
+              Pay {formatMoney(b.extra_due)} <span className="ac-arrow" aria-hidden="true">→</span>
+            </a>
+          ) : null}
+        </>
+      ) : null}
       {!rentalPaid && b.status === "held" && b.hold_expires_at ? (
         <span className="text-sm text-ink-muted">
           Please pay by {formatDateShort(venueDayOf(b.hold_expires_at))}
@@ -163,8 +175,10 @@ function DepositLine({ b }) {
   }
   return (
     <p className="text-sm text-ink-muted">
-      Cleaning deposit {formatMoney(amount)} — refundable after your event, once
-      the space has been checked over.
+      Cleaning deposit {formatMoney(amount)} —{" "}
+      {depositKept(b) > 0
+        ? `${formatMoney(depositBack(b))} of it comes back after your event, once the space has been checked over (${formatMoney(depositKept(b))} is kept for cleaning and incidentals).`
+        : "refundable after your event, once the space has been checked over."}
     </p>
   );
 }

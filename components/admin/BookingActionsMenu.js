@@ -182,13 +182,13 @@ export default function BookingActionsMenu({
         });
       }
     }
-    // Move a live booking to another day. Space, length and price are unchanged
-    // and no invoice is reissued, so this is safe on a paid booking too.
+    // Move a live booking, or change how long it runs (which settles the price
+    // difference: a new invoice if unpaid, an extra one or a refund if paid).
     if (live) {
       items.push({
         key: "reschedule",
-        label: "Change date",
-        hint: "Move it to another day",
+        label: "Change date or time",
+        hint: "Move it, or add or take off time",
         href: `/admin/bookings/${b.id}/reschedule`,
       });
       if (rescheduleLinkAction && b.client_email) {

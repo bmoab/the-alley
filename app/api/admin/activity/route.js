@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth.js";
 import { getBooking } from "@/lib/bookings.js";
 import { listActivity } from "@/lib/activity.js";
 import { getListingForBooking } from "@/lib/catalog.js";
+import { listCharges } from "@/lib/booking-charges.js";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,7 @@ export async function GET(request) {
   return NextResponse.json({
     booking,
     activity: listActivity(bookingId),
+    charges: listCharges(bookingId).filter((c) => c.status !== "cancelled" && c.status !== "sending"),
     listing: listing
       ? {
           id: listing.id,

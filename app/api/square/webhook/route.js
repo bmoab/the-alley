@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { getBookingByInvoice, getBookingByDepositInvoice, markDepositPaid } from "@/lib/bookings.js";
+import { getChargeByInvoice, markChargePaid } from "@/lib/booking-charges.js";
 import { getInvoiceStatus } from "@/lib/square.js";
 import { confirmBookingPaid } from "@/lib/payments.js";
 import { rememberPayment } from "@/lib/payment-details.js";
@@ -74,6 +75,14 @@ export async function POST(request) {
             markDepositPaid(holder.id);
             await rememberPayment(invoiceId);
             console.log(`[square:webhook] series #${holder.series_id} deposit paid (holder #${holder.id})`);
+          }
+        } else if (!holder) {
+          // Or the invoice for time added to a booking after it was paid.
+          const charge = getChargeByInvoice(invoiceId);
+          if (charge && charge.status === "sent" && (await getInvoiceStatus(invoiceId)) === "paid") {
+            markChargePaid(charge.id);
+            await rememberPayment(invoiceId);
+            console.log(`[square:webhook] added time paid on booking #${charge.booking_id}`);
           }
         }
       }

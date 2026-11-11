@@ -5,7 +5,7 @@ import RevealMount from "@/components/site/RevealMount.js";
 import PreviewBridge from "@/components/site/PreviewBridge.js";
 import { BookProvider } from "@/components/BookContext.js";
 import { getSettings } from "@/lib/db.js";
-import { allSpaceRules } from "@/lib/spaces.js";
+import { allSpaceRules, depositKeptFor } from "@/lib/spaces.js";
 
 // Render public pages on demand (they read owner-editable data from the DB).
 // This also keeps `next build` from prerendering — and thus from opening the
@@ -25,6 +25,7 @@ export default function SiteLayout({ children }) {
     maxHours: Number(s.maximum_hours) || 8,
     minLeadHours: Number(s.min_lead_hours) || 0,
     deposit: Number(s.deposit) || 150,
+    depositKept: depositKeptFor(Number(s.deposit) || 150),
     openHour: Number(s.open_hour) || 8,
     closeHour: Number(s.close_hour) || 23,
     cleanupBuffer: (Number(s.cleanup_buffer_minutes) || 60) / 60,
@@ -40,6 +41,7 @@ export default function SiteLayout({ children }) {
         {
           rate: r.rate,
           deposit: r.deposit,
+          depositKept: r.depositKept,
           minHours: r.minHours,
           maxHours: r.maxHours,
           cleanupBuffer: r.cleanupBufferMinutes / 60,

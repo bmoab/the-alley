@@ -264,7 +264,7 @@ export default function BookingDrawer() {
               </div>
             )
           ) : (
-            <Details booking={booking} />
+            <Details booking={booking} charges={data?.charges || []} />
           )}
         </div>
       </aside>
@@ -314,7 +314,7 @@ function TimelineItem({ item, last }) {
   );
 }
 
-function Details({ booking }) {
+function Details({ booking, charges = [] }) {
   const sections = [
     {
       title: "Who",
@@ -345,8 +345,30 @@ function Details({ booking }) {
         booking.series_id && booking.is_deposit_holder
           ? ["Series deposit", `${formatMoney(booking.deposit)} · ${upperFirst(booking.deposit_payment_status || "unpaid")}`]
           : null,
-        ["Deposit", formatMoney(booking.deposit)],
+        ["Deposit", Number(booking.deposit_kept) > 0 ? `${formatMoney(booking.deposit)} · ${formatMoney(booking.deposit_kept)} kept` : formatMoney(booking.deposit)],
         ["Total", formatMoney(booking.total)],
+        ...charges.map((c, i) =>
+          c.kind === "refund"
+            ? [`Refunded for less time${i ? ` (${i + 1})` : ""}`, formatMoney(c.amount)]
+            : [
+                `Added time${i ? ` (${i + 1})` : ""}`,
+                c.status === "paid" ? (
+                  `${formatMoney(c.amount)} · Paid`
+                ) : (
+                  <span key={c.id}>
+                    {formatMoney(c.amount)} · Not paid yet
+                    {c.payment_link ? (
+                      <>
+                        {" · "}
+                        <a href={c.payment_link} target="_blank" rel="noreferrer" className="text-verde-deep hover:underline">
+                          Invoice ↗
+                        </a>
+                      </>
+                    ) : null}
+                  </span>
+                ),
+              ]
+        ),
       ],
     },
   ];

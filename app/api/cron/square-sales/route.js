@@ -3,6 +3,7 @@ import { syncSquareSales } from "@/lib/inventory.js";
 import { staffCostDaily, monthLabel } from "@/lib/staff-costs.js";
 import { emailStaffCostReady } from "@/lib/email.js";
 import { refreshShareBillPayments } from "@/lib/money.js";
+import { refreshChargePayments } from "@/lib/booking-charges.js";
 import { fillMissingPayments } from "@/lib/payment-details.js";
 
 export const dynamic = "force-dynamic";
@@ -57,6 +58,13 @@ export async function GET(request) {
     console.error("[cron] share bills failed", err);
     shareBills = { error: "Share-bill check failed — see the server log." };
   }
+  let addedTime;
+  try {
+    addedTime = await refreshChargePayments();
+  } catch (err) {
+    console.error("[cron] added-time invoices failed", err);
+    addedTime = { error: err.message };
+  }
   // Card and receipt details for paid invoices, for customers' Activity. A
   // hiccup here isn't worth failing the run over.
   let receipts;
@@ -67,5 +75,5 @@ export async function GET(request) {
     receipts = { error: err.message };
   }
   const ok = !sales.error && !staffCosts.error && !shareBills.error;
-  return NextResponse.json({ ok, ...sales, staffCosts, shareBills, receipts }, { status: ok ? 200 : 500 });
+  return NextResponse.json({ ok, ...sales, staffCosts, shareBills, addedTime, receipts }, { status: ok ? 200 : 500 });
 }
