@@ -19,6 +19,8 @@ import AccountNudge from "@/components/account/AccountNudge.js";
 import PortalFrame, { PortalHead, PortalMissing } from "@/components/account/PortalFrame.js";
 import TenantBills from "@/components/account/TenantBills.js";
 import CalendarSubscribe from "@/components/account/CalendarSubscribe.js";
+import ReservationsCard from "@/components/account/Reservations.js";
+import { reservationsCardData } from "@/lib/reservations.js";
 
 export const metadata = { title: "Set up your business listing" };
 
@@ -122,6 +124,8 @@ export default function BusinessListingPage({ params, searchParams }) {
   const events = listTenantEvents(entry.id);
   const upcoming = events.filter((e) => (e.date || "") >= today);
   const past = events.filter((e) => (e.date || "") < today).reverse();
+  // Alley Reservations, for a business switched on to see every booking.
+  const reservations = reservationsCardData(entry);
   const notice = (searchParams?.ev || "").toString();
   const NOTICES = {
     added: "Added — it's on The Alley's calendar now.",
@@ -137,6 +141,12 @@ export default function BusinessListingPage({ params, searchParams }) {
           Your spot in The Alley directory: your details, photos and links. Changes go live on our website right away.
         </PortalHead>
         <AccountNudge email={entry.contact_email} />
+
+        {reservations ? (
+          <div style={{ marginTop: 28 }}>
+            <ReservationsCard rows={reservations.rows} today={reservations.today} feedUrl={reservations.feedUrl} />
+          </div>
+        ) : null}
 
         <div style={{ marginTop: 28 }}>
           <TenantBills directoryId={entry.id} />

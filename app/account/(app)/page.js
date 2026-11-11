@@ -3,9 +3,8 @@ import { accountActivity } from "@/lib/account-activity.js";
 import { tenantBills, tenantStaffCost, freshMonth, currentMonth } from "@/lib/staff-costs.js";
 import { sharesStaffCost, upcomingStaffSchedule } from "@/lib/staff-schedule.js";
 import { makerOverview, needsTerms } from "@/lib/inventory.js";
-import { listReservations, reservationsFeedUrl } from "@/lib/reservations.js";
+import { reservationsCardData } from "@/lib/reservations.js";
 import { db } from "@/lib/db.js";
-import { venueToday, shiftDate } from "@/lib/constants.js";
 import AccountDashboard from "@/components/account/AccountDashboard.js";
 
 export const metadata = { title: "Your account" };
@@ -48,17 +47,7 @@ export default async function AccountHome() {
         )
         .get(...mine.businesses.map((b) => b.id))
     : null;
-  const reservations = resOwner
-    ? {
-        // This month and the next two, for the little calendar.
-        rows: listReservations({
-          from: `${venueToday().slice(0, 7)}-01`,
-          to: shiftDate(shiftDate(`${venueToday().slice(0, 7)}-01`, { months: 3 }), { days: -1 }),
-        }),
-        today: venueToday(),
-        feedUrl: reservationsFeedUrl(resOwner.reservations_token),
-      }
-    : null;
+  const reservations = reservationsCardData(resOwner && { ...resOwner, sees_reservations: 1 });
   const staffCost = Object.fromEntries(mine.businesses.map((b) => [b.id, tenantStaffCost(b.id)]));
   return (
     <AccountDashboard
