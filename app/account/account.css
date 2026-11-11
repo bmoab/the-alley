@@ -564,6 +564,37 @@ details[open] > summary .ac-act-chev { transform: rotate(180deg); color: var(--i
 
 /* Alley Reservations (a business switched on to see every booking — the cleaner) */
 .ac-res { display: flex; flex-direction: column; gap: 4px; }
+/* Alley Reservations: a little month calendar. */
+.ac-cal { border: 1px solid var(--line); border-radius: 16px; padding: 12px; background: var(--paper); }
+.ac-cal-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.ac-cal-month { margin: 0; font-weight: 600; font-size: 15px; }
+.ac-cal-nav { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); cursor: pointer; }
+.ac-cal-nav svg { width: 18px; height: 18px; }
+.ac-cal-nav:disabled { opacity: .35; cursor: default; }
+.ac-cal-nav:not(:disabled):hover { background: var(--paper-warm); }
+.ac-cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.ac-cal-wd { text-align: center; font-size: 11px; font-weight: 600; letter-spacing: .1em; color: var(--ink-muted); padding: 2px 0 4px; }
+.ac-cal-cell { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 4px; min-height: 48px; padding: 6px 0 4px; border-radius: 10px; border: 1px solid transparent; background: none; font: inherit; color: var(--ink); cursor: pointer; }
+.ac-cal-cell.is-blank { cursor: default; }
+.ac-cal-cell:not(.is-blank):hover { background: var(--paper-warm); }
+.ac-cal-cell.is-past { color: var(--ink-muted); }
+.ac-cal-cell.is-past .ac-cal-dots { opacity: .5; }
+.ac-cal-cell.is-busy { background: var(--paper-dim); }
+.ac-cal-cell.is-today .ac-cal-num { background: var(--verde-deep); color: #fff; }
+.ac-cal-cell.is-picked { border-color: var(--verde-deep); box-shadow: var(--ac-ring); }
+.ac-cal-cell:focus-visible { outline: none; box-shadow: var(--ac-ring); border-color: var(--verde-deep); }
+.ac-cal-num { display: grid; place-items: center; min-width: 24px; height: 24px; padding: 0 4px; border-radius: 999px; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.ac-cal-dots { display: flex; align-items: center; gap: 3px; min-height: 8px; }
+.ac-cal-dots i, .ac-cal-key i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--ink-soft, #55554f); }
+.ac-cal-dots i.is-public, .ac-cal-key i.is-public { background: var(--verde-deep); }
+.ac-cal-dots b { font-size: 9px; font-weight: 600; color: var(--ink-muted); }
+.ac-cal-key { display: flex; gap: 14px; margin: 10px 2px 0; font-size: 12px; color: var(--ink-muted); }
+.ac-cal-key span { display: inline-flex; align-items: center; gap: 6px; }
+@media (max-width: 420px) {
+  .ac-cal { padding: 8px; }
+  .ac-cal-grid { gap: 2px; }
+  .ac-cal-cell { min-height: 42px; }
+}
 .ac-res-day { border-top: 1px solid var(--line); padding-top: 12px; }
 .ac-res-day + .ac-res-day { margin-top: 8px; }
 .ac-res-date { margin: 0; font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-muted); }

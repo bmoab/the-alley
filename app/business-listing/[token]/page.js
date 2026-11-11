@@ -160,7 +160,7 @@ export default function BusinessListingPage({ params, searchParams }) {
         {/* ------------------------------------------------ tenant events */}
         <div id="events" className="ac-section">
           <div className="ac-section-head">
-            <h2 className="ac-h2">Your events on The Alley calendar</h2>
+            <h2 className="ac-h2" data-jump="Your events">Your events on The Alley calendar</h2>
           </div>
 
           {/* The distinction Chelsea asked us to spell out. A tenant seeing a

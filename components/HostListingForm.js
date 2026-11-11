@@ -191,7 +191,7 @@ export default function HostListingForm({ event, saveAction, alreadyLive, canSet
         </div>
       ) : null}
 
-      <div className="card p-5">
+      <div className="card p-5" data-jump-section data-jump="Event details">
         <label className="label">Event title</label>
         <input className="field" value={form.title} onChange={(e) => set({ title: e.target.value })} placeholder="Sunrise Vinyasa Yoga" />
         <div className="mt-4">
@@ -280,7 +280,7 @@ export default function HostListingForm({ event, saveAction, alreadyLive, canSet
         </div>
       </div>
 
-      <div className="card p-5">
+      <div className="card p-5" data-jump-section data-jump="How people pay">
         <h3 className="font-display text-lg font-semibold text-ink">How attendees pay you</h3>
         <p className="mt-1 text-sm text-ink-muted">
           The Alley takes no payment — you collect directly. Tell people how
@@ -296,7 +296,7 @@ export default function HostListingForm({ event, saveAction, alreadyLive, canSet
         </div>
       </div>
 
-      <div className="card p-5">
+      <div className="card p-5" data-jump-section data-jump="Links">
         <h3 className="font-display text-lg font-semibold text-ink">Links</h3>
         <p className="mt-1 text-sm text-ink-muted">
           Add your website, tickets page, or socials — they show as buttons on your
@@ -319,7 +319,7 @@ export default function HostListingForm({ event, saveAction, alreadyLive, canSet
         />
       ) : null}
 
-      <div className="card p-5">
+      <div className="card p-5" data-jump-section data-jump="Photo & files">
         <h3 className="font-display text-lg font-semibold text-ink">Photo & files</h3>
         <div className="mt-4">
           <label className="label">Flyer / photo</label>
@@ -348,7 +348,7 @@ export default function HostListingForm({ event, saveAction, alreadyLive, canSet
       </div>
 
       {canSetVisibility ? (
-        <div className="card p-5">
+        <div className="card p-5" data-jump-section data-jump="Who can see this">
           <h3 className="font-display text-lg font-semibold text-ink">Who can see this</h3>
           <label className="mt-3 flex cursor-pointer items-start gap-3 text-sm text-ink">
             <input

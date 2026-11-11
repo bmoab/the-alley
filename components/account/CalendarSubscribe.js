@@ -65,7 +65,7 @@ export function SubscribeButtons({ feedUrl, calName = "The Alley On Center — E
  */
 export default function CalendarSubscribe({ feedUrl, wide = true }) {
   return (
-    <div className={`ac-tile ac-rise ${wide ? "ac-tile--wide" : ""}`}>
+    <div className={`ac-tile ac-rise ${wide ? "ac-tile--wide" : ""}`} data-jump="Events calendar">
       <div className="ac-tile-head">
         <span className="ac-icon">
           <CalendarPlus aria-hidden="true" />

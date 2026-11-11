@@ -102,7 +102,7 @@ export default function DirectoryEditForm({ entry, saveAction }) {
         </div>
       ) : null}
 
-      <div className="card p-5">
+      <div className="card p-5" data-jump-section data-jump="Your details">
         <label className="label">Business name</label>
         <input
           className="field"
@@ -131,7 +131,7 @@ export default function DirectoryEditForm({ entry, saveAction }) {
         </div>
       </div>
 
-      <div className="card p-5">
+      <div className="card p-5" data-jump-section data-jump="Links">
         <h3 className="font-display text-lg font-semibold text-ink">Links</h3>
         <p className="mt-1 text-sm text-ink-muted">
           Add your website, socials, booking page — as many as you like. The
@@ -175,7 +175,7 @@ export default function DirectoryEditForm({ entry, saveAction }) {
         </button>
       </div>
 
-      <div className="card p-5">
+      <div className="card p-5" data-jump-section data-jump="Photos">
         <h3 className="font-display text-lg font-semibold text-ink">Photos</h3>
         <p className="mt-1 text-sm text-ink-muted">
           Add photos of your space and work. The first photo is your cover — it

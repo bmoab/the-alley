@@ -69,7 +69,7 @@ export default function TenantStaffCostCard({ data, name, wide = true }) {
   const paydays = c?.paychecks?.map((p) => shortDay(p.payday)) || [];
 
   return (
-    <div className={`ac-tile ac-rise ${wide ? "ac-tile--wide" : ""}`}>
+    <div className={`ac-tile ac-rise ${wide ? "ac-tile--wide" : ""}`} data-jump={`Staff cost${name ? ` · ${name}` : ""}`}>
       <div className="ac-tile-head">
         <span className="ac-icon">
           <Users aria-hidden="true" />

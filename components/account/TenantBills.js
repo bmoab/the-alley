@@ -18,7 +18,7 @@ export function TenantBillsCard({ bills: b, name, wide = true }) {
   if (!b || (!b.rent && !b.unpaid.length && !b.paid.length)) return null;
   const due = b.unpaid.reduce((t, r) => t + Number(r.amount || 0), 0);
   return (
-    <div className={`ac-tile ac-rise ${wide ? "ac-tile--wide" : ""}`}>
+    <div className={`ac-tile ac-rise ${wide ? "ac-tile--wide" : ""}`} data-jump={`Bills${name ? ` · ${name}` : ""}`}>
       <div className="ac-tile-head">
         <span className="ac-icon">
           <Receipt aria-hidden="true" />

@@ -253,3 +253,39 @@ input[type="datetime-local"] {
     white-space: normal !important;
   }
 }
+
+/* "Jump to" on long pages (components/JumpNav.js): a sidebar beside the
+   content when there's room, else a small button in the corner. */
+.jump-rail {
+  position: fixed; top: 112px; z-index: 30; width: 176px; max-height: calc(100vh - 140px); overflow-y: auto;
+  padding: 4px 0;
+}
+.jump-title { margin: 0 0 8px; padding-left: 12px; font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-muted); }
+.jump-list { margin: 0; padding: 0; list-style: none; }
+.jump-list button {
+  display: block; width: 100%; text-align: left; font: inherit; font-size: 13.5px; line-height: 1.35; color: var(--ink-muted);
+  background: none; border: 0; border-left: 2px solid var(--line); padding: 7px 10px 7px 12px; cursor: pointer;
+}
+.jump-list button:hover { color: var(--ink); }
+.jump-list button[aria-current="true"] { color: var(--ink); font-weight: 600; border-left-color: var(--verde-deep); }
+.jump-list button:focus-visible { outline: 2px solid var(--verde-deep); outline-offset: -2px; border-radius: 4px; }
+.jump-float { position: fixed; right: 16px; bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 45; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+@media (max-width: 760px) { .jump-float.jump--account { bottom: calc(80px + env(safe-area-inset-bottom)); } }
+@media (max-width: 1023px) { .jump-float.jump--admin { bottom: calc(84px + env(safe-area-inset-bottom)); } }
+.jump-btn {
+  display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 16px; border-radius: 999px;
+  border: 1px solid var(--line); background: rgba(255, 255, 255, .96); color: var(--ink); font: inherit; font-size: 14px; font-weight: 600;
+  box-shadow: 0 6px 20px rgba(47, 47, 45, .14); cursor: pointer; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.jump-btn svg { width: 17px; height: 17px; }
+.jump-btn:focus-visible, .jump-close:focus-visible { outline: 2px solid var(--verde-deep); outline-offset: 2px; }
+.jump-sheet {
+  width: min(300px, calc(100vw - 32px)); max-height: min(60vh, 460px); overflow-y: auto; padding: 12px 8px 10px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 16px 40px rgba(47, 47, 45, .18);
+}
+.jump-sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.jump-sheet-head .jump-title { margin: 0; }
+.jump-close { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 999px; border: 0; background: none; color: var(--ink-muted); cursor: pointer; }
+.jump-close svg { width: 18px; height: 18px; }
+.jump-sheet .jump-list button { font-size: 15px; padding: 10px 12px; }
+@media print { .jump-nav { display: none !important; } }

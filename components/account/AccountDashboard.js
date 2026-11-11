@@ -85,7 +85,7 @@ function Explore({ mine }) {
     activity: true,
   };
   return (
-    <section className="ac-section ac-rise ac-rise-5" id="explore">
+    <section className="ac-section ac-rise ac-rise-5" id="explore" data-jump="What you can do">
       <div className="ac-section-head">
         <h2 className="ac-h2">Everything you can do here</h2>
         <span className="ac-small">Tap one to see how it works</span>
@@ -166,8 +166,15 @@ export default function AccountDashboard({ account, mine, recent = [], makerStat
   const nothing =
     !mine.makers.length && !mine.bookings.total && !mine.listings.length && !mine.businesses.length && !mine.exhibitors.length;
 
-  // The tiles, in order. An odd one out stretches across the row, so the grid
-  // never ends on an empty half.
+  // A tenant's business always comes first, across the whole row.
+  const businessTiles = mine.businesses.map((b) => (
+    <Tile key={`b${b.id}`} wide href={go(`/business-listing/${b.token}`, "business")} icon={Store} eyebrow="Your business" title={b.business_name} go="Edit">
+      <p className="ac-tile-body">Your directory listing, and the events you post on our calendar.</p>
+    </Tile>
+  ));
+
+  // The other tiles, in order. An odd one out stretches across the row, so the
+  // grid never ends on an empty half.
   const tiles = [
     ...mine.makers.map((m) => (wide) => {
       const o = makerStats[m.id] || { onShelf: 0, soFarThisMonth: 0, due: 0, waiting: false };
@@ -214,11 +221,6 @@ export default function AccountDashboard({ account, mine, recent = [], makerStat
           ),
         ]
       : []),
-    ...mine.businesses.map((b) => (wide) => (
-      <Tile key={`b${b.id}`} wide={wide} href={go(`/business-listing/${b.token}`, "business")} icon={Store} eyebrow="Your business" title={b.business_name} go="Edit">
-        <p className="ac-tile-body">Your directory listing, and the events you post on our calendar.</p>
-      </Tile>
-    )),
     ...mine.exhibitors.map((x) => (wide) => (
       <Tile key={`x${x.id}`} wide={wide} href={go(`/exhibitor/${x.token}`, "exhibitor")} icon={Palette} eyebrow="Gallery" title={x.name} go="Edit">
         <p className="ac-tile-body">Your exhibitor profile and artwork in our gallery.</p>
@@ -263,7 +265,8 @@ export default function AccountDashboard({ account, mine, recent = [], makerStat
         </section>
       ) : (
         <div className="ac-grid">
-          {reservations ? <ReservationsCard rows={reservations.rows} feedUrl={reservations.feedUrl} /> : null}
+          {businessTiles}
+          {reservations ? <ReservationsCard rows={reservations.rows} today={reservations.today} feedUrl={reservations.feedUrl} /> : null}
           {mine.businesses.map((b) => (
             <TenantBillsCard
               key={`bills${b.id}`}

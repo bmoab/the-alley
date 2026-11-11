@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getAccount } from "@/lib/accounts.js";
 import AccountNav, { AccountMobileNav } from "@/components/account/AccountNav.js";
+import JumpNav from "@/components/JumpNav.js";
 
 function initials(account) {
   const src = (account.name || account.email || "?").trim();
@@ -29,6 +30,7 @@ export default async function AccountAppLayout({ children }) {
         </div>
       </header>
       <main className="ac-main">{children}</main>
+      <JumpNav root=".ac-main" rail />
       {account ? <AccountMobileNav /> : null}
     </>
   );

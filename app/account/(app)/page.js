@@ -50,7 +50,12 @@ export default async function AccountHome() {
     : null;
   const reservations = resOwner
     ? {
-        rows: listReservations({ from: venueToday(), to: shiftDate(venueToday(), { days: 20 }) }),
+        // This month and the next two, for the little calendar.
+        rows: listReservations({
+          from: `${venueToday().slice(0, 7)}-01`,
+          to: shiftDate(shiftDate(`${venueToday().slice(0, 7)}-01`, { months: 3 }), { days: -1 }),
+        }),
+        today: venueToday(),
         feedUrl: reservationsFeedUrl(resOwner.reservations_token),
       }
     : null;

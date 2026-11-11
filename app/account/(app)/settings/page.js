@@ -76,7 +76,7 @@ export default async function SettingsPage({ searchParams }) {
 
       <section className="ac-set">
         <div>
-          <h2 className="ac-h2">Sign out</h2>
+          <h2 className="ac-h2" data-jump="off">Sign out</h2>
           <p className="ac-small" style={{ marginTop: 6 }}>On this device.</p>
         </div>
         <form action={signOut}>

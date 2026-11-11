@@ -8,6 +8,7 @@ import BottomNav from "@/components/admin/BottomNav.js";
 import Toaster from "@/components/admin/ui/Toaster.js";
 import BookingDrawer from "@/components/admin/BookingDrawer.js";
 import { attentionCounts } from "@/lib/attention.js";
+import JumpNav from "@/components/JumpNav.js";
 
 async function logout() {
   "use server";
@@ -60,6 +61,9 @@ export default async function AdminLayout({ children }) {
           {children}
         </div>
       </main>
+
+      {/* "Jump to" a section on long pages */}
+      <JumpNav root="main" variant="admin" />
 
       {/* Mobile bottom tab bar + More sheet */}
       <BottomNav email={user.email} isOwner={isOwner} canManageBookings={canManage} canManageStaff={staffManager} counts={counts} logout={logout} />

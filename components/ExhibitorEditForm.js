@@ -108,7 +108,7 @@ export default function ExhibitorEditForm({ exhibitor, saveAction, addPhotoActio
         <div className="rounded-lg border border-rust/30 bg-rust/10 px-4 py-2 text-sm text-rust">{error}</div>
       ) : null}
 
-      <div className="card p-5">
+      <div className="card p-5" data-jump-section data-jump="Your details">
         <label className="label">Name</label>
         <input className="field" value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="Your name or studio" />
         <div className="mt-4">
@@ -121,7 +121,7 @@ export default function ExhibitorEditForm({ exhibitor, saveAction, addPhotoActio
         </div>
       </div>
 
-      <div className="card p-5">
+      <div className="card p-5" data-jump-section data-jump="Links">
         <h3 className="font-display text-lg font-semibold text-ink">Links</h3>
         <p className="mt-1 text-xs text-ink-muted">
           Your website, Instagram, shop — add as many as you like. The button label is what visitors see.
@@ -163,7 +163,7 @@ export default function ExhibitorEditForm({ exhibitor, saveAction, addPhotoActio
         </button>
       </div>
 
-      <div className="card p-5">
+      <div className="card p-5" data-jump-section data-jump="Profile photo">
         <h3 className="font-display text-lg font-semibold text-ink">Profile photo</h3>
         <p className="mt-1 text-xs text-ink-muted">A portrait or headshot shown beside your bio.</p>
         {profile ? (
@@ -174,7 +174,7 @@ export default function ExhibitorEditForm({ exhibitor, saveAction, addPhotoActio
         {uploadingProfile ? <p className="mt-1 text-xs text-ink-muted">Uploading…</p> : null}
       </div>
 
-      <div className="card p-5">
+      <div className="card p-5" data-jump-section data-jump="Photos of your work">
         <h3 className="font-display text-lg font-semibold text-ink">Photos of your work</h3>
         <p className="mt-1 text-xs text-ink-muted">Add a few images of your work — these show on your exhibitor feature.</p>
         {works.length ? (

@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import "@/app/account/account.css";
 import { getAccount } from "@/lib/accounts.js";
 import Toaster from "@/components/admin/ui/Toaster.js";
+import JumpNav from "@/components/JumpNav.js";
 
 function initials(account) {
   const src = (account.name || account.email || "?").trim();
@@ -39,6 +40,7 @@ export default async function PortalFrame({ label, children, toaster = false, cl
         </div>
       </header>
       <main className="ac-main ac-main--narrow">{children}</main>
+      <JumpNav root=".ac-main" rail />
       {toaster ? (
         <Suspense fallback={null}>
           <Toaster />

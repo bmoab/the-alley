@@ -380,7 +380,7 @@ export default async function MoneyPage({ searchParams }) {
           )}
         </Card>
 
-        <Card pad="md" id="rent">
+        <Card pad="md" id="rent" data-jump-section data-jump="Rent">
           <div className="flex items-baseline justify-between gap-2">
             <h3 className="font-semibold text-ink">Rent · {monthLabel(month)}</h3>
             <span className="text-xs text-ink-muted">
