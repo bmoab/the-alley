@@ -113,7 +113,7 @@ export default async function MoneyPage({ searchParams }) {
   const rentUnpaid = o.rent.filter((r) => !r.payment);
 
   const incomeRows = [
-    { label: "Shop", amount: o.income.shop, href: salesHref, note: "our items + our share of makers'" },
+    { label: "Shop", amount: o.income.shop, href: salesHref, note: o.fromSquare ? "all register sales · some read straight from Square" : "all register sales · makers' share is under money out" },
     { label: "Room rentals", amount: o.income.rentals, href: `/admin/events?status=all&from=${start}&to=${end}` },
     { label: "Event tickets", amount: o.income.tickets, href: salesHref },
     { label: "Tenants' rent", amount: o.income.rent, href: "#rent" },
@@ -123,7 +123,7 @@ export default async function MoneyPage({ searchParams }) {
   ];
   const costRows = [
     { label: "Makers' share of sales", amount: o.costs.makers, href: "/admin/vendors" },
-    { label: "Staff", amount: o.costs.staff, href: `/admin/staff-costs?month=${month}`, note: o.staffAddedUp ? "" : "not added up yet" },
+    { label: "Staff", amount: o.costs.staff, href: `/admin/staff-costs?month=${month}`, note: o.staffAddedUp ? "" : o.staffFromBank ? "from the bank" : "not added up yet" },
     { label: "Mortgage", amount: o.costs.mortgage, href: billsHref },
     { label: "Utilities", amount: o.costs.utilities, href: billsHref },
     { label: "Insurance", amount: o.costs.insurance, href: billsHref },
@@ -147,6 +147,9 @@ export default async function MoneyPage({ searchParams }) {
             </Button>
             <Button href={bankHref} size="sm" variant="ghost">
               Bank{toSort ? ` · ${toSort} to sort` : ""}
+            </Button>
+            <Button href={`${PATH}/big-picture`} size="sm" variant="ghost">
+              Big picture
             </Button>
           </div>
         }
