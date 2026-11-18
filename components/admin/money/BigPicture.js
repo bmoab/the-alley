@@ -8,6 +8,10 @@ import { formatMoney } from "@/lib/constants.js";
  * Money → Big picture: an average month from real months, a year at that
  * pace, and "what if" levers. Everything is figured in the browser, so
  * changing a number never touches the books; only "paid personally" is saved.
+ *
+ * "Paid personally" is either the amounts typed in per month, or — with the
+ * account slider below 100% — an estimate: if the Alley account carries only
+ * part of the spending, the rest is what it paid out times (rest ÷ part).
  */
 
 const IN = [
@@ -102,19 +106,28 @@ export default function BigPicture({ rows, n, saveAction }) {
   const [notes, setNotes] = useState(() => Object.fromEntries(rows.map((r) => [r.month, r.personalNote || ""])));
   const [edits, setEdits] = useState({});
   const [lv, setLv] = useState({ rentals: 0, rent: 0, shopPct: 0, staffPct: 0, cut: 0 });
+  // How much of the Alley's spending goes through the Alley account (100 = all of it).
+  const [thru, setThru] = useState(100);
+  const sliderOn = thru < 100;
+  const ratio = (100 - thru) / thru;
   const dirty = rows.some((r) => num(personal[r.month]) !== (r.personal || 0) || (notes[r.month] || "") !== (r.personalNote || ""));
 
+  // A month with no bank statement yet borrows the average of the ticked months that have one.
+  const withBank = rows.filter((r) => r.hasBank && on.has(r.month));
+  const bankAvg = withBank.length ? r2(withBank.reduce((s, r) => s + r.accountOut, 0) / withBank.length) : 0;
   const months = useMemo(
     () =>
       rows.map((r) => {
         const inn = r2(IN.reduce((s, l) => s + (r.income[l.key] || 0), 0));
         const outBiz = r2(OUT.reduce((s, l) => s + (l.key === "personal" ? 0 : r.costs[l.key] || 0), 0));
-        const pers = num(personal[r.month]);
-        return { ...r, on: on.has(r.month), inn, outBiz, pers, out: r2(outBiz + pers), net: r2(inn - outBiz - pers) };
+        const est = r2((r.hasBank ? r.accountOut : bankAvg) * ratio);
+        const pers = sliderOn ? est : num(personal[r.month]);
+        return { ...r, on: on.has(r.month), inn, outBiz, est, pers, out: r2(outBiz + pers), net: r2(inn - outBiz - pers) };
       }),
-    [rows, personal, on]
+    [rows, personal, on, sliderOn, ratio, bankAvg]
   );
   const used = months.filter((m) => m.on);
+  const noBank = used.filter((m) => !m.hasBank);
   const avgOf = (side, key) => {
     if (!used.length) return 0;
     const v = used.reduce((s, m) => s + (key === "personal" ? m.pers : side === "in" ? m.income[key] || 0 : m.costs[key] || 0), 0);
@@ -155,11 +168,12 @@ export default function BigPicture({ rows, n, saveAction }) {
     const k = `${side}.${l.key}`;
     const avg = avgOf(side, l.key);
     const edited = edits[k] != null && edits[k] !== "";
+    const hint = l.key === "personal" && sliderOn ? `estimate: ${100 - thru}% of spending` : l.hint;
     return (
       <li key={l.key} className="flex items-center justify-between gap-3 py-1.5">
         <span className="min-w-0 text-sm">
           <span className="text-ink">{l.label}</span>
-          {l.hint ? <span className="ml-1.5 text-xs text-ink-muted">{l.hint}</span> : null}
+          {hint ? <span className="ml-1.5 text-xs text-ink-muted">{hint}</span> : null}
           {edited ? (
             <button type="button" onClick={() => setEdits((e) => ({ ...e, [k]: "" }))} className="ml-2 text-xs text-ink-muted underline">
               back to {whole(avg)}
@@ -185,10 +199,51 @@ export default function BigPicture({ rows, n, saveAction }) {
       {/* The headline */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Average month in" value={whole(base.inn)} />
-        <Stat label="Average month out" value={whole(base.out)} sub={lineVal("out", "personal") ? `includes ${whole(lineVal("out", "personal"))} paid personally` : "business account only so far"} />
+        <Stat label="Average month out" value={whole(base.out)} sub={lineVal("out", "personal") ? `includes ${whole(lineVal("out", "personal"))} paid personally${sliderOn ? " (estimate)" : ""}` : "nothing paid personally added yet"} />
         <Stat label={base.net >= 0 ? "Left over a month" : "Short a month"} value={whole(Math.abs(base.net))} tone={base.net >= 0 ? "good" : "bad"} sub={`about ${whole(Math.abs(base.net) / 30.4)} a day`} />
         <Stat label={base.net >= 0 ? "Over a year" : "Short over a year"} value={whole(Math.abs(base.net * 12))} tone={base.net >= 0 ? "good" : "bad"} sub="at this pace" />
       </div>
+
+      <Card pad="md">
+        <h2 className="text-base font-semibold text-ink">Paid from personal accounts</h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          The Money page only sees the Alley account. If some of the Alley&apos;s spending is paid personally, slide this to how much goes through the
+          Alley account, and the rest is added as paid personally. At 100%, the amounts typed in under Month by month are used instead.
+        </p>
+        <div className="mt-4 max-w-xl">
+          <Lever
+            label="Share of the Alley's spending paid from the Alley account"
+            value={thru}
+            min={5}
+            max={100}
+            step={5}
+            show={(v) => `${v}%`}
+            onChange={setThru}
+          />
+        </div>
+        {sliderOn ? (
+          <div className="mt-3 space-y-1 text-sm">
+            <p className="text-ink">
+              {bankAvg ? (
+                <>
+                  The Alley account paid out about <strong className="tabular-nums">{whole(bankAvg)}</strong> a month. If that&apos;s {thru}% of the
+                  spending, about <strong className="tabular-nums text-rust">{whole(bankAvg * ratio)}</strong> a month ({whole(bankAvg * ratio * 12)} a
+                  year) was paid personally.
+                </>
+              ) : (
+                "Upload a bank statement for at least one of these months (Money → Bank) to estimate from."
+              )}
+            </p>
+            <p className="text-xs text-ink-muted">
+              Counts everything that left the account except transfers to the owner and sales tax. If something paid personally is already on the Money
+              page — a bill typed into Bills, say — it&apos;s now counted twice, so ease the slider up a little.
+              {noBank.length && bankAvg
+                ? ` No bank statement yet for ${noBank.map((m) => m.label).join(", ")}, so ${noBank.length === 1 ? "it uses" : "they use"} the average of the months that have one.`
+                : ""}
+            </p>
+          </div>
+        ) : null}
+      </Card>
 
       <Card pad="md">
         <h2 className="text-base font-semibold text-ink">Month by month</h2>
@@ -207,7 +262,7 @@ export default function BigPicture({ rows, n, saveAction }) {
                 <tr className="text-left text-xs uppercase tracking-wider text-ink-muted">
                   <th className="py-2 font-semibold">Month</th>
                   <th className="py-2 text-right font-semibold">In</th>
-                  <th className="py-2 text-right font-semibold">Out<span className="hidden sm:inline"> (business account)</span></th>
+                  <th className="py-2 text-right font-semibold">Out<span className="hidden sm:inline"> (on Money)</span></th>
                   <th className="py-2 pl-2 font-semibold sm:pl-3">Paid personally</th>
                   <th className="py-2 text-right font-semibold">Left over</th>
                 </tr>
@@ -229,23 +284,30 @@ export default function BigPicture({ rows, n, saveAction }) {
                     <td className="py-2 text-right tabular-nums">{whole(m.inn)}</td>
                     <td className="py-2 text-right tabular-nums">{whole(m.outBiz)}</td>
                     <td className="py-2 pl-2 sm:pl-3">
-                      <input
-                        name={`personal_${m.month}`}
-                        inputMode="decimal"
-                        placeholder="0"
-                        value={personal[m.month]}
-                        onChange={(e) => setPersonal((p) => ({ ...p, [m.month]: e.target.value }))}
-                        className="field !h-8 !w-20 !py-0 text-right tabular-nums sm:!w-28"
-                        aria-label={`Paid personally in ${m.label}`}
-                      />
-                      <input
-                        name={`note_${m.month}`}
-                        placeholder="what for (optional)"
-                        value={notes[m.month]}
-                        onChange={(e) => setNotes((p) => ({ ...p, [m.month]: e.target.value }))}
-                        className="field mt-1 !h-8 !w-20 !py-0 text-xs sm:!w-full"
-                        aria-label={`What was paid personally in ${m.label}`}
-                      />
+                      {sliderOn ? (
+                        <span className="mb-1 block text-xs font-semibold tabular-nums text-ink">
+                          {m.hasBank ? `${whole(m.est)} estimated` : bankAvg ? `${whole(m.est)} avg.` : "no bank statement"}
+                        </span>
+                      ) : null}
+                      <div className={sliderOn ? "opacity-40" : ""}>
+                        <input
+                          name={`personal_${m.month}`}
+                          inputMode="decimal"
+                          placeholder="0"
+                          value={personal[m.month]}
+                          onChange={(e) => setPersonal((p) => ({ ...p, [m.month]: e.target.value }))}
+                          className="field !h-8 !w-20 !py-0 text-right tabular-nums sm:!w-28"
+                          aria-label={`Paid personally in ${m.label}`}
+                        />
+                        <input
+                          name={`note_${m.month}`}
+                          placeholder="what for (optional)"
+                          value={notes[m.month]}
+                          onChange={(e) => setNotes((p) => ({ ...p, [m.month]: e.target.value }))}
+                          className="field mt-1 !h-8 !w-20 !py-0 text-xs sm:!w-full"
+                          aria-label={`What was paid personally in ${m.label}`}
+                        />
+                      </div>
                     </td>
                     <td className={`py-2 text-right font-semibold tabular-nums ${m.net >= 0 ? "text-verde-deep" : "text-rust"}`}>{signed(m.net)}</td>
                   </tr>
