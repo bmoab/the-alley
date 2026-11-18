@@ -5,6 +5,7 @@ import { MONTH_RE, bigPicture, monthLabel, savePersonal, thisMonth } from "@/lib
 import { shiftDate } from "@/lib/constants.js";
 import PageHeader from "@/components/admin/ui/PageHeader.js";
 import Button from "@/components/admin/ui/Button.js";
+import PrintButton from "@/components/admin/ui/PrintButton.js";
 import BigPicture from "@/components/admin/money/BigPicture.js";
 
 export const metadata = { title: "Big picture" };
@@ -41,14 +42,15 @@ export default async function BigPicturePage({ searchParams }) {
     <div>
       <PageHeader
         title="Big picture"
-        subtitle={`An average month from ${monthLabel(months[0])} to ${monthLabel(last)}, what that means over a year, and what would change it. Every number in the average can be changed to try things — nothing here changes the books except what's saved as paid personally.`}
+        subtitle={`An average month from ${monthLabel(months[0])} to ${monthLabel(last)}, a year at that pace, and what would change it. Trying numbers here never changes the books.`}
         actions={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 print:hidden">
             {[3, 4, 6, 12].map((k) => (
               <Button key={k} href={`${PATH}?n=${k}`} size="sm" variant={k === n ? "primary" : "ghost"}>
                 {k} months
               </Button>
             ))}
+            <PrintButton size="sm" variant="subtle" />
             <Button href="/admin/money" size="sm" variant="subtle">
               Money
             </Button>

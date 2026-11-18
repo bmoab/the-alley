@@ -289,3 +289,17 @@ input[type="datetime-local"] {
 .jump-close svg { width: 18px; height: 18px; }
 .jump-sheet .jump-list button { font-size: 15px; padding: 10px 12px; }
 @media print { .jump-nav { display: none !important; } }
+
+/* Printing an admin page: just the page itself, on white — no menus, drawers
+   or toasts. A page marked [data-print] also drops its buttons and controls. */
+@media print {
+  @page { margin: 12mm; }
+  .admin-ui { background: #fff !important; display: block !important; }
+  .admin-ui > aside, .admin-ui > header, .admin-ui .fixed, .admin-ui.fixed { display: none !important; }
+  .admin-ui main > div { padding: 0 !important; }
+  .admin-ui .card { box-shadow: none !important; break-inside: avoid; }
+  [data-print] button, [data-print] input[type="range"], [data-print] input[type="checkbox"] { display: none !important; }
+  [data-print] input.field { border: 0 !important; box-shadow: none !important; background: transparent !important; padding: 0 !important; }
+  [data-print] input.field::placeholder { color: transparent; }
+  .print-color { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
